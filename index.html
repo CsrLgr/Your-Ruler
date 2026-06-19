@@ -34,6 +34,7 @@
   }
   .ruler-seg {
     flex: 1;
+    position: relative;
     border-bottom: 1px solid #222;
     display: flex;
     align-items: center;
@@ -41,14 +42,24 @@
     font-size: 11px;
     color: #555;
     background: #1a1a1a;
-    transition: background 0.3s, color 0.3s;
+    overflow: hidden;
   }
   .ruler-seg:last-child { border-bottom: none; }
-  .ruler-seg.active {
+  .ruler-seg .fill {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 0%;
     background: #c0b5a5;
-    color: #1a1a1a;
-    font-weight: bold;
+    transition: height 0.3s;
   }
+  .ruler-seg .num {
+    position: relative;
+    z-index: 2;
+  }
+  .ruler-seg.complete .num { color: #1a1a1a; font-weight: bold; }
+  .ruler-seg.complete .fill { height: 100%; }
   .ruler-label { font-size:12px; color:#999; margin-top:0.5rem; }
 </style>
 </head>
@@ -109,9 +120,15 @@ var segs = [];
 for (var i=1; i<=12; i++) {
   var seg = document.createElement('div');
   seg.className = 'ruler-seg';
-  seg.textContent = i;
+  var fillDiv = document.createElement('div');
+  fillDiv.className = 'fill';
+  var numSpan = document.createElement('span');
+  numSpan.className = 'num';
+  numSpan.textContent = i;
+  seg.appendChild(fillDiv);
+  seg.appendChild(numSpan);
   rulerTrack.appendChild(seg);
-  segs.push(seg);
+  segs.push({el: seg, fill: fillDiv});
 }
 
 function update(){
@@ -135,11 +152,18 @@ document.getElementById('alignDisplay').textContent = 'Hour ' + alignHour + ' an
 document.getElementById('realDisplay').textContent = 'Real time: ' + now.toLocaleTimeString();
 
 var currentSeg = alignHour + 1;
-segs.forEach(function(seg, idx){
-  if (idx+1 === currentSeg) {
-    seg.classList.add('active');
+var fillPct = (alignMin/120)*100;
+segs.forEach(function(s, idx){
+  var segNum = idx+1;
+  if (segNum < currentSeg) {
+    s.el.classList.add('complete');
+    s.fill.style.height = '100%';
+  } else if (segNum === currentSeg) {
+    s.el.classList.remove('complete');
+    s.fill.style.height = fillPct + '%';
   } else {
-    seg.classList.remove('active');
+    s.el.classList.remove('complete');
+    s.fill.style.height = '0%';
   }
 });
 }
