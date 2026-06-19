@@ -1,4 +1,4 @@
-const CACHE_NAME = 'csr-align-v1';
+const CACHE_NAME = 'csr-align-v2';
 const urlsToCache = [
   './',
   './index.html',
