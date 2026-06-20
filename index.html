@@ -1101,6 +1101,8 @@ function sendMagicLink(email) {
   });
 }
 
+var currentUser = null;
+
 function initAuth() {
   if (!supabaseClient) {
     renderAuthBarLoggedOut();
@@ -1156,7 +1158,6 @@ initAuth();
 // Clans — create, join, view live member rulers
 // (Journal entries are never part of this. Only block layout.)
 // ============================================================
-var currentUser = null;
 var clansSection = document.getElementById('clansSection');
 var clansLocked = document.getElementById('clansLocked');
 var clansMsgEl = document.getElementById('clansMsg');
