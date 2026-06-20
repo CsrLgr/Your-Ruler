@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>CSR Align</title>
+<title>My Ruler</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#c0b5a5">
 <style>
@@ -16,9 +16,16 @@
     color: #eee;
     padding: 2rem 1.5rem;
   }
-  .header { text-align: center; margin-bottom: 2rem; }
+  .header { text-align: center; margin-bottom: 0.5rem; }
   .header h1 { font-size: 28px; margin: 0; color: #eee; }
   .header p { font-size: 14px; color: #999; margin-top: 0.4rem; }
+  .header .live-clock {
+    font-size: 13px;
+    color: #c0b5a5;
+    margin-top: 0.5rem;
+    letter-spacing: 0.05em;
+    font-variant-numeric: tabular-nums;
+  }
 
   .section-label {
     font-size: 12px;
@@ -38,7 +45,18 @@
 
   .ruler-container {
     max-width: 1100px;
-    margin: 0 auto 2rem auto;
+    margin: 2rem auto 0.4rem auto;
+  }
+
+  /* 24-hour span markers above the track */
+  .span-markers {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: #777;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+    padding: 0 1px;
   }
 
   .ruler-track {
@@ -107,9 +125,34 @@
   }
   .resize-handle:hover { background: rgba(255,255,255,0.15); }
 
+  /* Sleep toggle button in the corner of each block */
+  .sleep-toggle {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 1px solid #555;
+    background: rgba(0,0,0,0.35);
+    color: #999;
+    font-size: 9px;
+    line-height: 14px;
+    text-align: center;
+    cursor: pointer;
+    z-index: 6;
+    user-select: none;
+  }
+  .sleep-toggle:hover { border-color: #c0b5a5; color: #c0b5a5; }
+  .ruler-block.sleep-zone .sleep-toggle {
+    border-color: #c0b5a5;
+    color: #c0b5a5;
+    background: rgba(0,0,0,0.45);
+  }
+
   .current-block-info {
     max-width: 1100px;
-    margin: 0 auto 1rem auto;
+    margin: 0 auto 0.5rem auto;
     display: flex;
     justify-content: space-between;
     align-items: baseline;
@@ -117,34 +160,47 @@
   .current-block-info .cb-name { font-size: 16px; color: #c0b5a5; }
   .current-block-info .cb-time { font-size: 13px; color: #888; }
 
-  .work-area {
+  /* Totals row: minutes + % of day asleep */
+  .totals-row {
     max-width: 1100px;
+    margin: 0 auto 2rem auto;
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #888;
+    border-top: 1px solid #2a2a2a;
+    padding-top: 0.5rem;
+  }
+  .totals-row .totals-label { color: #c0b5a5; }
+
+  .work-area {
+    max-width: 550px;
     margin: 0 auto;
   }
   textarea {
     width: 100%;
-    min-height: 160px;
+    min-height: 110px;
     background: #1a1a1a;
     border: 1px solid #333;
     border-radius: 8px;
     color: #eee;
     font-family: Georgia, serif;
-    font-size: 14px;
-    padding: 1rem;
+    font-size: 13px;
+    padding: 0.75rem;
     resize: vertical;
   }
   textarea:focus { outline: 1px solid #c0b5a5; }
 
-  .btn-row { display: flex; gap: 1rem; margin-top: 1rem; }
+  .btn-row { display: flex; gap: 0.6rem; margin-top: 0.75rem; }
   button {
     flex: 1;
-    padding: 0.9rem;
+    padding: 0.6rem 0.5rem;
     border: none;
     border-radius: 6px;
     background: #c0b5a5;
     color: #1a1a1a;
     font-weight: bold;
-    font-size: 14px;
+    font-size: 12px;
     cursor: pointer;
     font-family: Georgia, serif;
   }
@@ -153,25 +209,26 @@
   button.secondary:hover { background: #3a3a3a; }
 
   .entries-list {
-    max-width: 1100px;
-    margin: 2rem auto 0 auto;
+    max-width: 550px;
+    margin: 1.5rem auto 0 auto;
   }
   .entry-item {
     background: #161616;
     border: 1px solid #2a2a2a;
     border-radius: 6px;
-    padding: 1rem;
-    margin-bottom: 0.75rem;
+    padding: 0.85rem;
+    margin-bottom: 0.6rem;
   }
-  .entry-date { font-size: 12px; color: #c0b5a5; margin-bottom: 0.4rem; }
-  .entry-text { font-size: 13px; color: #ccc; white-space: pre-wrap; }
+  .entry-date { font-size: 11px; color: #c0b5a5; margin-bottom: 0.4rem; }
+  .entry-text { font-size: 12px; color: #ccc; white-space: pre-wrap; }
 </style>
 </head>
 <body>
 
 <div class="header">
-  <h1>CSR Align</h1>
+  <h1>My Ruler</h1>
   <p>Your 12-block day planner</p>
+  <div class="live-clock" id="liveClock">—</div>
 </div>
 
 <div class="ruler-container">
@@ -179,12 +236,21 @@
     <span class="section-label">Today's Schedule</span>
     <span class="progress-pct" id="dayProgress">0% of day elapsed</span>
   </div>
+  <div class="span-markers">
+    <span>6:00 AM</span>
+    <span>6:00 AM (+24h)</span>
+  </div>
   <div class="ruler-track" id="rulerTrack"></div>
 </div>
 
 <div class="current-block-info">
   <span class="cb-name" id="currentBlockName">—</span>
   <span class="cb-time" id="currentBlockTime">—</span>
+</div>
+
+<div class="totals-row">
+  <span><span class="totals-label">Sleep:</span> <span id="sleepTotal">0 min</span></span>
+  <span><span class="totals-label">% of day asleep:</span> <span id="sleepPct">0%</span></span>
 </div>
 
 <div class="work-area">
@@ -205,25 +271,29 @@
 var TOTAL_MIN = 1440;
 var NUM_BLOCKS = 12;
 var DEFAULT_SIZE = TOTAL_MIN / NUM_BLOCKS; // 120
-var SLEEP_MIN = 420; // last 420 minutes of the day are the "sleep zone"
-var DAY_START_OFFSET = 360; // 6am reference, matches existing align logic
+var DAY_START_OFFSET = 360; // 6am reference
 
 var STORAGE_KEY = 'csrAlignBlocks';
 var ENTRIES_KEY = 'csrAlignEntries';
 var TODAY_KEY = 'csrAlignTodayEntry';
 
 // ---- Load or initialize block data ----
+// Each block: { name, minutes, sleep: true/false }
 function loadBlocks() {
   var saved = localStorage.getItem(STORAGE_KEY);
   if (saved) {
     try {
       var parsed = JSON.parse(saved);
-      if (parsed.length === NUM_BLOCKS) return parsed;
+      if (parsed.length === NUM_BLOCKS) {
+        // migrate older entries that don't have a "sleep" flag yet
+        parsed.forEach(function(b) { if (typeof b.sleep === 'undefined') b.sleep = false; });
+        return parsed;
+      }
     } catch(e) {}
   }
   var blocks = [];
   for (var i = 0; i < NUM_BLOCKS; i++) {
-    blocks.push({ name: 'Block ' + (i+1), minutes: DEFAULT_SIZE });
+    blocks.push({ name: 'Block ' + (i+1), minutes: DEFAULT_SIZE, sleep: false });
   }
   return blocks;
 }
@@ -255,20 +325,8 @@ function renderRuler() {
     var endMin = startMin + b.minutes;
 
     var el = document.createElement('div');
-    el.className = 'ruler-block';
+    el.className = 'ruler-block' + (b.sleep ? ' sleep-zone' : '');
     el.style.width = widthPct + '%';
-
-    var sleepZoneStart = TOTAL_MIN - SLEEP_MIN;
-    if (endMin > sleepZoneStart) {
-      var overlapStart = Math.max(startMin, sleepZoneStart);
-      var overlapMin = endMin - overlapStart;
-      var overlapFrac = overlapMin / b.minutes;
-      if (overlapFrac > 0.5) {
-        el.classList.add('sleep-zone');
-      } else if (overlapFrac > 0) {
-        el.style.background = 'linear-gradient(to right, #1f1f1f ' + ((1-overlapFrac)*100) + '%, #5a2323 ' + ((1-overlapFrac)*100) + '%)';
-      }
-    }
 
     var nameSpan = document.createElement('div');
     nameSpan.className = 'block-name';
@@ -292,9 +350,23 @@ function renderRuler() {
     var fillOverlay = document.createElement('div');
     fillOverlay.className = 'fill-overlay';
 
+    var sleepToggle = document.createElement('div');
+    sleepToggle.className = 'sleep-toggle';
+    sleepToggle.textContent = '💤';
+    sleepToggle.title = b.sleep ? 'Marked as sleep — click to unmark' : 'Mark as sleep block';
+    sleepToggle.addEventListener('mousedown', function(e){ e.stopPropagation(); });
+    sleepToggle.addEventListener('click', function(e) {
+      e.stopPropagation();
+      blocks[idx].sleep = !blocks[idx].sleep;
+      saveBlocks();
+      renderRuler();
+      updateLive();
+    });
+
     el.appendChild(fillOverlay);
     el.appendChild(nameSpan);
     el.appendChild(minsSpan);
+    el.appendChild(sleepToggle);
 
     if (idx < blocks.length - 1) {
       var handle = document.createElement('div');
@@ -308,7 +380,16 @@ function renderRuler() {
   });
 
   attachDragHandlers();
+  updateSleepTotals();
 }
+
+function updateSleepTotals() {
+  var sleepMin = 0;
+  blocks.forEach(function(b) { if (b.sleep) sleepMin += b.minutes; });
+  document.getElementById('sleepTotal').textContent = Math.round(sleepMin) + ' min';
+  document.getElementById('sleepPct').textContent = Math.round((sleepMin / TOTAL_MIN) * 100) + '%';
+}
+
  // ---- Drag to resize adjacent blocks ----
 var MIN_BLOCK_MIN = 10;
 
@@ -400,7 +481,14 @@ function findCurrentBlockIndex(sinceSix) {
   return blockEls.length - 1;
 }
 
+function updateLiveClock() {
+  var now = new Date();
+  var timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  document.getElementById('liveClock').textContent = timeStr;
+}
+
 function updateLive() {
+  updateLiveClock();
   var sinceSix = getSinceSix();
   var idx = findCurrentBlockIndex(sinceSix);
 
@@ -494,7 +582,7 @@ renderRuler();
 loadTodayDraft();
 renderEntries();
 updateLive();
-setInterval(updateLive, 5000);
+setInterval(updateLive, 1000);
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function() {
