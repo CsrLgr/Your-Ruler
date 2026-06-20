@@ -23,19 +23,22 @@
     margin: 0 auto;
   }
 
-  /* Thin auth bar above everything else. Logged-out: email + send link.
-     Logged-in: greeting + sign out. Never blocks the rest of the page. */
+  /* Thin auth bar above everything else. Logged-out: email + password
+     options + send link. Logged-in: greeting + sign out. Never blocks
+     the rest of the page. */
   .auth-bar {
     max-width: 1100px;
     margin: 0 auto 1.25rem auto;
     display: flex;
     justify-content: flex-end;
     align-items: center;
-    gap: 0.5rem;
+    flex-wrap: wrap;
+    gap: 0.4rem;
     font-size: 12px;
     color: #888;
   }
-  .auth-bar input[type="email"] {
+  .auth-bar input[type="email"],
+  .auth-bar input[type="password"] {
     background: #1a1a1a;
     border: 1px solid #333;
     border-radius: 6px;
@@ -43,12 +46,14 @@
     font-family: Georgia, serif;
     font-size: 12px;
     padding: 0.4rem 0.6rem;
-    width: 190px;
+    width: 140px;
   }
-  .auth-bar input[type="email"]:focus { outline: 1px solid #c0b5a5; }
+  .auth-bar input[type="email"]:focus,
+  .auth-bar input[type="password"]:focus { outline: 1px solid #c0b5a5; }
   .auth-bar button {
-    padding: 0.4rem 0.8rem;
+    padding: 0.4rem 0.7rem;
     font-size: 11px;
+    white-space: nowrap;
   }
   .auth-bar .auth-status {
     color: #c0b5a5;
@@ -56,7 +61,10 @@
   .auth-bar .auth-msg {
     color: #7a9b7a;
     font-size: 11px;
+    flex-basis: 100%;
+    text-align: right;
   }
+
 
   .header { text-align: center; margin-bottom: 0.5rem; }
   .header h1 { font-size: 28px; margin: 0; color: #eee; }
@@ -1040,17 +1048,43 @@ function renderAuthBarLoggedOut(message) {
   emailInput.placeholder = 'your@email.com';
   emailInput.id = 'authEmailInput';
 
-  var sendBtn = document.createElement('button');
-  sendBtn.textContent = 'Send magic link';
-  sendBtn.addEventListener('click', function() {
+  var passwordInput = document.createElement('input');
+  passwordInput.type = 'password';
+  passwordInput.placeholder = 'password (optional)';
+  passwordInput.id = 'authPasswordInput';
+
+  var magicBtn = document.createElement('button');
+  magicBtn.className = 'secondary';
+  magicBtn.textContent = 'Send magic link';
+  magicBtn.title = 'No password needed — we email you a link';
+  magicBtn.addEventListener('click', function() {
     sendMagicLink(emailInput.value.trim());
   });
-  emailInput.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') { e.preventDefault(); sendMagicLink(emailInput.value.trim()); }
+
+  var passwordSignInBtn = document.createElement('button');
+  passwordSignInBtn.textContent = 'Sign in';
+  passwordSignInBtn.title = 'Sign in with email + password';
+  passwordSignInBtn.addEventListener('click', function() {
+    signInWithPassword(emailInput.value.trim(), passwordInput.value);
+  });
+
+  var setPasswordBtn = document.createElement('button');
+  setPasswordBtn.className = 'secondary';
+  setPasswordBtn.textContent = 'Set password';
+  setPasswordBtn.title = 'New here, or want to add a password to your account';
+  setPasswordBtn.addEventListener('click', function() {
+    signUpWithPassword(emailInput.value.trim(), passwordInput.value);
+  });
+
+  passwordInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); signInWithPassword(emailInput.value.trim(), passwordInput.value); }
   });
 
   authBar.appendChild(emailInput);
-  authBar.appendChild(sendBtn);
+  authBar.appendChild(passwordInput);
+  authBar.appendChild(passwordSignInBtn);
+  authBar.appendChild(setPasswordBtn);
+  authBar.appendChild(magicBtn);
 
   if (message) {
     var msg = document.createElement('span');
@@ -1101,7 +1135,62 @@ function sendMagicLink(email) {
   });
 }
 
+// Lets an existing account (created via magic link or otherwise) set
+// a password, OR creates a brand new account with one directly — no
+// email round-trip needed, so this keeps working even if Supabase's
+// email sending is rate-limited.
+function signUpWithPassword(email, password) {
+  if (!supabaseClient) {
+    renderAuthBarLoggedOut('Login is temporarily unavailable.');
+    return;
+  }
+  if (!email || email.indexOf('@') === -1) {
+    renderAuthBarLoggedOut('Enter a valid email first.');
+    return;
+  }
+  if (!password || password.length < 6) {
+    renderAuthBarLoggedOut('Password must be at least 6 characters.');
+    return;
+  }
+
+  supabaseClient.auth.signUp({ email: email, password: password })
+    .then(function(result) {
+      if (result.error) {
+        renderAuthBarLoggedOut('Could not set password: ' + result.error.message);
+      } else if (result.data && result.data.session) {
+        // Email confirmation not required (or already confirmed) — signed in immediately.
+        renderAuthBarLoggedOut('Password set! You are signed in.');
+      } else {
+        renderAuthBarLoggedOut('Password set. If asked, confirm via email, then sign in.');
+      }
+    });
+}
+
+function signInWithPassword(email, password) {
+  if (!supabaseClient) {
+    renderAuthBarLoggedOut('Login is temporarily unavailable.');
+    return;
+  }
+  if (!email || email.indexOf('@') === -1) {
+    renderAuthBarLoggedOut('Enter a valid email first.');
+    return;
+  }
+  if (!password) {
+    renderAuthBarLoggedOut('Enter your password, or use Send magic link instead.');
+    return;
+  }
+
+  supabaseClient.auth.signInWithPassword({ email: email, password: password })
+    .then(function(result) {
+      if (result.error) {
+        renderAuthBarLoggedOut('Sign in failed: ' + result.error.message);
+      }
+      // On success, onAuthStateChange handles switching to the logged-in view.
+    });
+}
+
 var currentUser = null;
+
 
 function initAuth() {
   if (!supabaseClient) {
