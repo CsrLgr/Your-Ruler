@@ -1070,8 +1070,8 @@ function renderAuthBarLoggedOut(message) {
 
   var setPasswordBtn = document.createElement('button');
   setPasswordBtn.className = 'secondary';
-  setPasswordBtn.textContent = 'Set password';
-  setPasswordBtn.title = 'New here, or want to add a password to your account';
+  setPasswordBtn.textContent = 'New account';
+  setPasswordBtn.title = 'Create a brand new account with this email + password';
   setPasswordBtn.addEventListener('click', function() {
     signUpWithPassword(emailInput.value.trim(), passwordInput.value);
   });
@@ -1101,6 +1101,27 @@ function renderAuthBarLoggedIn(email) {
   status.className = 'auth-status';
   status.textContent = 'Signed in as ' + email;
 
+  var setPasswordBtn = document.createElement('button');
+  setPasswordBtn.className = 'secondary';
+  setPasswordBtn.textContent = 'Set password';
+  setPasswordBtn.title = 'Add a password so you can sign in without email next time';
+  setPasswordBtn.addEventListener('click', function() {
+    var pw = window.prompt('Enter a password (min 6 characters):');
+    if (!pw) return;
+    if (pw.length < 6) {
+      renderAuthBarLoggedIn(email);
+      showAuthInlineMsg('Password must be at least 6 characters.');
+      return;
+    }
+    supabaseClient.auth.updateUser({ password: pw }).then(function(result) {
+      if (result.error) {
+        showAuthInlineMsg('Could not set password: ' + result.error.message);
+      } else {
+        showAuthInlineMsg('Password set! You can sign in with it next time.');
+      }
+    });
+  });
+
   var signOutBtn = document.createElement('button');
   signOutBtn.className = 'secondary';
   signOutBtn.textContent = 'Sign out';
@@ -1110,7 +1131,18 @@ function renderAuthBarLoggedIn(email) {
   });
 
   authBar.appendChild(status);
+  authBar.appendChild(setPasswordBtn);
   authBar.appendChild(signOutBtn);
+}
+
+function showAuthInlineMsg(text) {
+  var existing = document.getElementById('authInlineMsg');
+  if (existing) existing.remove();
+  var msg = document.createElement('span');
+  msg.id = 'authInlineMsg';
+  msg.className = 'auth-msg';
+  msg.textContent = text;
+  authBar.appendChild(msg);
 }
 
 function sendMagicLink(email) {
