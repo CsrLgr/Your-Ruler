@@ -437,6 +437,42 @@
     cursor: pointer;
   }
 
+  .export-section {
+    max-width: 1100px;
+    margin: 1.5rem auto 0 auto;
+    background: #161616;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    padding: 1rem;
+  }
+  .export-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    margin-top: 0.5rem;
+  }
+  .export-controls select,
+  .export-controls input[type="date"] {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 6px;
+    color: #eee;
+    font-family: Georgia, serif;
+    font-size: 12px;
+    padding: 0.45rem 0.6rem;
+  }
+  .export-controls select:focus,
+  .export-controls input[type="date"]:focus { outline: 1px solid #c0b5a5; }
+  .export-to { font-size: 11px; color: #777; }
+  .export-msg {
+    font-size: 12px;
+    color: #7a9b7a;
+    margin-top: 0.6rem;
+    min-height: 1em;
+  }
+  .export-msg.error { color: #c77; }
+
   .bottom-row {
     max-width: 1100px;
     margin: 2rem auto 0 auto;
@@ -729,6 +765,24 @@
   </div>
 </div>
 
+<div class="export-section">
+  <span class="section-label">Export My Data</span>
+  <div class="export-controls">
+    <select id="exportRangeSelect">
+      <option value="all">All Data (from the beginning)</option>
+      <option value="custom">Custom Date Range</option>
+    </select>
+    <span id="exportCustomDates" style="display:none;">
+      <input type="date" id="exportStartDate">
+      <span class="export-to">to</span>
+      <input type="date" id="exportEndDate">
+    </span>
+    <button id="exportCsvBtn" class="secondary">Export as CSV</button>
+    <button id="exportBookBtn">Export as Book Draft</button>
+  </div>
+  <div class="export-msg" id="exportMsg"></div>
+</div>
+
 <div class="bottom-row">
   <div class="entries-list">
     <span class="section-label">Past Entries</span>
@@ -767,6 +821,58 @@ var ENTRIES_KEY = 'csrAlignEntries';
 var TODAY_KEY = 'csrAlignTodayEntry';
 var MUSTS_KEY = 'csrAlignMusts';
 var TACKLE_KEY = 'csrAlignTackle';
+var LOCAL_SNAPSHOTS_KEY = 'csrAlignDailySnapshots';
+var LAST_SNAPSHOT_DATE_KEY = 'csrAlignLastSnapshotDate';
+
+// ---- Local daily snapshot fallback ----
+// Browsers can't run code while closed, so this can't fire at an
+// exact moment. Instead, every time the app loads, it checks: "has
+// today's UTC date already been recorded as captured?" If not, it
+// archives whatever blocks were saved as belonging to the most
+// recent prior day, then marks today as the new checkpoint. This
+// runs for everyone, logged in or not -- for logged-in users it's a
+// safety net alongside the real server-side cron job; for everyone
+// else, it's the only mechanism.
+function loadLocalSnapshots() {
+  var saved = localStorage.getItem(LOCAL_SNAPSHOTS_KEY);
+  if (saved) {
+    try { return JSON.parse(saved); } catch(e) { return {}; }
+  }
+  return {};
+}
+
+function saveLocalSnapshots(snapshots) {
+  localStorage.setItem(LOCAL_SNAPSHOTS_KEY, JSON.stringify(snapshots));
+}
+
+function todayUTCDateString() {
+  return new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD'
+}
+
+function captureLocalDailySnapshotIfNeeded() {
+  var lastDate = localStorage.getItem(LAST_SNAPSHOT_DATE_KEY);
+  var today = todayUTCDateString();
+
+  if (lastDate === today) return; // already checked today, nothing to do
+
+  // If there was a previous day on record, and we haven't archived
+  // it yet, archive whatever blocks were last saved as that day's
+  // final state.
+  if (lastDate) {
+    var snapshots = loadLocalSnapshots();
+    if (!snapshots[lastDate]) {
+      var existingBlocks = localStorage.getItem(STORAGE_KEY);
+      if (existingBlocks) {
+        try {
+          snapshots[lastDate] = JSON.parse(existingBlocks);
+          saveLocalSnapshots(snapshots);
+        } catch(e) {}
+      }
+    }
+  }
+
+  localStorage.setItem(LAST_SNAPSHOT_DATE_KEY, today);
+}
 
 // ---- Load or initialize block data ----
 // Each block: { name, minutes, sleep: true/false }
@@ -1573,6 +1679,7 @@ function signInWithPassword(email, password) {
 }
 
 var currentUser = null;
+var currentUserIsPaid = false;
 
 
 function initAuth() {
@@ -1588,6 +1695,7 @@ function initAuth() {
       renderAuthBarLoggedIn(session.user.email);
       ensureProfileTimezone(session.user);
       currentUser = session.user;
+      refreshCurrentUserPaidStatus();
       showClansUnlocked();
       loadAndRenderClans();
       pushMyRulerToSupabase();
@@ -1602,15 +1710,32 @@ function initAuth() {
       renderAuthBarLoggedIn(session.user.email);
       ensureProfileTimezone(session.user);
       currentUser = session.user;
+      refreshCurrentUserPaidStatus();
       showClansUnlocked();
       loadAndRenderClans();
       pushMyRulerToSupabase();
     } else {
       currentUser = null;
+      currentUserIsPaid = false;
       renderAuthBarLoggedOut();
       showClansLocked();
     }
   });
+}
+
+// Fetches the real is_paid flag from this user's profile row, so
+// tier-gated features (export range cap, clan creation, etc.) check
+// an actual database value rather than an undefined/guessed one.
+function refreshCurrentUserPaidStatus() {
+  if (!supabaseClient || !currentUser) { currentUserIsPaid = false; return; }
+  supabaseClient.from('profiles')
+    .select('is_paid')
+    .eq('id', currentUser.id)
+    .then(function(result) {
+      if (result.data && result.data.length) {
+        currentUserIsPaid = !!result.data[0].is_paid;
+      }
+    });
 }
 
 // Make sure each profile has the browser's real timezone on file,
@@ -1925,7 +2050,252 @@ function getLocalTimeInfo(timezone) {
 }
 
 
+// ============================================================
+// Export system
+// ============================================================
+var FREE_TIER_EXPORT_DAYS = 30;
+
+var exportRangeSelect = document.getElementById('exportRangeSelect');
+var exportCustomDates = document.getElementById('exportCustomDates');
+var exportMsgEl = document.getElementById('exportMsg');
+
+exportRangeSelect.addEventListener('change', function() {
+  exportCustomDates.style.display = (exportRangeSelect.value === 'custom') ? '' : 'none';
+});
+
+function showExportMsg(text, isError) {
+  exportMsgEl.textContent = text || '';
+  exportMsgEl.className = 'export-msg' + (isError ? ' error' : '');
+}
+
+// Resolves the user's chosen range into actual start/end Date objects,
+// and enforces the free-tier 30-day cap (checked here in the export
+// logic itself, not just hidden in the UI, matching how Clans limits
+// are enforced).
+function resolveExportRange() {
+  var now = new Date();
+  var start, end;
+
+  if (exportRangeSelect.value === 'custom') {
+    var startVal = document.getElementById('exportStartDate').value;
+    var endVal = document.getElementById('exportEndDate').value;
+    if (!startVal || !endVal) {
+      return { error: 'Pick both a start and end date.' };
+    }
+    start = new Date(startVal + 'T00:00:00Z');
+    end = new Date(endVal + 'T23:59:59Z');
+    if (start > end) {
+      return { error: 'Start date must be before end date.' };
+    }
+  } else {
+    // "All data" — start from the earliest possible date; we'll clip
+    // to the free-tier cap below if needed.
+    start = new Date('2000-01-01T00:00:00Z');
+    end = now;
+  }
+
+  var isPaidUser = !!(currentUser && currentUserIsPaid);
+  if (!isPaidUser) {
+    var earliestAllowed = new Date(now.getTime() - FREE_TIER_EXPORT_DAYS * 24 * 60 * 60 * 1000);
+    if (start < earliestAllowed) {
+      start = earliestAllowed;
+    }
+  }
+
+  return { start: start, end: end, wasClipped: !isPaidUser };
+}
+
+function dateInRange(dateLike, start, end) {
+  var d = new Date(dateLike);
+  return d >= start && d <= end;
+}
+
+// Gathers everything in range: journal entries, local daily snapshots,
+// and (for logged-in users) server-side daily_snapshots from Supabase.
+function gatherExportData(start, end, callback) {
+  var entries = loadEntries().filter(function(e) {
+    return dateInRange(e.createdAt, start, end);
+  });
+
+  var localSnaps = loadLocalSnapshots();
+  var localSnapList = Object.keys(localSnaps)
+    .filter(function(dateStr) { return dateInRange(dateStr + 'T00:00:00Z', start, end); })
+    .map(function(dateStr) { return { date: dateStr, blocks: localSnaps[dateStr], source: 'local' }; });
+
+  if (supabaseClient && currentUser) {
+    supabaseClient.from('daily_snapshots')
+      .select('snapshot_date, blocks')
+      .eq('user_id', currentUser.id)
+      .then(function(result) {
+        var serverSnaps = [];
+        if (result.data) {
+          serverSnaps = result.data
+            .filter(function(row) { return dateInRange(row.snapshot_date + 'T00:00:00Z', start, end); })
+            .map(function(row) { return { date: row.snapshot_date, blocks: row.blocks, source: 'server' }; });
+        }
+        // Merge, preferring server snapshots over local ones for the same date
+        var merged = {};
+        localSnapList.forEach(function(s) { merged[s.date] = s; });
+        serverSnaps.forEach(function(s) { merged[s.date] = s; });
+        callback(entries, Object.values(merged));
+      });
+  } else {
+    callback(entries, localSnapList);
+  }
+}
+
+function csvEscape(val) {
+  if (val === null || val === undefined) return '';
+  var str = String(val);
+  if (str.indexOf(',') !== -1 || str.indexOf('"') !== -1 || str.indexOf('\n') !== -1) {
+    return '"' + str.replace(/"/g, '""') + '"';
+  }
+  return str;
+}
+
+function buildCsv(entries, snapshots) {
+  var lines = [];
+
+  lines.push('--- JOURNAL ENTRIES ---');
+  lines.push(['Date', 'Category', 'Score', 'Edited', 'Shared with Clan', 'Text'].join(','));
+  entries.forEach(function(e) {
+    lines.push([
+      csvEscape(e.date),
+      csvEscape(e.category),
+      csvEscape(e.score),
+      csvEscape(e.edited ? 'Yes' : 'No'),
+      csvEscape(e.shareWithClan ? 'Yes' : 'No'),
+      csvEscape(e.text)
+    ].join(','));
+  });
+
+  lines.push('');
+  lines.push('--- DAILY RULER SNAPSHOTS ---');
+  var blockHeaders = [];
+  for (var i = 1; i <= NUM_BLOCKS; i++) {
+    blockHeaders.push('Block ' + i + ' Name');
+    blockHeaders.push('Block ' + i + ' Minutes');
+  }
+  lines.push(['Date'].concat(blockHeaders).join(','));
+  snapshots.sort(function(a, b) { return a.date < b.date ? -1 : 1; }).forEach(function(s) {
+    var row = [csvEscape(s.date)];
+    for (var i = 0; i < NUM_BLOCKS; i++) {
+      var b = s.blocks[i] || { name: '', minutes: '' };
+      row.push(csvEscape(b.name));
+      row.push(csvEscape(b.minutes));
+    }
+    lines.push(row.join(','));
+  });
+
+  return lines.join('\n');
+}
+
+function downloadFile(filename, content, mimeType) {
+  var blob = new Blob([content], { type: mimeType });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById('exportCsvBtn').addEventListener('click', function() {
+  var range = resolveExportRange();
+  if (range.error) { showExportMsg(range.error, true); return; }
+
+  gatherExportData(range.start, range.end, function(entries, snapshots) {
+    var csv = buildCsv(entries, snapshots);
+    downloadFile('my-ruler-export-' + todayUTCDateString() + '.csv', csv, 'text/csv');
+    showExportMsg(
+      'Exported ' + entries.length + ' journal entries and ' + snapshots.length + ' daily snapshots.' +
+      (range.wasClipped ? ' (Free tier: limited to the last ' + FREE_TIER_EXPORT_DAYS + ' days. Upgrade for full history.)' : '')
+    );
+  });
+});
+
+document.getElementById('exportBookBtn').addEventListener('click', function() {
+  var range = resolveExportRange();
+  if (range.error) { showExportMsg(range.error, true); return; }
+
+  gatherExportData(range.start, range.end, function(entries, snapshots) {
+    var html = buildBookDraftHtml(entries, snapshots, range);
+    downloadFile('my-ruler-book-draft-' + todayUTCDateString() + '.html', html, 'text/html');
+    showExportMsg(
+      'Book draft exported with ' + entries.length + ' entries and ' + snapshots.length + ' daily Rulers.' +
+      (range.wasClipped ? ' (Free tier: limited to the last ' + FREE_TIER_EXPORT_DAYS + ' days. Upgrade for full history.)' : '') +
+      ' Images attached locally are not yet included — that\'s coming in a future update.'
+    );
+  });
+});
+
+function buildBookDraftHtml(entries, snapshots, range) {
+  var snapByDate = {};
+  snapshots.forEach(function(s) { snapByDate[s.date] = s; });
+
+  var entriesByDate = {};
+  entries.forEach(function(e) {
+    var d = (e.createdAt || '').slice(0, 10);
+    if (!entriesByDate[d]) entriesByDate[d] = [];
+    entriesByDate[d].push(e);
+  });
+
+  var allDates = Object.keys(snapByDate).concat(Object.keys(entriesByDate));
+  var uniqueDates = allDates.filter(function(d, i) { return allDates.indexOf(d) === i; }).sort();
+
+  var bodyParts = [];
+  bodyParts.push('<h1>My Ruler — Book Draft</h1>');
+  bodyParts.push('<p class="meta">For Dangerous Gentlemen — exported ' + new Date().toLocaleDateString() + '</p>');
+
+  uniqueDates.forEach(function(dateStr) {
+    bodyParts.push('<div class="day-section">');
+    bodyParts.push('<h2>' + dateStr + '</h2>');
+
+    var snap = snapByDate[dateStr];
+    if (snap) {
+      bodyParts.push('<table class="ruler-table"><tr><th>Block</th><th>Name</th><th>Minutes</th></tr>');
+      snap.blocks.forEach(function(b, idx) {
+        bodyParts.push('<tr><td>' + (idx + 1) + '</td><td>' + escapeHtml(b.name) + '</td><td>' + b.minutes + '</td></tr>');
+      });
+      bodyParts.push('</table>');
+    }
+
+    var dayEntries = entriesByDate[dateStr] || [];
+    dayEntries.forEach(function(e) {
+      bodyParts.push('<div class="journal-block">');
+      bodyParts.push('<p class="entry-meta">' + escapeHtml(e.category) + (e.score ? ' • Score: ' + e.score : '') + '</p>');
+      bodyParts.push('<p class="entry-body">' + escapeHtml(e.text).replace(/\n/g, '<br>') + '</p>');
+      bodyParts.push('</div>');
+    });
+
+    bodyParts.push('</div>');
+  });
+
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>My Ruler — Book Draft</title>' +
+    '<style>' +
+    'body{font-family:Georgia,serif;max-width:700px;margin:2rem auto;color:#222;line-height:1.6;}' +
+    'h1{text-align:center;margin-bottom:0;}' +
+    '.meta{text-align:center;color:#888;font-size:13px;margin-top:0.3rem;}' +
+    '.day-section{margin-top:3rem;border-top:1px solid #ddd;padding-top:1.5rem;}' +
+    'h2{font-size:18px;color:#555;}' +
+    '.ruler-table{width:100%;border-collapse:collapse;margin:1rem 0;font-size:13px;}' +
+    '.ruler-table th,.ruler-table td{border:1px solid #ddd;padding:0.4rem 0.6rem;text-align:left;}' +
+    '.journal-block{margin-top:1rem;}' +
+    '.entry-meta{font-size:12px;color:#999;margin-bottom:0.2rem;}' +
+    '.entry-body{font-size:14px;}' +
+    '</style></head><body>' + bodyParts.join('') + '</body></html>';
+}
+
+function escapeHtml(str) {
+  var div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+
 renderRuler();
+captureLocalDailySnapshotIfNeeded();
 loadTodayDraft();
 renderEntries();
 renderMusts();
