@@ -779,6 +779,7 @@
     </span>
     <button id="exportCsvBtn" class="secondary">Export as CSV</button>
     <button id="exportBookBtn">Export as Book Draft</button>
+    <button id="snapshotNowBtn" class="secondary" title="Save today's Ruler as a permanent daily record right now, instead of waiting for the automatic capture">Save Today's Snapshot</button>
   </div>
   <div class="export-msg" id="exportMsg"></div>
 </div>
@@ -872,6 +873,23 @@ function captureLocalDailySnapshotIfNeeded() {
   }
 
   localStorage.setItem(LAST_SNAPSHOT_DATE_KEY, today);
+}
+
+// Manually snapshot TODAY's current Ruler state right now, under
+// today's date — useful so the export has something to show
+// immediately, rather than waiting for tomorrow's automatic capture.
+// Saves locally always; also pushes to Supabase if logged in.
+function snapshotTodayNow() {
+  var today = todayUTCDateString();
+  var snapshots = loadLocalSnapshots();
+  snapshots[today] = JSON.parse(JSON.stringify(blocks));
+  saveLocalSnapshots(snapshots);
+
+  if (supabaseClient && currentUser) {
+    supabaseClient.from('daily_snapshots')
+      .upsert({ user_id: currentUser.id, snapshot_date: today, blocks: blocks })
+      .then(function(){});
+  }
 }
 
 // ---- Load or initialize block data ----
@@ -2117,10 +2135,31 @@ function gatherExportData(start, end, callback) {
     return dateInRange(e.createdAt, start, end);
   });
 
+  // Build a date -> score lookup from journal entries, since Musts
+  // scores are only ever recorded historically as a snapshot taken
+  // at the moment a journal entry was saved (musts itself only ever
+  // holds "right now," with no per-day history of its own).
+  var scoreByDate = {};
+  loadEntries().forEach(function(e) {
+    var d = (e.createdAt || '').slice(0, 10);
+    if (typeof e.score === 'number' && !scoreByDate[d]) {
+      scoreByDate[d] = e.score;
+    }
+  });
+
+  var tackleText = '';
+  try {
+    var savedTackle = localStorage.getItem(TACKLE_KEY);
+    if (savedTackle) {
+      var parsedTackle = JSON.parse(savedTackle);
+      tackleText = parsedTackle.text || '';
+    }
+  } catch(e) {}
+
   var localSnaps = loadLocalSnapshots();
   var localSnapList = Object.keys(localSnaps)
     .filter(function(dateStr) { return dateInRange(dateStr + 'T00:00:00Z', start, end); })
-    .map(function(dateStr) { return { date: dateStr, blocks: localSnaps[dateStr], source: 'local' }; });
+    .map(function(dateStr) { return { date: dateStr, blocks: localSnaps[dateStr], mustsScore: scoreByDate[dateStr] != null ? scoreByDate[dateStr] : null, source: 'local' }; });
 
   if (supabaseClient && currentUser) {
     supabaseClient.from('daily_snapshots')
@@ -2131,16 +2170,16 @@ function gatherExportData(start, end, callback) {
         if (result.data) {
           serverSnaps = result.data
             .filter(function(row) { return dateInRange(row.snapshot_date + 'T00:00:00Z', start, end); })
-            .map(function(row) { return { date: row.snapshot_date, blocks: row.blocks, source: 'server' }; });
+            .map(function(row) { return { date: row.snapshot_date, blocks: row.blocks, mustsScore: scoreByDate[row.snapshot_date] != null ? scoreByDate[row.snapshot_date] : null, source: 'server' }; });
         }
         // Merge, preferring server snapshots over local ones for the same date
         var merged = {};
         localSnapList.forEach(function(s) { merged[s.date] = s; });
         serverSnaps.forEach(function(s) { merged[s.date] = s; });
-        callback(entries, Object.values(merged));
+        callback(entries, Object.values(merged), tackleText);
       });
   } else {
-    callback(entries, localSnapList);
+    callback(entries, localSnapList, tackleText);
   }
 }
 
@@ -2153,9 +2192,64 @@ function csvEscape(val) {
   return str;
 }
 
-function buildCsv(entries, snapshots) {
+// Converts "minutes since 6am" into an actual clock time string,
+// e.g. 0 -> "6:00 AM", 120 -> "8:00 AM". Used to give exported block
+// data real start/end times instead of just raw durations.
+function minutesSinceSixToClockTime(mins) {
+  var totalMin = (DAY_START_OFFSET + mins) % 1440;
+  var hours24 = Math.floor(totalMin / 60);
+  var minutes = Math.round(totalMin % 60);
+  var period = hours24 >= 12 ? 'PM' : 'AM';
+  var hours12 = hours24 % 12;
+  if (hours12 === 0) hours12 = 12;
+  return hours12 + ':' + (minutes < 10 ? '0' : '') + minutes + ' ' + period;
+}
+
+// Given a snapshot's block array, returns each block annotated with
+// its computed start/end clock time and cumulative position.
+function annotateBlocksWithTimes(blockList) {
+  var cumulative = 0;
+  return blockList.map(function(b) {
+    var startMin = cumulative;
+    var endMin = cumulative + b.minutes;
+    cumulative = endMin;
+    return {
+      name: b.name,
+      minutes: b.minutes,
+      sleep: !!b.sleep,
+      startTime: minutesSinceSixToClockTime(startMin),
+      endTime: minutesSinceSixToClockTime(endMin)
+    };
+  });
+}
+
+function buildCsv(entries, snapshots, mustsSnapshot, tackleText) {
   var lines = [];
 
+  lines.push('--- DAILY RULER SNAPSHOTS (Block details, Musts scores) ---');
+  var blockHeaders = [];
+  for (var i = 1; i <= NUM_BLOCKS; i++) {
+    blockHeaders.push('Block ' + i + ' Name');
+    blockHeaders.push('Block ' + i + ' Start');
+    blockHeaders.push('Block ' + i + ' End');
+    blockHeaders.push('Block ' + i + ' Minutes');
+  }
+  lines.push(['Date'].concat(blockHeaders).concat(['Musts Avg Score']).join(','));
+  snapshots.sort(function(a, b) { return a.date < b.date ? -1 : 1; }).forEach(function(s) {
+    var annotated = annotateBlocksWithTimes(s.blocks);
+    var row = [csvEscape(s.date)];
+    for (var i = 0; i < NUM_BLOCKS; i++) {
+      var b = annotated[i] || { name: '', startTime: '', endTime: '', minutes: '' };
+      row.push(csvEscape(b.name));
+      row.push(csvEscape(b.startTime));
+      row.push(csvEscape(b.endTime));
+      row.push(csvEscape(b.minutes));
+    }
+    row.push(csvEscape(s.mustsScore != null ? s.mustsScore : ''));
+    lines.push(row.join(','));
+  });
+
+  lines.push('');
   lines.push('--- JOURNAL ENTRIES ---');
   lines.push(['Date', 'Category', 'Score', 'Edited', 'Shared with Clan', 'Text'].join(','));
   entries.forEach(function(e) {
@@ -2169,23 +2263,11 @@ function buildCsv(entries, snapshots) {
     ].join(','));
   });
 
-  lines.push('');
-  lines.push('--- DAILY RULER SNAPSHOTS ---');
-  var blockHeaders = [];
-  for (var i = 1; i <= NUM_BLOCKS; i++) {
-    blockHeaders.push('Block ' + i + ' Name');
-    blockHeaders.push('Block ' + i + ' Minutes');
+  if (tackleText) {
+    lines.push('');
+    lines.push('--- WHITEBOARD (current content at time of export) ---');
+    lines.push(csvEscape(tackleText));
   }
-  lines.push(['Date'].concat(blockHeaders).join(','));
-  snapshots.sort(function(a, b) { return a.date < b.date ? -1 : 1; }).forEach(function(s) {
-    var row = [csvEscape(s.date)];
-    for (var i = 0; i < NUM_BLOCKS; i++) {
-      var b = s.blocks[i] || { name: '', minutes: '' };
-      row.push(csvEscape(b.name));
-      row.push(csvEscape(b.minutes));
-    }
-    lines.push(row.join(','));
-  });
 
   return lines.join('\n');
 }
@@ -2202,12 +2284,17 @@ function downloadFile(filename, content, mimeType) {
   URL.revokeObjectURL(url);
 }
 
+document.getElementById('snapshotNowBtn').addEventListener('click', function() {
+  snapshotTodayNow();
+  showExportMsg('Saved today\'s Ruler as a permanent daily record.');
+});
+
 document.getElementById('exportCsvBtn').addEventListener('click', function() {
   var range = resolveExportRange();
   if (range.error) { showExportMsg(range.error, true); return; }
 
-  gatherExportData(range.start, range.end, function(entries, snapshots) {
-    var csv = buildCsv(entries, snapshots);
+  gatherExportData(range.start, range.end, function(entries, snapshots, tackleText) {
+    var csv = buildCsv(entries, snapshots, null, tackleText);
     downloadFile('my-ruler-export-' + todayUTCDateString() + '.csv', csv, 'text/csv');
     showExportMsg(
       'Exported ' + entries.length + ' journal entries and ' + snapshots.length + ' daily snapshots.' +
@@ -2220,8 +2307,8 @@ document.getElementById('exportBookBtn').addEventListener('click', function() {
   var range = resolveExportRange();
   if (range.error) { showExportMsg(range.error, true); return; }
 
-  gatherExportData(range.start, range.end, function(entries, snapshots) {
-    var html = buildBookDraftHtml(entries, snapshots, range);
+  gatherExportData(range.start, range.end, function(entries, snapshots, tackleText) {
+    var html = buildBookDraftHtml(entries, snapshots, range, tackleText);
     downloadFile('my-ruler-book-draft-' + todayUTCDateString() + '.html', html, 'text/html');
     showExportMsg(
       'Book draft exported with ' + entries.length + ' entries and ' + snapshots.length + ' daily Rulers.' +
@@ -2231,7 +2318,7 @@ document.getElementById('exportBookBtn').addEventListener('click', function() {
   });
 });
 
-function buildBookDraftHtml(entries, snapshots, range) {
+function buildBookDraftHtml(entries, snapshots, range, tackleText) {
   var snapByDate = {};
   snapshots.forEach(function(s) { snapByDate[s.date] = s; });
 
@@ -2249,23 +2336,41 @@ function buildBookDraftHtml(entries, snapshots, range) {
   bodyParts.push('<h1>My Ruler — Book Draft</h1>');
   bodyParts.push('<p class="meta">For Dangerous Gentlemen — exported ' + new Date().toLocaleDateString() + '</p>');
 
+  if (tackleText) {
+    bodyParts.push('<div class="whiteboard-section">');
+    bodyParts.push('<h2>Whiteboard (at time of export)</h2>');
+    bodyParts.push('<p class="entry-body">' + escapeHtml(tackleText).replace(/\n/g, '<br>') + '</p>');
+    bodyParts.push('</div>');
+  }
+
   uniqueDates.forEach(function(dateStr) {
     bodyParts.push('<div class="day-section">');
     bodyParts.push('<h2>' + dateStr + '</h2>');
 
     var snap = snapByDate[dateStr];
     if (snap) {
-      bodyParts.push('<table class="ruler-table"><tr><th>Block</th><th>Name</th><th>Minutes</th></tr>');
-      snap.blocks.forEach(function(b, idx) {
-        bodyParts.push('<tr><td>' + (idx + 1) + '</td><td>' + escapeHtml(b.name) + '</td><td>' + b.minutes + '</td></tr>');
+      var annotated = annotateBlocksWithTimes(snap.blocks);
+      bodyParts.push('<table class="ruler-table"><tr><th>Block</th><th>Name</th><th>Start</th><th>End</th><th>Minutes</th></tr>');
+      annotated.forEach(function(b, idx) {
+        bodyParts.push(
+          '<tr' + (b.sleep ? ' class="sleep-row"' : '') + '>' +
+          '<td>' + (idx + 1) + '</td>' +
+          '<td>' + escapeHtml(b.name) + '</td>' +
+          '<td>' + b.startTime + '</td>' +
+          '<td>' + b.endTime + '</td>' +
+          '<td>' + b.minutes + '</td></tr>'
+        );
       });
       bodyParts.push('</table>');
+      if (snap.mustsScore != null) {
+        bodyParts.push('<p class="musts-score">Musts &amp; In-Between average score: <strong>' + snap.mustsScore + ' / 3</strong></p>');
+      }
     }
 
     var dayEntries = entriesByDate[dateStr] || [];
     dayEntries.forEach(function(e) {
       bodyParts.push('<div class="journal-block">');
-      bodyParts.push('<p class="entry-meta">' + escapeHtml(e.category) + (e.score ? ' • Score: ' + e.score : '') + '</p>');
+      bodyParts.push('<p class="entry-meta">' + escapeHtml(e.category) + (e.score != null ? ' • Score: ' + e.score : '') + (e.edited ? ' • Edited' : '') + '</p>');
       bodyParts.push('<p class="entry-body">' + escapeHtml(e.text).replace(/\n/g, '<br>') + '</p>');
       bodyParts.push('</div>');
     });
@@ -2278,10 +2383,13 @@ function buildBookDraftHtml(entries, snapshots, range) {
     'body{font-family:Georgia,serif;max-width:700px;margin:2rem auto;color:#222;line-height:1.6;}' +
     'h1{text-align:center;margin-bottom:0;}' +
     '.meta{text-align:center;color:#888;font-size:13px;margin-top:0.3rem;}' +
+    '.whiteboard-section{margin-top:2rem;padding:1rem;background:#f7f4ee;border:1px solid #ddd;border-radius:6px;}' +
     '.day-section{margin-top:3rem;border-top:1px solid #ddd;padding-top:1.5rem;}' +
     'h2{font-size:18px;color:#555;}' +
     '.ruler-table{width:100%;border-collapse:collapse;margin:1rem 0;font-size:13px;}' +
     '.ruler-table th,.ruler-table td{border:1px solid #ddd;padding:0.4rem 0.6rem;text-align:left;}' +
+    '.ruler-table tr.sleep-row{background:#fbeaea;}' +
+    '.musts-score{font-size:13px;color:#555;margin-top:0.3rem;}' +
     '.journal-block{margin-top:1rem;}' +
     '.entry-meta{font-size:12px;color:#999;margin-bottom:0.2rem;}' +
     '.entry-body{font-size:14px;}' +
