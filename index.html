@@ -317,6 +317,80 @@
   }
   .category-select:focus { outline: 1px solid #c0b5a5; }
 
+  .journal-images-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 0.5rem;
+  }
+  .journal-image-thumbs {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+  .journal-image-thumb {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #333;
+  }
+  .journal-image-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .journal-image-thumb .thumb-remove {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: rgba(0,0,0,0.6);
+    color: #eee;
+    font-size: 9px;
+    width: 16px;
+    height: 16px;
+    line-height: 16px;
+    text-align: center;
+    cursor: pointer;
+  }
+  .journal-image-add-btn {
+    font-size: 11px;
+    color: #c0b5a5;
+    border: 1px dashed #444;
+    border-radius: 6px;
+    padding: 0.4rem 0.7rem;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .journal-image-add-btn:hover { border-color: #c0b5a5; }
+  .journal-images-locked {
+    font-size: 11px;
+    color: #777;
+    margin-top: 0.5rem;
+  }
+  .journal-images-locked a {
+    color: #c0b5a5;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+  .entry-image-thumbs {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    margin-top: 0.5rem;
+  }
+  .entry-image-thumbs img {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid #2a2a2a;
+    cursor: pointer;
+  }
+
   textarea {
     width: 100%;
     min-height: 110px;
@@ -795,6 +869,16 @@
       <select id="categorySelect" class="category-select"></select>
     </div>
     <textarea id="workArea" placeholder="Write your day here..."></textarea>
+    <div class="journal-images-row" id="journalImagesRow" style="display:none;">
+      <div class="journal-image-thumbs" id="journalImageThumbs"></div>
+      <label class="journal-image-add-btn">
+        + Add image
+        <input type="file" id="journalImageInput" accept="image/*" multiple style="display:none;">
+      </label>
+    </div>
+    <p class="journal-images-locked" id="journalImagesLocked" style="display:none;">
+      📷 Attaching images to entries is a paid feature. <a id="journalImagesUpgradeLink">Upgrade to unlock.</a>
+    </p>
     <div class="btn-row" style="justify-content:center;">
       <button id="saveBtn" class="combo-btn">Save Entry / New Day</button>
     </div>
@@ -877,6 +961,14 @@ var TOTAL_MIN = 1440;
 var NUM_BLOCKS = 12;
 var DEFAULT_SIZE = TOTAL_MIN / NUM_BLOCKS; // 120
 var DAY_START_OFFSET = 360; // 6am reference
+
+// Declared this early (before anything else in the script) on purpose:
+// a past bug happened when this was declared later in the file, after
+// some code already tried to read it. Var hoisting meant it technically
+// "worked" by accident (undefined is falsy, same as false), but that's
+// fragile. Declaring it first removes any ambiguity.
+var currentUser = null;
+var currentUserIsPaid = false;
 
 var STORAGE_KEY = 'csrAlignBlocks';
 var ENTRIES_KEY = 'csrAlignEntries';
@@ -1278,7 +1370,8 @@ function loadEntries() {
           score: (typeof e.score === 'number') ? e.score : null,
           shareWithClan: !!e.shareWithClan,
           edited: !!e.edited,
-          history: Array.isArray(e.history) ? e.history : []
+          history: Array.isArray(e.history) ? e.history : [],
+          imagePaths: Array.isArray(e.imagePaths) ? e.imagePaths : []
         };
       });
     } catch(e) { return []; }
@@ -1340,6 +1433,20 @@ function buildEntryElement(entry) {
   textDiv.className = 'entry-text';
   textDiv.textContent = entry.text;
   div.appendChild(textDiv);
+
+  if (entry.imagePaths && entry.imagePaths.length && supabaseClient && currentUser) {
+    var imagesDiv = document.createElement('div');
+    imagesDiv.className = 'entry-image-thumbs';
+    div.appendChild(imagesDiv);
+    getSignedUrlsForPaths(entry.imagePaths, function(urls) {
+      urls.forEach(function(url) {
+        var img = document.createElement('img');
+        img.src = url;
+        img.addEventListener('click', function() { window.open(url, '_blank'); });
+        imagesDiv.appendChild(img);
+      });
+    });
+  }
 
   var historyDiv = document.createElement('div');
   historyDiv.className = 'entry-history';
@@ -1412,6 +1519,101 @@ function saveTodayDraft() {
 
 workArea.addEventListener('input', saveTodayDraft);
 
+// ---- Journal image attachments (paid tier only) ----
+// Images are NOT stored in localStorage (too large) and NOT synced
+// the way Ruler blocks are. They live in Supabase Storage, in a
+// private per-user folder, and the journal entry itself just stores
+// the storage path + a short-lived signed URL for display.
+var stagedImagePaths = []; // paths uploaded for the entry currently being drafted, before Save is clicked
+
+var journalImagesRow = document.getElementById('journalImagesRow');
+var journalImagesLocked = document.getElementById('journalImagesLocked');
+var journalImageThumbs = document.getElementById('journalImageThumbs');
+var journalImageInput = document.getElementById('journalImageInput');
+
+function updateJournalImageUIVisibility() {
+  var unlocked = !!(currentUser && currentUserIsPaid);
+  journalImagesRow.style.display = unlocked ? '' : 'none';
+  journalImagesLocked.style.display = unlocked ? 'none' : '';
+}
+updateJournalImageUIVisibility();
+
+document.getElementById('journalImagesUpgradeLink').addEventListener('click', function() {
+  window.alert('Image attachments are a paid feature. Upgrade flow coming soon — for now, contact support to upgrade your account.');
+});
+
+journalImageInput.addEventListener('change', function() {
+  if (!currentUser || !currentUserIsPaid) return;
+  var files = Array.prototype.slice.call(journalImageInput.files);
+  files.forEach(function(file) {
+    uploadJournalImage(file);
+  });
+  journalImageInput.value = '';
+});
+
+function uploadJournalImage(file) {
+  if (!supabaseClient || !currentUser) return;
+  var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  var path = currentUser.id + '/' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.' + ext;
+
+  var thumbWrap = document.createElement('div');
+  thumbWrap.className = 'journal-image-thumb';
+  thumbWrap.style.opacity = '0.5';
+  thumbWrap.textContent = '…';
+  journalImageThumbs.appendChild(thumbWrap);
+
+  supabaseClient.storage.from('journal-images').upload(path, file)
+    .then(function(result) {
+      if (result.error) {
+        thumbWrap.remove();
+        showExportMsg && showExportMsg('Image upload failed: ' + result.error.message, true);
+        window.alert('Image upload failed: ' + result.error.message);
+        return;
+      }
+      stagedImagePaths.push(path);
+      renderStagedImageThumb(thumbWrap, path);
+    });
+}
+
+function renderStagedImageThumb(thumbWrap, path) {
+  thumbWrap.style.opacity = '1';
+  thumbWrap.textContent = '';
+
+  supabaseClient.storage.from('journal-images').createSignedUrl(path, 3600)
+    .then(function(result) {
+      var img = document.createElement('img');
+      img.src = (result.data && result.data.signedUrl) || '';
+      thumbWrap.appendChild(img);
+
+      var removeBtn = document.createElement('div');
+      removeBtn.className = 'thumb-remove';
+      removeBtn.textContent = '✕';
+      removeBtn.addEventListener('click', function() {
+        stagedImagePaths = stagedImagePaths.filter(function(p) { return p !== path; });
+        thumbWrap.remove();
+        supabaseClient.storage.from('journal-images').remove([path]).then(function(){});
+      });
+      thumbWrap.appendChild(removeBtn);
+    });
+}
+
+function clearStagedImages() {
+  stagedImagePaths = [];
+  journalImageThumbs.innerHTML = '';
+}
+
+// Fetches fresh signed URLs (they expire) for a list of stored image
+// paths, used when rendering past entries that already have images.
+function getSignedUrlsForPaths(paths, callback) {
+  if (!supabaseClient || !paths || !paths.length) { callback([]); return; }
+  Promise.all(paths.map(function(path) {
+    return supabaseClient.storage.from('journal-images').createSignedUrl(path, 3600)
+      .then(function(result) { return (result.data && result.data.signedUrl) || null; });
+  })).then(function(urls) {
+    callback(urls.filter(Boolean));
+  });
+}
+
 // Combined Save Entry / New Day button
 document.getElementById('saveBtn').addEventListener('click', function() {
   saveTodayDraft();
@@ -1428,13 +1630,15 @@ document.getElementById('saveBtn').addEventListener('click', function() {
       score: averageMustsScore(),
       shareWithClan: false,
       edited: false,
-      history: []
+      history: [],
+      imagePaths: stagedImagePaths.slice()
     });
     saveEntries(entries);
     renderEntries();
   }
   workArea.value = '';
   localStorage.removeItem(TODAY_KEY);
+  clearStagedImages();
 });
 
 // ---- Musts & In-between checklist ----
@@ -1757,10 +1961,6 @@ function signInWithPassword(email, password) {
     });
 }
 
-var currentUser = null;
-var currentUserIsPaid = false;
-
-
 function initAuth() {
   if (!supabaseClient) {
     renderAuthBarLoggedOut();
@@ -1798,6 +1998,7 @@ function initAuth() {
       currentUserIsPaid = false;
       renderAuthBarLoggedOut();
       showClansLocked();
+      updateJournalImageUIVisibility();
     }
   });
 }
@@ -1806,7 +2007,7 @@ function initAuth() {
 // tier-gated features (export range cap, clan creation, etc.) check
 // an actual database value rather than an undefined/guessed one.
 function refreshCurrentUserPaidStatus() {
-  if (!supabaseClient || !currentUser) { currentUserIsPaid = false; return; }
+  if (!supabaseClient || !currentUser) { currentUserIsPaid = false; updateJournalImageUIVisibility(); return; }
   supabaseClient.from('profiles')
     .select('is_paid')
     .eq('id', currentUser.id)
@@ -1814,6 +2015,7 @@ function refreshCurrentUserPaidStatus() {
       if (result.data && result.data.length) {
         currentUserIsPaid = !!result.data[0].is_paid;
       }
+      updateJournalImageUIVisibility();
     });
 }
 
