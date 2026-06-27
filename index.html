@@ -69,7 +69,7 @@
   }
 
 
-  .header { text-align: center; margin-bottom: 0.5rem; }
+  .header { text-align: center; margin-bottom: 0.5rem; flex: 1 1 auto; min-width: 0; }
   .header h1 { font-size: 28px; margin: 0; color: #eee; }
   .header p { font-size: 14px; color: #999; margin-top: 0.4rem; }
   .header .tagline {
@@ -486,12 +486,16 @@
   }
   .must-remove:hover { color: #c77; background: none; }
 
-  /* Tackle / Whiteboard box, fixed top right corner of page-wrap */
+  .header-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  /* Tackle / Whiteboard box, sits in the header row on the right */
   .tackle-wrap {
-    position: absolute;
-    top: 0;
-    right: 0;
-    z-index: 10;
+    flex: 0 0 auto;
   }
   .tackle-box {
     width: 240px;
@@ -499,6 +503,7 @@
     border: 1px solid #3a3327;
     border-radius: 8px;
     padding: 0.75rem;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.45);
   }
   .tackle-box .section-label { font-size: 11px; margin-bottom: 0.4rem; }
   .tackle-box textarea {
@@ -519,13 +524,13 @@
     cursor: pointer;
   }
 
-  /* Weekly Visualization box, fixed top left corner — mirrors the
-     Tackle/Whiteboard box on the right. 7 rows, Monday = day 1. */
+  /* Weekly Visualization box, sits in the header row on the left —
+     mirrors the Tackle/Whiteboard box on the right. 7 rows, Monday =
+     day 1. Real flex child (not absolutely positioned) so it
+     occupies actual space and pushes the Ruler down naturally,
+     rather than floating on top of it. */
   .weekly-wrap {
-    position: absolute;
-    top: -8px;
-    left: 0;
-    z-index: 10;
+    flex: 0 0 auto;
   }
   .weekly-box {
     width: 240px;
@@ -539,7 +544,7 @@
   .weekly-day-row {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.75rem;
     padding: 0.25rem 0.3rem;
     border-radius: 4px;
     margin-bottom: 2px;
@@ -549,7 +554,7 @@
     box-shadow: inset 0 0 0 1px rgba(192,181,165,0.4);
   }
   .weekly-day-num {
-    width: 16px;
+    width: 28px;
     flex-shrink: 0;
     font-size: 11px;
     color: #c0b5a5;
@@ -571,12 +576,12 @@
 
   .weekly-col-headers {
     display: flex;
-    gap: 0.5rem;
+    gap: 0.75rem;
     padding: 0 0.3rem;
     margin-bottom: 0.3rem;
   }
   .weekly-col-header-days {
-    width: 16px;
+    width: 28px;
     flex-shrink: 0;
     font-size: 9px;
     color: #777;
@@ -896,8 +901,9 @@
 
   @media (max-width: 700px) {
     body { padding: 1.25rem 0.75rem; }
-    .weekly-wrap { position: static; display: flex; justify-content: center; margin-bottom: 1rem; order: -1; }
-    .tackle-wrap { position: static; display: flex; justify-content: center; margin-bottom: 1rem; }
+    .header-row { flex-direction: column; align-items: center; }
+    .weekly-wrap { width: 100%; display: flex; justify-content: center; order: -1; margin-bottom: 1rem; }
+    .tackle-wrap { width: 100%; display: flex; justify-content: center; margin-bottom: 1rem; }
     .weekly-box,
     .tackle-box { width: 100%; max-width: 280px; }
     .resize-handle { right: -14px; width: 28px; }
@@ -912,36 +918,37 @@
 </div>
 
 <div class="page-wrap">
-  <div class="header">
-    <h1>My Ruler</h1>
-    <p class="tagline">For Dangerous Gentlemen</p>
-    <p>Your 12-block day planner</p>
-    <div class="clocks-row">
-      <div class="clock-item">
-        <span class="clock-label">Local</span>
-        <span class="clock-value" id="localClock">—</span>
-      </div>
-      <div class="clock-item">
-        <span class="clock-label">UTC</span>
-        <span class="clock-value" id="utcClock">—</span>
-      </div>
-      <div class="clock-item">
-        <span class="clock-label">Block</span>
-        <span class="clock-value" id="blockClock">—</span>
+  <div class="header-row">
+    <div class="weekly-wrap">
+      <div class="weekly-box">
+        <span class="section-label">Weekly Visualization</span>
+        <div class="weekly-col-headers">
+          <span class="weekly-col-header-days">Days</span>
+          <span class="weekly-col-header-details">Details</span>
+        </div>
+        <div id="weeklyDaysList"></div>
       </div>
     </div>
-  </div>
 
-  <div class="weekly-wrap">
-    <div class="weekly-box">
-      <span class="section-label">Weekly Visualization</span>
-      <div class="weekly-col-headers">
-        <span class="weekly-col-header-days">Days</span>
-        <span class="weekly-col-header-details">Details</span>
+    <div class="header">
+      <h1>My Ruler</h1>
+      <p class="tagline">For Dangerous Gentlemen</p>
+      <p>Your 12-block day planner</p>
+      <div class="clocks-row">
+        <div class="clock-item">
+          <span class="clock-label">Local</span>
+          <span class="clock-value" id="localClock">—</span>
+        </div>
+        <div class="clock-item">
+          <span class="clock-label">UTC</span>
+          <span class="clock-value" id="utcClock">—</span>
+        </div>
+        <div class="clock-item">
+          <span class="clock-label">Block</span>
+          <span class="clock-value" id="blockClock">—</span>
+        </div>
       </div>
-      <div id="weeklyDaysList"></div>
     </div>
-  </div>
 
   <div class="tackle-wrap">
     <div class="tackle-box">
@@ -952,6 +959,7 @@
         <label for="tackleShare">Share</label>
       </div>
     </div>
+  </div>
   </div>
 </div>
 
