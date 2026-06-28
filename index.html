@@ -532,6 +532,37 @@
     cursor: pointer;
   }
 
+  .section-share-row {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-top: 0.5rem;
+    font-size: 11px;
+    color: #888;
+  }
+  .section-share-row input[type="checkbox"] {
+    accent-color: #c0b5a5;
+    cursor: pointer;
+  }
+
+  .yearly-locked {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 90px;
+    text-align: center;
+  }
+  .yearly-locked p {
+    font-size: 11px;
+    color: #777;
+    padding: 0.5rem;
+  }
+  .yearly-locked a {
+    color: #c0b5a5;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
   /* Weekly Visualization box, sits in the header row on the left —
      mirrors the Tackle/Whiteboard box on the right. 7 rows, Monday =
      day 1. Real flex child (not absolutely positioned) so it
@@ -866,42 +897,97 @@
   .clan-card-header .clan-leave:hover { border-color: #c77; color: #c77; }
 
   .clan-member {
-    margin-bottom: 1rem;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    border-radius: 6px;
+    padding: 0.5rem 0.6rem;
+    transition: background 0.15s;
   }
+  .clan-member:hover { background: #1d1d1d; }
   .clan-member:last-child { margin-bottom: 0; }
   .clan-member-row {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    margin-bottom: 0.35rem;
+    gap: 0.6rem;
   }
-  .clan-member-name { font-size: 13px; color: #ddd; }
-  .clan-member-time { font-size: 12px; color: #999; font-variant-numeric: tabular-nums; }
+  .clan-member-name { font-size: 13px; color: #ddd; flex: 1 1 auto; min-width: 0; }
+  .clan-member-block {
+    font-size: 12px;
+    color: #c0b5a5;
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .clan-member-time { font-size: 12px; color: #999; font-variant-numeric: tabular-nums; flex-shrink: 0; }
   .clan-member-time.is-night { color: #555; }
 
-  .clan-mini-track {
+  /* Member detail modal */
+  .member-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 1rem;
+  }
+  .member-modal {
+    background: #161616;
+    border: 1px solid #3a3327;
+    border-radius: 10px;
+    width: 100%;
+    max-width: 520px;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 1.25rem;
+  }
+  .member-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    font-size: 16px;
+    color: #c0b5a5;
+  }
+  .member-modal-section { margin-bottom: 1.25rem; }
+  .member-modal-section h4 {
+    font-size: 11px;
+    color: #c0b5a5;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 0.5rem 0;
+  }
+  .member-modal-ruler-track {
     display: flex;
     width: 100%;
-    height: 28px;
-    border-radius: 5px;
+    height: 50px;
+    border-radius: 6px;
     overflow: hidden;
     border: 1px solid #2a2a2a;
   }
-  .clan-mini-block {
+  .member-modal-ruler-block {
     background: #2f3b34;
     border-right: 1px solid #000;
-    position: relative;
+    font-size: 9px;
+    color: #ddd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    padding: 0 2px;
   }
-  .clan-mini-block:last-child { border-right: none; }
-  .clan-mini-block.sleep-zone { background: #5a2323; }
-  .clan-mini-block .mini-fill {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    height: 100%;
-    width: 0%;
-    background: rgba(255,255,255,0.15);
-  }
+  .member-modal-ruler-block:last-child { border-right: none; }
+  .member-modal-ruler-block.sleep-zone { background: #5a2323; }
+  .member-modal-text { font-size: 13px; color: #ccc; white-space: pre-wrap; }
+  .member-modal-musts-row { font-size: 12px; color: #bbb; padding: 0.2rem 0; }
+  .member-modal-loading { font-size: 12px; color: #777; }
 
   .clans-locked {
     background: #161616;
@@ -943,6 +1029,10 @@
           <span class="weekly-col-header-details">Details</span>
         </div>
         <div id="weeklyDaysList"></div>
+        <div class="section-share-row" id="weeklyShareRow" style="display:none;">
+          <input type="checkbox" id="weeklyShare">
+          <label for="weeklyShare">Share with Clan</label>
+        </div>
       </div>
     </div>
 
@@ -1000,12 +1090,19 @@
 <div class="panels-row">
   <div class="panel-col-yearly">
     <span class="section-label">Yearly Visualization</span>
-    <div class="yearly-box">
+    <div class="yearly-box" id="yearlyBoxUnlocked" style="display:none;">
       <div class="weekly-col-headers">
         <span class="weekly-col-header-days">Month</span>
         <span class="weekly-col-header-details">Details</span>
       </div>
       <div id="yearlyMonthsList"></div>
+      <div class="section-share-row" id="yearlyShareRow">
+        <input type="checkbox" id="yearlyShare">
+        <label for="yearlyShare">Share with Clan</label>
+      </div>
+    </div>
+    <div class="yearly-box yearly-locked" id="yearlyBoxLocked">
+      <p>📅 Yearly Visualization is a paid feature. <a id="yearlyUpgradeLink">Upgrade to unlock.</a></p>
     </div>
   </div>
 
@@ -1032,6 +1129,10 @@
   <div class="panel-col-musts">
     <span class="section-label">Musts &amp; In-between</span>
     <div class="musts-box" id="mustsBox"></div>
+    <div class="section-share-row" id="mustsShareRow" style="display:none;">
+      <input type="checkbox" id="mustsShare">
+      <label for="mustsShare">Share with Clan</label>
+    </div>
   </div>
 </div>
 
@@ -1124,6 +1225,7 @@ var LOCAL_SNAPSHOTS_KEY = 'csrAlignDailySnapshots';
 var LAST_SNAPSHOT_DATE_KEY = 'csrAlignLastSnapshotDate';
 var WEEKLY_VIZ_KEY = 'csrAlignWeeklyViz';
 var YEARLY_VIZ_KEY = 'csrAlignYearlyViz';
+var SECTION_SHARE_KEY = 'csrAlignSectionShare';
 
 // ---- Local daily snapshot fallback ----
 // Browsers can't run code while closed, so this can't fire at an
@@ -1755,6 +1857,19 @@ document.getElementById('journalImagesUpgradeLink').addEventListener('click', fu
   window.alert('Image attachments are a paid feature. Upgrade flow coming soon — for now, contact support to upgrade your account.');
 });
 
+// Yearly Visualization is paid-only. Free users see a locked message
+// in its place instead of the real box.
+function updateYearlyVizUIVisibility() {
+  var unlocked = !!(currentUser && currentUserIsPaid);
+  document.getElementById('yearlyBoxUnlocked').style.display = unlocked ? '' : 'none';
+  document.getElementById('yearlyBoxLocked').style.display = unlocked ? 'none' : '';
+}
+updateYearlyVizUIVisibility();
+
+document.getElementById('yearlyUpgradeLink').addEventListener('click', function() {
+  window.alert('Yearly Visualization is a paid feature. Upgrade flow coming soon — for now, contact support to upgrade your account.');
+});
+
 journalImageInput.addEventListener('change', function() {
   if (!currentUser || !currentUserIsPaid) return;
   var files = Array.prototype.slice.call(journalImageInput.files);
@@ -1898,6 +2013,7 @@ function loadMusts() {
 
 function saveMusts() {
   localStorage.setItem(MUSTS_KEY, JSON.stringify(musts));
+  pushSharedSection('musts', musts);
 }
 
 var musts = loadMusts();
@@ -1993,6 +2109,9 @@ function loadTackle() {
 }
 function saveTackle() {
   localStorage.setItem(TACKLE_KEY, JSON.stringify({ text: tackleArea.value, shared: tackleShare.checked }));
+  sectionShareState.whiteboard = tackleShare.checked;
+  saveSectionShareState();
+  pushSharedSection('whiteboard', { text: tackleArea.value });
 }
 tackleArea.addEventListener('input', saveTackle);
 tackleShare.addEventListener('change', saveTackle);
@@ -2017,6 +2136,7 @@ function loadWeeklyViz() {
 
 function saveWeeklyViz(days) {
   localStorage.setItem(WEEKLY_VIZ_KEY, JSON.stringify(days));
+  pushSharedSection('weekly', days);
 }
 
 var weeklyVizDays = loadWeeklyViz();
@@ -2079,6 +2199,7 @@ function loadYearlyViz() {
 
 function saveYearlyViz(months) {
   localStorage.setItem(YEARLY_VIZ_KEY, JSON.stringify(months));
+  pushSharedSection('yearly', months);
 }
 
 var yearlyVizMonths = loadYearlyViz();
@@ -2346,6 +2467,8 @@ function initAuth() {
       renderAuthBarLoggedOut();
       showClansLocked();
       updateJournalImageUIVisibility();
+      updateYearlyVizUIVisibility();
+      if (typeof updateSectionShareRowsVisibility === 'function') updateSectionShareRowsVisibility();
     }
   });
 }
@@ -2354,7 +2477,12 @@ function initAuth() {
 // tier-gated features (export range cap, clan creation, etc.) check
 // an actual database value rather than an undefined/guessed one.
 function refreshCurrentUserPaidStatus() {
-  if (!supabaseClient || !currentUser) { currentUserIsPaid = false; updateJournalImageUIVisibility(); return; }
+  if (!supabaseClient || !currentUser) {
+    currentUserIsPaid = false;
+    updateJournalImageUIVisibility();
+    updateYearlyVizUIVisibility();
+    return;
+  }
   supabaseClient.from('profiles')
     .select('is_paid')
     .eq('id', currentUser.id)
@@ -2363,6 +2491,8 @@ function refreshCurrentUserPaidStatus() {
         currentUserIsPaid = !!result.data[0].is_paid;
       }
       updateJournalImageUIVisibility();
+      updateYearlyVizUIVisibility();
+      if (typeof updateSectionShareRowsVisibility === 'function') updateSectionShareRowsVisibility();
     });
 }
 
@@ -2409,6 +2539,37 @@ function pushMyRulerToSupabase() {
   supabaseClient.from('shared_rulers')
     .upsert({ user_id: currentUser.id, blocks: blocks, updated_at: new Date().toISOString() })
     .then(function(){});
+}
+
+// Generalized sync for the 4 opt-in shareable sections (Musts,
+// Whiteboard, Weekly, Yearly). Pushes the section's current data AND
+// its current share toggle state every time, so a toggle flip takes
+// effect immediately without needing the data to also change.
+var sectionShareState = { musts: false, whiteboard: false, weekly: false, yearly: false };
+
+function pushSharedSection(section, data) {
+  if (!supabaseClient || !currentUser) return;
+  supabaseClient.from('shared_sections')
+    .upsert({
+      user_id: currentUser.id,
+      section: section,
+      data: data,
+      is_shared: !!sectionShareState[section],
+      updated_at: new Date().toISOString()
+    })
+    .then(function(){});
+}
+
+function loadSectionShareState() {
+  var saved = localStorage.getItem(SECTION_SHARE_KEY);
+  if (saved) {
+    try { return Object.assign(sectionShareState, JSON.parse(saved)); } catch(e) {}
+  }
+  return sectionShareState;
+}
+
+function saveSectionShareState() {
+  localStorage.setItem(SECTION_SHARE_KEY, JSON.stringify(sectionShareState));
 }
 
 document.getElementById('createClanBtn').addEventListener('click', function() {
@@ -2624,11 +2785,29 @@ function renderOneClanCardRefresh(clan, membersWrap) {
     });
 }
 
+// Given a member's own blocks, figures out which one is "current"
+// right now using the same 6am-anchored math the main Ruler uses —
+// just applied to someone else's block data instead of your own.
+function findMemberCurrentBlock(memberBlocks) {
+  if (!memberBlocks || !memberBlocks.length) return null;
+  var sinceSix = getSinceSix();
+  var cumulative = 0;
+  for (var i = 0; i < memberBlocks.length; i++) {
+    var b = memberBlocks[i];
+    var startMin = cumulative;
+    var endMin = cumulative + b.minutes;
+    cumulative = endMin;
+    if (sinceSix >= startMin && sinceSix < endMin) return b;
+  }
+  return memberBlocks[memberBlocks.length - 1] || null;
+}
+
 function renderClanMembers(container, profiles, rulerMap) {
   container.innerHTML = '';
   profiles.forEach(function(profile) {
     var memberDiv = document.createElement('div');
     memberDiv.className = 'clan-member';
+    memberDiv.title = 'Click to view ' + profile.display_name + (profile.id === currentUser.id ? '' : "'s") + ' Ruler';
 
     var row = document.createElement('div');
     row.className = 'clan-member-row';
@@ -2637,6 +2816,13 @@ function renderClanMembers(container, profiles, rulerMap) {
     nameSpan.className = 'clan-member-name';
     nameSpan.textContent = profile.display_name + (profile.id === currentUser.id ? ' (you)' : '');
 
+    var memberBlocks = rulerMap[profile.id] || [];
+    var currentBlock = findMemberCurrentBlock(memberBlocks);
+
+    var blockSpan = document.createElement('span');
+    blockSpan.className = 'clan-member-block';
+    blockSpan.textContent = currentBlock ? currentBlock.name : '—';
+
     var timeSpan = document.createElement('span');
     timeSpan.className = 'clan-member-time';
     var localInfo = getLocalTimeInfo(profile.timezone);
@@ -2644,23 +2830,14 @@ function renderClanMembers(container, profiles, rulerMap) {
     if (localInfo.isNight) timeSpan.classList.add('is-night');
 
     row.appendChild(nameSpan);
+    row.appendChild(blockSpan);
     row.appendChild(timeSpan);
     memberDiv.appendChild(row);
-
-    var track = document.createElement('div');
-    track.className = 'clan-mini-track';
-    var memberBlocks = rulerMap[profile.id] || [];
-
-    if (memberBlocks.length) {
-      memberBlocks.forEach(function(b) {
-        var miniBlock = document.createElement('div');
-        miniBlock.className = 'clan-mini-block' + (b.sleep ? ' sleep-zone' : '');
-        miniBlock.style.width = ((b.minutes / 1440) * 100) + '%';
-        track.appendChild(miniBlock);
-      });
-    }
-    memberDiv.appendChild(track);
     container.appendChild(memberDiv);
+
+    memberDiv.addEventListener('click', function() {
+      openMemberDetailModal(profile);
+    });
   });
 }
 
@@ -2677,6 +2854,157 @@ function getLocalTimeInfo(timezone) {
   }
 }
 
+// ---- Member detail modal ----
+// Free-tier viewers always see a member's Ruler + Whiteboard.
+// Paid-tier viewers ALSO see any other section (Musts, Weekly,
+// Yearly) that member has individually flagged as shared. Journal
+// and Export are never part of this, by design.
+var memberModalOverlay = null;
+
+function openMemberDetailModal(profile) {
+  closeMemberDetailModal();
+
+  var overlay = document.createElement('div');
+  overlay.className = 'member-modal-overlay';
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) closeMemberDetailModal();
+  });
+
+  var modal = document.createElement('div');
+  modal.className = 'member-modal';
+
+  var header = document.createElement('div');
+  header.className = 'member-modal-header';
+  var title = document.createElement('span');
+  title.textContent = profile.display_name + (profile.id === currentUser.id ? ' (you)' : '');
+  var closeBtn = document.createElement('button');
+  closeBtn.className = 'secondary';
+  closeBtn.textContent = 'Close';
+  closeBtn.addEventListener('click', closeMemberDetailModal);
+  header.appendChild(title);
+  header.appendChild(closeBtn);
+  modal.appendChild(header);
+
+  var body = document.createElement('div');
+  body.className = 'member-modal-body';
+  body.innerHTML = '<p class="member-modal-loading">Loading…</p>';
+  modal.appendChild(body);
+
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  memberModalOverlay = overlay;
+
+  loadMemberDetailContent(profile, body);
+}
+
+function closeMemberDetailModal() {
+  if (memberModalOverlay) {
+    memberModalOverlay.remove();
+    memberModalOverlay = null;
+  }
+}
+
+function loadMemberDetailContent(profile, body) {
+  if (!supabaseClient) return;
+
+  var lookups = [
+    supabaseClient.from('shared_rulers').select('blocks').eq('user_id', profile.id),
+    supabaseClient.from('shared_sections').select('section, data, is_shared').eq('user_id', profile.id)
+  ];
+
+  Promise.all(lookups).then(function(results) {
+    var rulerResult = results[0];
+    var sectionsResult = results[1];
+
+    var memberBlocks = (rulerResult.data && rulerResult.data[0] && rulerResult.data[0].blocks) || [];
+    var sections = {};
+    (sectionsResult.data || []).forEach(function(row) { sections[row.section] = row; });
+
+    body.innerHTML = '';
+
+    // Ruler — always shown
+    var rulerSection = document.createElement('div');
+    rulerSection.className = 'member-modal-section';
+    rulerSection.innerHTML = '<h4>Ruler</h4>';
+    var track = document.createElement('div');
+    track.className = 'member-modal-ruler-track';
+    memberBlocks.forEach(function(b) {
+      var block = document.createElement('div');
+      block.className = 'member-modal-ruler-block' + (b.sleep ? ' sleep-zone' : '');
+      block.style.width = ((b.minutes / 1440) * 100) + '%';
+      block.textContent = b.name;
+      block.title = b.name + ' — ' + b.minutes + ' min';
+      track.appendChild(block);
+    });
+    rulerSection.appendChild(track);
+    body.appendChild(rulerSection);
+
+    // Whiteboard — always shown if it's marked shared by the member.
+    // (Note: even though "always shown" per our spec, it still only
+    // shows real content if the member opted in — otherwise there's
+    // simply nothing to display, which is the correct outcome.)
+    appendSharedSectionIfAvailable(body, sections.whiteboard, 'Whiteboard', function(data) {
+      var p = document.createElement('p');
+      p.className = 'member-modal-text';
+      p.textContent = data.text || '(empty)';
+      return p;
+    });
+
+    // Everything else (Musts, Weekly, Yearly) is paid-viewer-only,
+    // and only shown if the member has individually shared it.
+    if (currentUserIsPaid) {
+      appendSharedSectionIfAvailable(body, sections.musts, 'Musts & In-Between', function(data) {
+        var list = document.createElement('div');
+        (data || []).forEach(function(m) {
+          var row = document.createElement('div');
+          row.className = 'member-modal-musts-row';
+          row.textContent = m.label + (m.score ? ' — ' + m.score + '/3' : '');
+          list.appendChild(row);
+        });
+        return list;
+      });
+
+      appendSharedSectionIfAvailable(body, sections.weekly, 'Weekly Visualization', function(data) {
+        return buildSevenRowReadout(data);
+      });
+
+      appendSharedSectionIfAvailable(body, sections.yearly, 'Yearly Visualization', function(data) {
+        return buildSevenRowReadout(data);
+      });
+    }
+
+    if (!body.children.length) {
+      body.innerHTML = '<p class="member-modal-loading">Nothing shared yet.</p>';
+    }
+  });
+}
+
+function appendSharedSectionIfAvailable(body, sectionRow, title, renderFn) {
+  if (!sectionRow || !sectionRow.is_shared) return;
+  var section = document.createElement('div');
+  section.className = 'member-modal-section';
+  var h = document.createElement('h4');
+  h.textContent = title;
+  section.appendChild(h);
+  section.appendChild(renderFn(sectionRow.data));
+  body.appendChild(section);
+}
+
+function buildSevenRowReadout(items) {
+  var list = document.createElement('div');
+  (items || []).forEach(function(text, idx) {
+    if (!text) return;
+    var row = document.createElement('div');
+    row.className = 'member-modal-musts-row';
+    row.textContent = (idx + 1) + '. ' + text;
+    list.appendChild(row);
+  });
+  if (!list.children.length) {
+    list.innerHTML = '<span class="member-modal-loading">Nothing filled in yet.</span>';
+  }
+  return list;
+}
+
 
 // ============================================================
 // Export system
@@ -2686,7 +3014,7 @@ function getLocalTimeInfo(timezone) {
 //     includeRuler, includeJournal, includeMusts, includeWhiteboard,
 //     wasClipped }
 // ============================================================
-var FREE_TIER_EXPORT_DAYS = 30;
+var FREE_TIER_EXPORT_DAYS = 14;
 
 var exportRangeSelect = document.getElementById('exportRangeSelect');
 var exportCustomDates = document.getElementById('exportCustomDates');
@@ -3274,6 +3602,45 @@ function renderPdfDocument(bundle, imagesByEntryId, onComplete) {
   if (typeof onComplete === 'function') onComplete();
 }
 
+
+// ---- Share-with-Clan toggles for Musts, Weekly, Yearly ----
+// (Tackle/Whiteboard already has its own checkbox wired into saveTackle.)
+loadSectionShareState();
+
+var mustsShareRow = document.getElementById('mustsShareRow');
+var mustsShareCheckbox = document.getElementById('mustsShare');
+var weeklyShareRow = document.getElementById('weeklyShareRow');
+var weeklyShareCheckbox = document.getElementById('weeklyShare');
+var yearlyShareCheckbox = document.getElementById('yearlyShare');
+
+mustsShareCheckbox.checked = !!sectionShareState.musts;
+weeklyShareCheckbox.checked = !!sectionShareState.weekly;
+yearlyShareCheckbox.checked = !!sectionShareState.yearly;
+
+mustsShareCheckbox.addEventListener('change', function() {
+  sectionShareState.musts = mustsShareCheckbox.checked;
+  saveSectionShareState();
+  pushSharedSection('musts', musts);
+});
+weeklyShareCheckbox.addEventListener('change', function() {
+  sectionShareState.weekly = weeklyShareCheckbox.checked;
+  saveSectionShareState();
+  pushSharedSection('weekly', weeklyVizDays);
+});
+yearlyShareCheckbox.addEventListener('change', function() {
+  sectionShareState.yearly = yearlyShareCheckbox.checked;
+  saveSectionShareState();
+  pushSharedSection('yearly', yearlyVizMonths);
+});
+
+// These share rows only make sense once logged in (sharing requires
+// an account + clan membership), so they stay hidden for guests.
+function updateSectionShareRowsVisibility() {
+  var loggedIn = !!currentUser;
+  mustsShareRow.style.display = loggedIn ? '' : 'none';
+  weeklyShareRow.style.display = loggedIn ? '' : 'none';
+}
+updateSectionShareRowsVisibility();
 
 renderRuler();
 captureLocalDailySnapshotIfNeeded();
