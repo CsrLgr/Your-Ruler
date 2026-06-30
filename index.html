@@ -2388,20 +2388,110 @@ function enqueueSync(queueKey, payload, performFn) {
   attemptSync(queueKey, payload, performFn, true);
 }
 
+// Recognizes the specific error shapes Supabase/PostgREST return when
+// the access token is expired or otherwise invalid. This matters
+// because retrying one of these with the same stale token will NEVER
+// succeed — unlike a network blip, where blind retry is the right
+// move. Matched defensively against several known phrasings since
+// Supabase doesn't always use the exact same message or code.
+function isAuthError(err) {
+  if (!err) return false;
+  var msg = ((err.message || '') + '').toLowerCase();
+  var code = (err.code || '') + '';
+  return (
+    code === 'PGRST301' ||         // PostgREST: JWT expired
+    code === '401' ||
+    msg.indexOf('jwt expired') !== -1 ||
+    msg.indexOf('invalid jwt') !== -1 ||
+    msg.indexOf('jwt') !== -1 && msg.indexOf('invalid') !== -1 ||
+    msg.indexOf('not authorized') !== -1 ||
+    msg.indexOf('unauthorized') !== -1
+  );
+}
+
 function attemptSync(queueKey, payload, performFn, isFirstTry) {
   var result = performFn(payload);
   if (!result || typeof result.then !== 'function') return;
 
   result.then(function(response) {
     if (response && response.error) {
-      handleSyncFailure(queueKey, payload, performFn, response.error.message);
+      if (isAuthError(response.error)) {
+        handleAuthErrorDuringSync(queueKey, payload, performFn);
+      } else {
+        handleSyncFailure(queueKey, payload, performFn, response.error.message);
+      }
     } else {
       clearFromQueue(queueKey);
       if (!isFirstTry) showToast('Sync recovered — your changes are saved.', 'success');
     }
   }).catch(function(err) {
-    handleSyncFailure(queueKey, payload, performFn, (err && err.message) || 'Network error');
+    if (isAuthError(err)) {
+      handleAuthErrorDuringSync(queueKey, payload, performFn);
+    } else {
+      handleSyncFailure(queueKey, payload, performFn, (err && err.message) || 'Network error');
+    }
   });
+}
+
+// A write failed specifically because the session/token is stale.
+// Rather than retrying blindly (which would just fail identically up
+// to 5 times with a confusing generic message), try ONE proactive
+// session refresh first:
+//   - If the refresh succeeds, the underlying problem is already
+//     fixed, so immediately retry this exact write with the new
+//     token — the person likely never even notices.
+//   - If the refresh itself fails (the refresh token is ALSO stale,
+//     e.g. the app sat untouched for many days), there's no way to
+//     recover silently. Sign the person out locally so the UI
+//     honestly reflects reality, and show a clear, specific message
+//     instead of the generic sync-failure toast — "reconnect" framing
+//     would be misleading here, since the fix is re-authenticating,
+//     not waiting out a network issue.
+var authRecoveryInFlight = false;
+function handleAuthErrorDuringSync(queueKey, payload, performFn) {
+  // Still persist the pending change to the queue so nothing is lost
+  // while we sort out the session.
+  var queue = loadSyncQueue();
+  var existing = queue[queueKey];
+  queue[queueKey] = {
+    payload: payload,
+    queuedAt: new Date().toISOString(),
+    retryCount: existing ? existing.retryCount : 0
+  };
+  saveSyncQueue(queue);
+
+  if (authRecoveryInFlight) return; // a refresh attempt is already underway from another queued item
+  authRecoveryInFlight = true;
+
+  if (!supabaseClient) { authRecoveryInFlight = false; return; }
+
+  supabaseClient.auth.refreshSession().then(function(result) {
+    authRecoveryInFlight = false;
+    if (result.error || !(result.data && result.data.session)) {
+      forceSignOutWithMessage('Your session expired. Please sign in again — your unsaved changes are kept on this device and will sync automatically once you do.');
+    } else {
+      showToast('Session refreshed — syncing your changes...', 'success');
+      retryQueuedSyncs(true);
+    }
+  }).catch(function() {
+    authRecoveryInFlight = false;
+    forceSignOutWithMessage('Your session expired. Please sign in again — your unsaved changes are kept on this device and will sync automatically once you do.');
+  });
+}
+
+function forceSignOutWithMessage(message) {
+  currentUser = null;
+  currentUserIsPaid = false;
+  if (supabaseClient) {
+    // signOut() locally only — don't let a network failure here block
+    // showing the person the message they actually need to see.
+    try { supabaseClient.auth.signOut(); } catch (e) {}
+  }
+  showClansLocked();
+  updateJournalImageUIVisibility();
+  updateYearlyVizUIVisibility();
+  if (typeof updateSectionShareRowsVisibility === 'function') updateSectionShareRowsVisibility();
+  renderAuthBarLoggedOut(message);
 }
 
 var MAX_SYNC_RETRIES = 5;
@@ -3533,6 +3623,18 @@ function gatherExportData(filters, callback) {
       .select('snapshot_date, blocks')
       .eq('user_id', currentUser.id)
       .then(function(result) {
+        // If the server fetch failed, fall back to local snapshots but
+        // tell the person clearly so they know the export may be missing
+        // cloud-only days (e.g. days recorded on another device).
+        if (result.error) {
+          showExportMsg(
+            'Warning: could not reach the server (' + result.error.message + '). ' +
+            'Export contains only locally-stored data — some days recorded on other devices may be missing.',
+            true
+          );
+          callback({ entries: entries, snapshots: localSnapList, tackleText: tackleText, filters: filters, serverFetchFailed: true });
+          return;
+        }
         var serverSnaps = [];
         if (result.data) {
           serverSnaps = result.data
@@ -3549,6 +3651,15 @@ function gatherExportData(filters, callback) {
         localSnapList.forEach(function(s) { merged[s.date] = s; });
         serverSnaps.forEach(function(s) { merged[s.date] = s; });
         callback({ entries: entries, snapshots: Object.values(merged), tackleText: tackleText, filters: filters });
+      })
+      .catch(function(err) {
+        // Network-level failure (offline, DNS, Supabase down).
+        showExportMsg(
+          'Warning: could not reach the server (' + ((err && err.message) || 'network error') + '). ' +
+          'Export contains only locally-stored data — some days recorded on other devices may be missing.',
+          true
+        );
+        callback({ entries: entries, snapshots: localSnapList, tackleText: tackleText, filters: filters, serverFetchFailed: true });
       });
   } else {
     callback({ entries: entries, snapshots: localSnapList, tackleText: tackleText, filters: filters });
