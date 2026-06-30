@@ -2222,6 +2222,9 @@ function renderWeeklyViz() {
     input.className = 'weekly-day-input';
     input.placeholder = '...';
     input.value = weeklyVizDays[i] || '';
+    input.name = 'weekly-day-' + i;
+    input.id = 'weeklyDayInput' + i;
+    input.setAttribute('autocomplete', 'off');
     (function(idx) {
       input.addEventListener('input', function() {
         weeklyVizDays[idx] = input.value;
@@ -2278,6 +2281,9 @@ function renderYearlyViz() {
     input.className = 'weekly-day-input';
     input.placeholder = '...';
     input.value = yearlyVizMonths[i] || '';
+    input.name = 'yearly-month-' + i;
+    input.id = 'yearlyMonthInput' + i;
+    input.setAttribute('autocomplete', 'off');
     (function(idx) {
       input.addEventListener('input', function() {
         yearlyVizMonths[idx] = input.value;
