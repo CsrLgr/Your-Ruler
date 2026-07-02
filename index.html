@@ -5,7 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>My Ruler</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#2f3b34">
+<meta name="theme-color" content="#0a0808">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -1039,6 +1042,428 @@
     .resize-handle { right: -14px; width: 28px; }
     .clans-actions input[type="text"] { width: 100px; }
   }
+
+  /* ============================================================
+     REDESIGN — 3-tab shell + Ruler tab.
+     Dark, aggressive, raw: heavy blacks, deep reds, gold accents.
+     These rules live at the END of the stylesheet ON PURPOSE, so
+     equal-specificity rules win over the originals above without
+     deleting the old design — easy to peel back if needed.
+     ============================================================ */
+  :root {
+    --rd-black: #060505;
+    --rd-panel: #120e0e;
+    --rd-panel-2: #1a1413;
+    --rd-red: #b01818;
+    --rd-red-deep: #6e0f0f;
+    --rd-gold: #c9a24b;
+    --rd-gold-bright: #e6c25c;
+    --rd-text: #e8e2da;
+    --rd-muted: #8a807a;
+    --rd-edge: #3a1f1f;
+  }
+
+  body {
+    background:
+      radial-gradient(1100px 520px at 50% -8%, rgba(176,24,24,0.12), transparent 60%),
+      var(--rd-black);
+    color: var(--rd-text);
+  }
+
+  /* ---- Tab navigation ---- */
+  .tab-nav {
+    max-width: 1100px;
+    margin: 0 auto 1.5rem auto;
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    border-bottom: 1px solid var(--rd-edge);
+    padding-bottom: 0.6rem;
+  }
+  .tab-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--rd-muted);
+    font-family: Georgia, serif;
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 0.6rem 1.4rem;
+    border-radius: 6px 6px 0 0;
+    cursor: pointer;
+  }
+  .tab-btn:hover { color: var(--rd-gold); background: rgba(176,24,24,0.08); }
+  .tab-btn.active {
+    color: var(--rd-gold-bright);
+    border-color: var(--rd-edge);
+    border-bottom-color: transparent;
+    background: linear-gradient(180deg, rgba(176,24,24,0.18), transparent);
+    box-shadow: inset 0 2px 0 0 var(--rd-gold);
+  }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ---- Title + tagline ---- */
+  .header h1 {
+    color: var(--rd-gold-bright);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 30px;
+    text-shadow: 0 0 18px rgba(176,24,24,0.55);
+  }
+  .header .tagline { color: var(--rd-gold); }
+  .header p { color: var(--rd-muted); }
+
+  /* ---- Clocks — Local Time is the big centrepiece ---- */
+  .clocks-row { align-items: flex-end; gap: 2.2rem; margin-top: 0.9rem; }
+  .clock-item .clock-label { color: var(--rd-muted); }
+  .clock-item .clock-value { color: var(--rd-gold); font-size: 14px; }
+  .clock-item-main .clock-label { color: var(--rd-gold); font-size: 10px; }
+  .clock-item-main .clock-value {
+    font-size: 38px;
+    line-height: 1;
+    color: var(--rd-gold-bright);
+    text-shadow: 0 0 16px rgba(176,24,24,0.5);
+  }
+
+  /* ---- Today's Mission — big & prominent ---- */
+  .todays-mission {
+    max-width: 1100px;
+    margin: 1.75rem auto 0 auto;
+    text-align: center;
+    padding: 1rem 1rem 1.2rem 1rem;
+    border-top: 1px solid var(--rd-edge);
+    border-bottom: 1px solid var(--rd-edge);
+    background: linear-gradient(180deg, rgba(176,24,24,0.06), transparent);
+  }
+  .todays-mission-label {
+    display: block;
+    font-size: 12px;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--rd-gold);
+    margin-bottom: 0.5rem;
+  }
+  .todays-mission-text {
+    display: block;
+    font-size: 30px;
+    font-weight: bold;
+    color: var(--rd-text);
+    text-shadow: 0 0 14px rgba(0,0,0,0.6);
+  }
+  .todays-mission-input {
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto;
+    text-align: center;
+    background: #140f0f;
+    border: 1px solid var(--rd-edge);
+    border-radius: 8px;
+    color: var(--rd-text);
+    font-family: Georgia, serif;
+    font-size: 22px;
+    padding: 0.6rem 0.8rem;
+  }
+  .todays-mission-input:focus { outline: 1px solid var(--rd-gold); }
+
+  /* ---- The Ruler (hero element) ---- */
+  .ruler-track { border-color: var(--rd-edge); height: 110px; box-shadow: 0 0 30px rgba(0,0,0,0.6); }
+  .ruler-block {
+    background: linear-gradient(180deg, #191313, #0e0a0a);
+    border-right: 1px solid #000;
+    cursor: pointer;
+  }
+  .ruler-block .block-name { color: var(--rd-text); }
+  .ruler-block .block-mins { color: var(--rd-muted); }
+  .ruler-block.sleep-zone { background: linear-gradient(180deg, #3a1212, #200a0a); }
+  .ruler-block.current { box-shadow: inset 0 0 0 2px var(--rd-gold), 0 0 22px rgba(201,162,75,0.25); }
+  .ruler-block .fill-overlay { background: rgba(176,24,24,0.28); }
+  .progress-pct { color: var(--rd-gold); }
+  .span-markers .marker-start, .span-markers .marker-mid, .span-markers .marker-end { color: var(--rd-muted); }
+
+  /* ---- Block Detail panel (click a block to open) ---- */
+  .block-detail {
+    max-width: 1100px;
+    margin: 1.25rem auto 0 auto;
+    background: var(--rd-panel);
+    border: 1px solid var(--rd-edge);
+    border-radius: 10px;
+    padding: 1rem 1.1rem 1.2rem 1.1rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  }
+  .block-detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.8rem;
+  }
+  .block-detail-title {
+    font-size: 16px;
+    color: var(--rd-gold-bright);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .ritual-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.5rem 0.3rem;
+    border-bottom: 1px solid #241717;
+    font-size: 14px;
+    color: var(--rd-text);
+    cursor: pointer;
+  }
+  .ritual-row:last-child { border-bottom: none; }
+  .ritual-row input[type="checkbox"] {
+    width: 18px; height: 18px;
+    accent-color: var(--rd-gold);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .ritual-row .ritual-text { flex: 1; }
+  .ritual-row.done .ritual-text { color: var(--rd-muted); text-decoration: line-through; }
+  .ritual-remove {
+    background: none; border: none; color: #6b5a5a;
+    font-size: 15px; cursor: pointer; padding: 0 0.2rem;
+  }
+  .ritual-remove:hover { color: var(--rd-red); background: none; }
+  .ritual-empty { font-size: 12px; color: var(--rd-muted); font-style: italic; padding: 0.4rem 0.3rem; }
+  .block-detail-add { display: flex; gap: 0.5rem; margin-top: 0.8rem; }
+  .block-detail-add input[type="text"] {
+    flex: 1;
+    background: #140f0f;
+    border: 1px solid var(--rd-edge);
+    border-radius: 6px;
+    color: var(--rd-text);
+    font-family: Georgia, serif;
+    font-size: 13px;
+    padding: 0.5rem 0.7rem;
+  }
+  .block-detail-add input[type="text"]:focus { outline: 1px solid var(--rd-gold); }
+
+  /* ---- Shared accents pulled into the new palette ---- */
+  .section-label { color: var(--rd-gold); }
+  button {
+    background: linear-gradient(180deg, var(--rd-gold-bright), #a8842f);
+    color: #1c1305;
+  }
+  button:hover { background: var(--rd-gold-bright); }
+  button.secondary { background: #1c1414; color: #d8cfc7; border: 1px solid var(--rd-edge); }
+  button.secondary:hover { background: #291c1c; }
+  .weekly-box, .tackle-box { background: var(--rd-panel); border-color: var(--rd-edge); }
+  .current-block-info .cb-name { color: var(--rd-gold); }
+
+  /* ---- Big per-tab titles (Life / Journal) ---- */
+  .tab-title {
+    max-width: 1100px;
+    margin: 0 auto 1.5rem auto;
+    font-size: 44px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--rd-gold-bright);
+    text-shadow: 0 0 22px rgba(176,24,24,0.55);
+    border-bottom: 1px solid var(--rd-edge);
+    padding-bottom: 0.6rem;
+  }
+
+  /* ---- LIFE tab ---- */
+  .life-section { max-width: 1100px; margin: 0 auto 2rem auto; }
+  .yearly-months-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.9rem;
+  }
+  .yearly-month {
+    background: var(--rd-panel-2);
+    border: 1px solid var(--rd-edge);
+    border-radius: 8px;
+    padding: 0.7rem;
+  }
+  .yearly-month.is-current {
+    border-color: var(--rd-gold);
+    box-shadow: 0 0 0 1px var(--rd-gold), 0 0 18px rgba(201,162,75,0.18);
+  }
+  .yearly-month-name {
+    font-size: 13px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--rd-gold);
+    margin-bottom: 0.55rem;
+  }
+  .yearly-weeks {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+  .yearly-week-box {
+    min-height: 58px;
+    background: #140f0f;
+    border: 1px solid #2a1a1a;
+    border-radius: 6px;
+    color: var(--rd-text);
+    font-family: Georgia, serif;
+    font-size: 12px;
+    padding: 0.45rem 0.55rem;
+    resize: vertical;
+    width: 100%;
+  }
+  .yearly-week-box:focus { outline: 1px solid var(--rd-gold); }
+
+  /* "What I Want To Accomplish This Year" — exactly 3 long lines */
+  .accomplish-box { display: flex; flex-direction: column; gap: 0.75rem; }
+  .accomplish-line {
+    width: 100%;
+    min-height: 60px;
+    background: var(--rd-panel);
+    border: 1px solid var(--rd-edge);
+    border-left: 3px solid var(--rd-red);
+    border-radius: 8px;
+    color: var(--rd-text);
+    font-family: Georgia, serif;
+    font-size: 16px;
+    padding: 0.7rem 0.9rem;
+    resize: vertical;
+  }
+  .accomplish-line:focus { outline: 1px solid var(--rd-gold); border-left-color: var(--rd-gold); }
+
+  /* ---- JOURNAL tab ---- */
+  .journal-split {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .journal-write-col { flex: 2 1 420px; min-width: 300px; }
+  .journal-export-col { flex: 1 1 260px; min-width: 240px; }
+  .journal-write-col #workArea { min-height: 320px; font-size: 15px; }
+  .journal-export-col .export-section { margin: 0; }
+  .journal-export-col .export-row,
+  .journal-export-col .export-controls { flex-direction: column; align-items: stretch; }
+  .journal-export-col .export-row-label { width: auto; }
+  .entries-list-full { max-width: 1100px; margin: 2rem auto 0 auto; }
+  .entries-scroll { max-height: 460px; overflow-y: auto; padding-right: 0.4rem; }
+  .entries-scroll::-webkit-scrollbar { width: 8px; }
+  .entries-scroll::-webkit-scrollbar-thumb { background: var(--rd-edge); border-radius: 4px; }
+
+  /* ---- Musts: drag-to-reorder ranking ---- */
+  .must-drag-handle {
+    cursor: grab;
+    color: #6b5a5a;
+    font-size: 14px;
+    line-height: 1;
+    padding: 0 0.15rem;
+    touch-action: none;   /* so touch-drag reorders instead of scrolling the page */
+    user-select: none;
+    flex-shrink: 0;
+  }
+  .must-drag-handle:hover { color: var(--rd-gold); }
+  .must-drag-handle:active { cursor: grabbing; }
+  .must-rank {
+    color: var(--rd-gold);
+    font-size: 11px;
+    font-weight: bold;
+    width: 16px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .must-item.dragging {
+    background: rgba(176,24,24,0.16);
+    box-shadow: inset 0 0 0 1px var(--rd-edge);
+    border-radius: 6px;
+    opacity: 0.97;
+  }
+
+  @media (max-width: 700px) {
+    .tab-title { font-size: 32px; }
+    .yearly-months-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ============================================================
+     THEME SWEEP — loaded LAST so it wins the cascade over every
+     rule above. Goals: no gray boxes anywhere, gold text instead
+     of gray, and bold masculine type (Anton for titles/headings,
+     Oswald for everything else).
+     ============================================================ */
+  :root {
+    --rd-muted: #b8934a;   /* was gray — now dim gold */
+    --rd-text:  #ecdcb8;   /* warm gold-cream for body text */
+    --rd-panel: #160f0f;
+    --rd-panel-2: #1f1413;
+    --rd-field: #140d0d;   /* input/textarea fill */
+  }
+
+  /* ---- Typography ---- */
+  body, input, textarea, select, button {
+    font-family: 'Oswald', 'Segoe UI', system-ui, sans-serif;
+  }
+  h1, h2, h3, h4,
+  .tab-title, .header h1, .todays-mission-text,
+  .clan-name, .member-modal-header, .block-detail-title {
+    font-family: 'Anton', 'Oswald', sans-serif;
+    font-weight: 400;
+    letter-spacing: 0.03em;
+  }
+  .section-label, .tab-btn { font-family: 'Oswald', sans-serif; font-weight: 600; }
+  body { letter-spacing: 0.01em; }
+
+  /* ---- Repaint every gray panel/box to red-black ---- */
+  .musts-box, .export-section, .entry-item, .clans-section, .clan-card,
+  .clans-locked, .member-modal, .weekly-box, .tackle-box, .yearly-box,
+  .member-modal-time-row, .clan-member, .entry-edit-form, .entry-history,
+  .yearly-month, .accomplish-line, .block-detail {
+    background: var(--rd-panel) !important;
+    border-color: var(--rd-edge) !important;
+  }
+  .clan-member:hover { background: var(--rd-panel-2) !important; }
+  .must-item { border-bottom-color: #2a1a1a !important; }
+  .journal-image-thumb, .entry-image-thumbs img { border-color: var(--rd-edge) !important; }
+
+  /* ---- Form controls: dark red fields, gold text ---- */
+  textarea, select,
+  input[type="text"], input[type="email"], input[type="password"], input[type="date"],
+  .category-select, .weekly-day-input, .entry-edit-textarea, .yearly-week-box,
+  .accomplish-line, .todays-mission-input, .auth-bar input {
+    background: var(--rd-field) !important;
+    border: 1px solid var(--rd-edge) !important;
+    color: var(--rd-text) !important;
+  }
+  textarea:focus, select:focus, input:focus { outline: 1px solid var(--rd-gold) !important; }
+  ::placeholder { color: #7a6338 !important; opacity: 1; }
+
+  /* ---- Text: gold, never gray ---- */
+  body, .header p, .current-block-info .cb-time, .must-note, .must-label,
+  .block-mins, .entry-text, .entry-edited, .clan-meta, .clan-member-name,
+  .clan-member-time, .clan-member-block, .clans-locked p,
+  .journal-image-paste-hint, .journal-images-locked, .export-row-label,
+  .export-to, .weekly-col-header-days, .weekly-col-header-details,
+  .span-markers, .member-modal-text, .member-modal-musts-row,
+  .auth-bar, .auth-bar .auth-status, .clans-msg, .export-checkbox-group,
+  .entry-history-ts, .must-add-row input, .ritual-empty {
+    color: var(--rd-text) !important;
+  }
+  .section-label, .clock-item .clock-label, .clock-item .clock-value,
+  .cb-name, .progress-pct, .weekly-day-num, .must-rank, .clan-name,
+  .entry-date, .yearly-month-name, .member-modal-header,
+  .member-modal-section h4, .block-detail-title {
+    color: var(--rd-gold) !important;
+  }
+  .clock-item-main .clock-value, .header h1, .todays-mission-text { color: var(--rd-gold-bright) !important; }
+
+  /* ---- Badges & leftover tan/green accents ---- */
+  .entry-category { background: var(--rd-gold) !important; color: #1c1305 !important; }
+  .member-modal-ruler-block { background: linear-gradient(180deg,#191313,#0e0a0a) !important; color: var(--rd-text) !important; }
+  .member-modal-ruler-block.sleep-zone { background: linear-gradient(180deg,#3a1212,#200a0a) !important; }
+  .weekly-day-row.is-today {
+    background: rgba(176,24,24,0.16) !important;
+    box-shadow: inset 0 0 0 1px var(--rd-gold) !important;
+  }
+  .must-score-btn.active { background: var(--rd-gold) !important; color: #1c1305 !important; border-color: var(--rd-gold) !important; }
+  .must-score-btn { background: var(--rd-field) !important; border-color: var(--rd-edge) !important; color: var(--rd-muted) !important; }
 </style>
 </head>
 <body>
@@ -1046,6 +1471,18 @@
 <div class="auth-bar" id="authBar">
   <!-- Filled in by JS depending on logged-in/out state -->
 </div>
+
+<!-- ==== 3-tab navigation. Tab 1 (Ruler) is fully built out below;
+     Journal + Clans reuse the existing sections, regrouped. ==== -->
+<nav class="tab-nav" id="tabNav">
+  <button class="tab-btn active" data-tab="tab-ruler">Ruler</button>
+  <button class="tab-btn" data-tab="tab-life">Life</button>
+  <button class="tab-btn" data-tab="tab-journal">Journal</button>
+  <button class="tab-btn" data-tab="tab-clans">Clans</button>
+</nav>
+
+<!-- ============================ TAB 1: RULER ============================ -->
+<div class="tab-panel active" id="tab-ruler">
 
 <div class="page-wrap">
   <div class="header-row">
@@ -1066,16 +1503,16 @@
 
     <div class="header">
       <h1>My Ruler</h1>
-      <p class="tagline">For Dangerous Gentlemen</p>
+      <p class="tagline">For Dangerous Humans</p>
       <p>Your 12-block day planner</p>
       <div class="clocks-row">
         <div class="clock-item">
-          <span class="clock-label">Local</span>
-          <span class="clock-value" id="localClock">—</span>
-        </div>
-        <div class="clock-item">
           <span class="clock-label">UTC</span>
           <span class="clock-value" id="utcClock">—</span>
+        </div>
+        <div class="clock-item clock-item-main">
+          <span class="clock-label">Local Time</span>
+          <span class="clock-value" id="localClock">—</span>
         </div>
         <div class="clock-item">
           <span class="clock-label">Block</span>
@@ -1097,11 +1534,11 @@
   </div>
 </div>
 
-<div id="todaysMission" style="max-width:1100px;margin:0.75rem auto 0 auto;">
-  <span class="section-label">Today's Mission</span>
-  <input id="todaysMissionInput" type="text" placeholder="What's the mission for today?"
-    autocomplete="off"
-    style="background:#1a1a1a;border:1px solid #333;border-radius:6px;color:#eee;font-family:Georgia,serif;font-size:13px;padding:0.45rem 0.6rem;width:100%;margin-top:0.4rem;">
+<div id="todaysMission" class="todays-mission">
+  <span class="todays-mission-label">Today's Mission</span>
+  <span id="todaysMissionText" class="todays-mission-text"></span>
+  <input id="todaysMissionInput" type="text" class="todays-mission-input"
+    placeholder="What's the mission for today?" style="display:none;">
 </div>
 
 <div class="ruler-container">
@@ -1122,15 +1559,32 @@
   <span class="cb-time" id="currentBlockTime">—</span>
 </div>
 
-<div class="panels-row">
-  <div class="panel-col-yearly">
+<!-- Block Detail: hidden until a block is clicked. Shows that block's
+     own checklist of rituals/subtasks (e.g. a "GM" block seeds
+     GM to Self / GM to Body / GM to World). -->
+<div class="block-detail" id="blockDetail" style="display:none;">
+  <div class="block-detail-header">
+    <span class="block-detail-title" id="blockDetailTitle">Block</span>
+    <button class="secondary" id="blockDetailClose">Close</button>
+  </div>
+  <div class="block-detail-rituals" id="blockDetailRituals"></div>
+  <div class="block-detail-add">
+    <input type="text" id="blockRitualInput" placeholder="Add a ritual / subtask...">
+    <button id="blockRitualAddBtn">+ Add</button>
+  </div>
+</div>
+
+</div><!-- ============================ /TAB 1: RULER ============================ -->
+
+<!-- ============================ TAB 2: LIFE ============================ -->
+<div class="tab-panel" id="tab-life">
+  <h2 class="tab-title">Life</h2>
+
+  <!-- Yearly Visualization: 12 months, each with 4 large week-boxes -->
+  <div class="life-section">
     <span class="section-label">Yearly Visualization</span>
     <div class="yearly-box" id="yearlyBoxUnlocked" style="display:none;">
-      <div class="weekly-col-headers">
-        <span class="weekly-col-header-days">Month</span>
-        <span class="weekly-col-header-details">Details</span>
-      </div>
-      <div id="yearlyMonthsList"></div>
+      <div id="yearlyMonthsList" class="yearly-months-grid"></div>
       <div class="section-share-row" id="yearlyShareRow">
         <input type="checkbox" id="yearlyShare">
         <label for="yearlyShare">Share with Clan</label>
@@ -1141,27 +1595,8 @@
     </div>
   </div>
 
-  <div class="panel-col-notes">
-    <span class="section-label">Journal Notes</span>
-    <textarea id="workArea" placeholder="Write your day here..."></textarea>
-    <div class="journal-controls-row">
-      <select id="categorySelect" class="category-select"></select>
-      <label class="journal-image-add-btn" id="journalImageAddLabel" style="display:none;">
-        + Add image
-        <input type="file" id="journalImageInput" accept="image/*" multiple style="display:none;">
-      </label>
-      <button id="saveBtn">Save Entry / New Day</button>
-    </div>
-    <div class="journal-images-row" id="journalImagesRow" style="display:none;">
-      <div class="journal-image-thumbs" id="journalImageThumbs"></div>
-      <span class="journal-image-paste-hint">or paste a screenshot directly into the box above</span>
-    </div>
-    <p class="journal-images-locked" id="journalImagesLocked" style="display:none;">
-      📷 Attaching images to entries is a paid feature. <a id="journalImagesUpgradeLink">Upgrade to unlock.</a>
-    </p>
-  </div>
-
-  <div class="panel-col-musts">
+  <!-- Musts & In-between: ranked daily musts with scoring -->
+  <div class="life-section">
     <span class="section-label">Musts &amp; In-between</span>
     <div class="musts-box" id="mustsBox"></div>
     <div class="section-share-row" id="mustsShareRow" style="display:none;">
@@ -1169,53 +1604,93 @@
       <label for="mustsShare">Share with Clan</label>
     </div>
   </div>
-</div>
 
-<div class="export-section">
-  <span class="section-label">Export My Data</span>
-
-  <div class="export-row">
-    <span class="export-row-label">Date Range</span>
-    <select id="exportRangeSelect">
-      <option value="all">All Data (from the beginning)</option>
-      <option value="custom">Custom Date Range</option>
-    </select>
-    <span id="exportCustomDates" style="display:none;">
-      <input type="date" id="exportStartDate">
-      <span class="export-to">to</span>
-      <input type="date" id="exportEndDate">
-    </span>
+  <!-- What I Want To Accomplish This Year: exactly 3 long lines -->
+  <div class="life-section">
+    <span class="section-label">What I Want To Accomplish This Year</span>
+    <div class="accomplish-box" id="accomplishBox"></div>
   </div>
+</div><!-- ============================ /TAB 2: LIFE ============================ -->
 
-  <div class="export-row">
-    <span class="export-row-label">Categories</span>
-    <div class="export-checkbox-group" id="exportCategoryGroup"></div>
-  </div>
+<!-- ============================ TAB 3: JOURNAL ============================ -->
+<div class="tab-panel" id="tab-journal">
+  <h2 class="tab-title">Journal</h2>
 
-  <div class="export-row">
-    <span class="export-row-label">Include</span>
-    <div class="export-checkbox-group">
-      <label><input type="checkbox" id="exportIncludeRuler" checked> Ruler</label>
-      <label><input type="checkbox" id="exportIncludeJournal" checked> Journal</label>
-      <label><input type="checkbox" id="exportIncludeMusts" checked> Musts Scores</label>
-      <label><input type="checkbox" id="exportIncludeWhiteboard" checked> Whiteboard</label>
+  <div class="journal-split">
+    <!-- Left 2/3: the writing box + 3 controls (Add Image, Category, Save) -->
+    <div class="journal-write-col">
+      <span class="section-label">Journal Notes</span>
+      <textarea id="workArea" placeholder="Write your day here..."></textarea>
+      <div class="journal-controls-row">
+        <label class="journal-image-add-btn" id="journalImageAddLabel" style="display:none;">
+          + Add Image
+          <input type="file" id="journalImageInput" accept="image/*" multiple style="display:none;">
+        </label>
+        <select id="categorySelect" class="category-select"></select>
+        <button id="saveBtn">Save Entry</button>
+      </div>
+      <div class="journal-images-row" id="journalImagesRow" style="display:none;">
+        <div class="journal-image-thumbs" id="journalImageThumbs"></div>
+        <span class="journal-image-paste-hint">or paste a screenshot directly into the box above</span>
+      </div>
+      <p class="journal-images-locked" id="journalImagesLocked" style="display:none;">
+        📷 Attaching images to entries is a paid feature. <a id="journalImagesUpgradeLink">Upgrade to unlock.</a>
+      </p>
+    </div>
+
+    <!-- Right 1/3: export system -->
+    <div class="journal-export-col">
+      <div class="export-section">
+        <span class="section-label">Export My Data</span>
+
+        <div class="export-row">
+          <span class="export-row-label">Date Range</span>
+          <select id="exportRangeSelect">
+            <option value="all">All Data (from the beginning)</option>
+            <option value="custom">Custom Date Range</option>
+          </select>
+          <span id="exportCustomDates" style="display:none;">
+            <input type="date" id="exportStartDate">
+            <span class="export-to">to</span>
+            <input type="date" id="exportEndDate">
+          </span>
+        </div>
+
+        <div class="export-row">
+          <span class="export-row-label">Categories</span>
+          <div class="export-checkbox-group" id="exportCategoryGroup"></div>
+        </div>
+
+        <div class="export-row">
+          <span class="export-row-label">Include</span>
+          <div class="export-checkbox-group">
+            <label><input type="checkbox" id="exportIncludeRuler" checked> Ruler</label>
+            <label><input type="checkbox" id="exportIncludeJournal" checked> Journal</label>
+            <label><input type="checkbox" id="exportIncludeMusts" checked> Musts Scores</label>
+            <label><input type="checkbox" id="exportIncludeWhiteboard" checked> Whiteboard</label>
+          </div>
+        </div>
+
+        <div class="export-controls">
+          <button id="exportCsvBtn" class="secondary">Export as CSV (.zip)</button>
+          <button id="exportBookBtn">Export as PDF Report</button>
+          <button id="snapshotNowBtn" class="secondary" title="Save today's Ruler as a permanent daily record right now, instead of waiting for the automatic capture">Save Today's Snapshot</button>
+        </div>
+        <div class="export-msg" id="exportMsg"></div>
+      </div>
     </div>
   </div>
 
-  <div class="export-controls">
-    <button id="exportCsvBtn" class="secondary">Export as CSV (.zip)</button>
-    <button id="exportBookBtn">Export as PDF Report</button>
-    <button id="snapshotNowBtn" class="secondary" title="Save today's Ruler as a permanent daily record right now, instead of waiting for the automatic capture">Save Today's Snapshot</button>
-  </div>
-  <div class="export-msg" id="exportMsg"></div>
-</div>
-
-<div class="bottom-row">
-  <div class="entries-list">
+  <!-- Bottom: scrollable list of all past entries -->
+  <div class="entries-list entries-list-full">
     <span class="section-label">Past Entries</span>
-    <div id="entriesList"></div>
+    <div id="entriesList" class="entries-scroll"></div>
   </div>
+</div><!-- ============================ /TAB 3: JOURNAL ============================ -->
 
+<!-- ============================ TAB 4: CLANS ============================ -->
+<div class="tab-panel" id="tab-clans">
+<div class="bottom-row">
   <div class="clans-col">
     <div class="clans-section" id="clansSection" style="display:none;">
       <div class="clans-header-row">
@@ -1235,7 +1710,8 @@
       <p>Sign in above to join or create a Clan and see your team's Rulers.</p>
     </div>
   </div>
-</div>
+</div><!-- /bottom-row -->
+</div><!-- ============================ /TAB 4: CLANS ============================ -->
 
 <script>
 var TOTAL_MIN = 1440;
@@ -1415,6 +1891,10 @@ function renderRuler() {
     });
     nameSpan.addEventListener('mousedown', function(e){ e.stopPropagation(); });
     nameSpan.addEventListener('touchstart', function(e){ e.stopPropagation(); });
+    // NOTE: intentionally NOT stopping the click here — clicking the name
+    // both focuses it for editing AND lets the click bubble up to the
+    // block, so the Block Detail panel opens. (Clicking anywhere on a
+    // block opens its panel; the name stays editable.)
 
     var minsSpan = document.createElement('div');
     minsSpan.className = 'block-mins';
@@ -1446,14 +1926,23 @@ function renderRuler() {
       var handle = document.createElement('div');
       handle.className = 'resize-handle';
       handle.dataset.idx = idx;
+      // A click that ends on the handle (after a drag) shouldn't open the panel.
+      handle.addEventListener('click', function(e){ e.stopPropagation(); });
       el.appendChild(handle);
     }
+
+    // Click anywhere on the block body (except name/handle/sleep-toggle,
+    // which stop propagation) to open its Block Detail panel.
+    el.addEventListener('click', function() { openBlockDetail(idx); });
 
     rulerTrack.appendChild(el);
     blockEls.push({ el: el, fill: fillOverlay, mins: minsSpan, startMin: startMin, endMin: endMin });
   });
 
   attachDragHandlers();
+  // If the detail panel is open, keep it in sync after a re-render
+  // (e.g. a resize or sleep toggle rebuilt the DOM).
+  if (typeof renderBlockDetail === 'function' && selectedBlockIdx != null) renderBlockDetail();
 }
 
  // ---- Drag to resize adjacent blocks (mouse + touch, full-track friendly) ----
@@ -2077,11 +2566,77 @@ var musts = loadMusts();
 var mustsBox = document.getElementById('mustsBox');
 var SCORE_LABELS = { 1: 'Poor', 2: 'Average', 3: 'Excellent' };
 
+// ---- Drag-to-reorder ranking for the Musts list ----
+// Pointer-events based so it works with both mouse and touch (the app
+// is a mobile PWA). The move/up listeners live on `document`, not on
+// the row element, so re-rendering the list mid-drag never breaks the
+// gesture. mustsDragIdx = the array index of the row currently held.
+var mustsDragIdx = null;
+
+function attachMustDragHandle(handle, idx) {
+  handle.addEventListener('pointerdown', function(e) {
+    e.preventDefault();
+    startMustDrag(idx);
+  });
+}
+
+function startMustDrag(idx) {
+  mustsDragIdx = idx;
+  renderMusts();
+
+  function onMove(e) {
+    if (mustsDragIdx === null) return;
+    var from = mustsDragIdx;
+    var to = getMustDropIndex(e.clientY);
+    if (to > from) to--; // account for the held row being removed first
+    if (to !== from && to >= 0 && to < musts.length) {
+      var moved = musts.splice(from, 1)[0];
+      musts.splice(to, 0, moved);
+      mustsDragIdx = to;
+      renderMusts();
+    }
+  }
+  function onUp() {
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+    document.removeEventListener('pointercancel', onUp);
+    mustsDragIdx = null;
+    saveMusts(); // persists the new order locally + pushes to the shared 'musts' section
+    renderMusts();
+  }
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup', onUp);
+  document.addEventListener('pointercancel', onUp);
+}
+
+// Insertion index for the dragged row, based on the pointer's Y against
+// each rendered row's vertical midpoint.
+function getMustDropIndex(clientY) {
+  var items = Array.prototype.slice.call(mustsBox.querySelectorAll('.must-item'));
+  for (var i = 0; i < items.length; i++) {
+    var rect = items[i].getBoundingClientRect();
+    if (clientY < rect.top + rect.height / 2) return i;
+  }
+  return items.length;
+}
+
 function renderMusts() {
   mustsBox.innerHTML = '';
   musts.forEach(function(m, idx) {
     var row = document.createElement('div');
-    row.className = 'must-item';
+    row.className = 'must-item' + (idx === mustsDragIdx ? ' dragging' : '');
+
+    var handle = document.createElement('span');
+    handle.className = 'must-drag-handle';
+    handle.textContent = '⠿';
+    handle.title = 'Drag to reorder';
+    attachMustDragHandle(handle, idx);
+    row.appendChild(handle);
+
+    var rank = document.createElement('span');
+    rank.className = 'must-rank';
+    rank.textContent = (idx + 1);
+    row.appendChild(rank);
 
     var label = document.createElement('span');
     label.className = 'must-label';
@@ -2225,32 +2780,30 @@ var weeklyVizDays = loadWeeklyViz();
 // it as a read-only label. If it's empty, show an editable input that
 // writes back into weeklyVizDays and re-renders the weekly viz too,
 // so both components always reflect the same underlying data.
-// Today's Mission — reads from and writes to today's weeklyVizDays slot.
-// One input, always visible, always in sync. No toggling, no cloning.
-function initTodaysMission() {
-  var idx = todayAsMondayFirstIndex();
-  var input = document.getElementById('todaysMissionInput');
-  if (!input) return;
-
-  // Set the current value from the weekly viz data.
-  input.value = weeklyVizDays[idx] || '';
-
-  input.addEventListener('input', function() {
-    weeklyVizDays[idx] = input.value;
-    saveWeeklyViz(weeklyVizDays);
-    // Keep the weekly viz row for today in sync.
-    var weeklyInput = document.getElementById('weeklyDayInput' + idx);
-    if (weeklyInput) weeklyInput.value = input.value;
-  });
-}
-
 function renderTodaysMission() {
   var idx = todayAsMondayFirstIndex();
-  var input = document.getElementById('todaysMissionInput');
-  if (!input) return;
-  // Only update the value if the input isn't focused (don't interrupt typing).
-  if (document.activeElement !== input) {
-    input.value = weeklyVizDays[idx] || '';
+  var text = weeklyVizDays[idx] || '';
+  var textEl = document.getElementById('todaysMissionText');
+  var inputEl = document.getElementById('todaysMissionInput');
+  if (!textEl || !inputEl) return;
+
+  if (text) {
+    textEl.textContent = text;
+    textEl.style.display = '';
+    inputEl.style.display = 'none';
+  } else {
+    textEl.style.display = 'none';
+    inputEl.style.display = '';
+    inputEl.value = '';
+    // Replace with a fresh clone to wipe any stale listeners before
+    // attaching a new one — avoids fragile flag approaches.
+    var fresh = inputEl.cloneNode(true);
+    inputEl.parentNode.replaceChild(fresh, inputEl);
+    fresh.addEventListener('input', function() {
+      weeklyVizDays[idx] = fresh.value;
+      saveWeeklyViz(weeklyVizDays);
+      renderWeeklyViz();
+    });
   }
 }
 
@@ -2294,6 +2847,12 @@ function renderWeeklyViz() {
     weeklyDaysList.appendChild(row);
   }
 
+  // Keep Today's Mission in sync whenever the weekly viz re-renders
+  // (covers remote data pulls, page load, and any other trigger).
+  // Guard against calling before renderTodaysMission is defined —
+  // on first load renderWeeklyViz() runs before the function below it,
+  // but the startup call at the bottom of the script handles that case.
+  if (typeof renderTodaysMission === 'function') renderTodaysMission();
 }
 
 // ---- Yearly Visualization ----
@@ -2303,16 +2862,35 @@ function renderWeeklyViz() {
 // classes as Weekly's rows/inputs/headers since the structure is
 // identical, just a different count and a different "today" check.
 var yearlyMonthsList = document.getElementById('yearlyMonthsList');
+var MONTH_NAMES = ['January','February','March','April','May','June',
+                   'July','August','September','October','November','December'];
+
+// New model: 12 months, each an array of 4 week-strings.
+// [ ['w1','w2','w3','w4'], ...12 total ]
+// Migrates the old format transparently:
+//   - old was 12 plain strings (one per month) -> that text becomes week 1.
+function normalizeYearlyMonth(m) {
+  if (Array.isArray(m)) {
+    var weeks = m.slice(0, 4).map(function(w) { return typeof w === 'string' ? w : ''; });
+    while (weeks.length < 4) weeks.push('');
+    return weeks;
+  }
+  return [typeof m === 'string' ? m : '', '', '', ''];
+}
 
 function loadYearlyViz() {
   var saved = localStorage.getItem(YEARLY_VIZ_KEY);
   if (saved) {
     try {
       var parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length === 12) return parsed;
+      if (Array.isArray(parsed) && parsed.length === 12) {
+        return parsed.map(normalizeYearlyMonth);
+      }
     } catch(e) {}
   }
-  return new Array(12).fill('');
+  var fresh = [];
+  for (var i = 0; i < 12; i++) fresh.push(['', '', '', '']);
+  return fresh;
 }
 
 function saveYearlyViz(months) {
@@ -2324,34 +2902,82 @@ var yearlyVizMonths = loadYearlyViz();
 
 function renderYearlyViz() {
   yearlyMonthsList.innerHTML = '';
-  var currentMonthIdx = new Date().getMonth(); // 0=Jan ... 11=Dec, matches our array directly
+  var currentMonthIdx = new Date().getMonth(); // 0=Jan ... 11=Dec
 
   for (var i = 0; i < 12; i++) {
-    var row = document.createElement('div');
-    row.className = 'weekly-day-row' + (i === currentMonthIdx ? ' is-today' : '');
+    var monthBlock = document.createElement('div');
+    monthBlock.className = 'yearly-month' + (i === currentMonthIdx ? ' is-current' : '');
 
-    var num = document.createElement('span');
-    num.className = 'weekly-day-num';
-    num.textContent = String(i + 1);
+    var name = document.createElement('div');
+    name.className = 'yearly-month-name';
+    name.textContent = MONTH_NAMES[i];
+    monthBlock.appendChild(name);
 
-    var input = document.createElement('input');
-    input.type = 'text';
-    input.className = 'weekly-day-input';
-    input.placeholder = '...';
-    input.value = yearlyVizMonths[i] || '';
-    input.name = 'yearly-month-' + i;
-    input.id = 'yearlyMonthInput' + i;
-    input.setAttribute('autocomplete', 'off');
-    (function(idx) {
-      input.addEventListener('input', function() {
-        yearlyVizMonths[idx] = input.value;
-        saveYearlyViz(yearlyVizMonths);
+    var weeksWrap = document.createElement('div');
+    weeksWrap.className = 'yearly-weeks';
+
+    if (!Array.isArray(yearlyVizMonths[i])) yearlyVizMonths[i] = ['', '', '', ''];
+
+    for (var w = 0; w < 4; w++) {
+      var box = document.createElement('textarea');
+      box.className = 'yearly-week-box';
+      box.placeholder = 'Week ' + (w + 1);
+      box.value = yearlyVizMonths[i][w] || '';
+      (function(mi, wi, el) {
+        el.addEventListener('input', function() {
+          if (!Array.isArray(yearlyVizMonths[mi])) yearlyVizMonths[mi] = ['', '', '', ''];
+          yearlyVizMonths[mi][wi] = el.value;
+          saveYearlyViz(yearlyVizMonths);
+        });
+      })(i, w, box);
+      weeksWrap.appendChild(box);
+    }
+
+    monthBlock.appendChild(weeksWrap);
+    yearlyMonthsList.appendChild(monthBlock);
+  }
+}
+
+// ---- What I Want To Accomplish This Year (exactly 3 long lines) ----
+var ACCOMPLISH_KEY = 'csrAlignAccomplish';
+var accomplishBox = document.getElementById('accomplishBox');
+
+function loadAccomplish() {
+  var saved = localStorage.getItem(ACCOMPLISH_KEY);
+  if (saved) {
+    try {
+      var parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        var out = parsed.slice(0, 3);
+        while (out.length < 3) out.push('');
+        return out;
+      }
+    } catch(e) {}
+  }
+  return ['', '', ''];
+}
+
+function saveAccomplish() {
+  localStorage.setItem(ACCOMPLISH_KEY, JSON.stringify(accomplishGoals));
+}
+
+var accomplishGoals = loadAccomplish();
+
+function renderAccomplish() {
+  if (!accomplishBox) return;
+  accomplishBox.innerHTML = '';
+  for (var i = 0; i < 3; i++) {
+    var line = document.createElement('textarea');
+    line.className = 'accomplish-line';
+    line.placeholder = (i + 1) + '.';
+    line.value = accomplishGoals[i] || '';
+    (function(idx, el) {
+      el.addEventListener('input', function() {
+        accomplishGoals[idx] = el.value;
+        saveAccomplish();
       });
-    })(i);
-
-    row.appendChild(num);
-    row.appendChild(input);
-    yearlyMonthsList.appendChild(row);
+    })(i, line);
+    accomplishBox.appendChild(line);
   }
 }
 
@@ -3430,7 +4056,7 @@ function loadMemberDetailContent(profile, body) {
       });
 
       appendSharedSectionIfAvailable(body, sections.yearly, 'Yearly Visualization', function(data) {
-        return buildSevenRowReadout(data);
+        return buildYearlyReadout(data);
       });
     }
 
@@ -3460,6 +4086,27 @@ function buildSevenRowReadout(items) {
     var row = document.createElement('div');
     row.className = 'member-modal-musts-row';
     row.textContent = (idx + 1) + '. ' + text;
+    list.appendChild(row);
+  });
+  if (!list.children.length) {
+    list.innerHTML = '<span class="member-modal-loading">Nothing filled in yet.</span>';
+  }
+  return list;
+}
+
+// Yearly is now 12 months × 4 weeks. Renders one row per month that has
+// any filled weeks, joining the weeks. Tolerates the old flat-string
+// format (a month that's a plain string) so older shared data still shows.
+function buildYearlyReadout(months) {
+  var names = (typeof MONTH_NAMES !== 'undefined') ? MONTH_NAMES : [];
+  var list = document.createElement('div');
+  (months || []).forEach(function(m, idx) {
+    var weeks = Array.isArray(m) ? m : [m];
+    var filled = weeks.filter(function(t) { return t; });
+    if (!filled.length) return;
+    var row = document.createElement('div');
+    row.className = 'member-modal-musts-row';
+    row.textContent = (names[idx] || ('Month ' + (idx + 1))) + ': ' + filled.join('  •  ');
     list.appendChild(row);
   });
   if (!list.children.length) {
@@ -3981,7 +4628,7 @@ function renderPdfDocument(bundle, imagesByEntryId, onComplete) {
   doc.setFont('times', 'italic');
   doc.setFontSize(11);
   cursorY += 20;
-  doc.text('For Dangerous Gentlemen', pageWidth / 2, cursorY, { align: 'center' });
+  doc.text('For Dangerous Humans', pageWidth / 2, cursorY, { align: 'center' });
 
   doc.setFont('times', 'normal');
   doc.setFontSize(10);
@@ -4165,6 +4812,161 @@ function updateSectionShareRowsVisibility() {
 }
 updateSectionShareRowsVisibility();
 
+// ============================================================
+// Tab navigation — three panels (Ruler / Journal / Clans), only
+// one visible at a time. Everything stays in the DOM (just
+// hidden), so all existing init/render/sync logic is untouched.
+// ============================================================
+(function() {
+  var btns = document.querySelectorAll('.tab-btn');
+  var panels = document.querySelectorAll('.tab-panel');
+  btns.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var target = btn.getAttribute('data-tab');
+      btns.forEach(function(b) { b.classList.toggle('active', b === btn); });
+      panels.forEach(function(p) { p.classList.toggle('active', p.id === target); });
+    });
+  });
+})();
+
+// ============================================================
+// Block Detail panel — click a Ruler block to open a checklist of
+// that block's rituals/subtasks. Rituals live on the block object
+// (blocks[idx].rituals = [{ text, done }]) so they persist through
+// the same saveBlocks() path as everything else.
+//
+// NOTE: because rituals ride inside the block object, they also flow
+// up to shared_rulers (they aren't displayed to clan-mates, just
+// stored). If rituals should stay strictly private, the next step is
+// to split them into their own localStorage key + sync channel.
+// ============================================================
+var selectedBlockIdx = null;
+var blockDetailEl = document.getElementById('blockDetail');
+var blockDetailTitle = document.getElementById('blockDetailTitle');
+var blockDetailRituals = document.getElementById('blockDetailRituals');
+
+// Preset rituals keyed by a keyword in the block's name — demonstrates
+// the "block type" idea from the spec. A block named "GM" / "GM's
+// Ritual" seeds GM to Self / GM to Body / GM to World on first open.
+// Preset checklists keyed by a keyword in the block's name — the
+// "checklist for that specific block type" idea. First keyword that
+// appears in the (lowercased) block name wins, seeded once on first
+// open. Users can always add/remove afterwards.
+var RITUAL_PRESETS = {
+  'gm':       ['GM to Self', 'GM to Body', 'GM to World'],
+  'trad':     ['Check the plan', 'Mark key levels', 'Set risk / stop', 'Journal the session'],
+  'grind':    ['Define the one outcome', 'Kill distractions', 'Deep work block', 'Log what shipped'],
+  'sleep':    ['Screens off', 'Room cold & dark', 'Tomorrow set'],
+  'exercise': ['Warm up', 'Main lift / session', 'Stretch', 'Hydrate'],
+  'workout':  ['Warm up', 'Main lift / session', 'Stretch', 'Hydrate'],
+  'gym':      ['Warm up', 'Main lift / session', 'Stretch', 'Hydrate'],
+  'review':   ['Wins of the day', 'What slipped', 'Adjust tomorrow'],
+  'lunch':    ['Real food', 'Water', 'Step away from the screen'],
+  'meal':     ['Real food', 'Water', 'Step away from the screen']
+};
+
+function seedPresetRitualsIfEmpty(block) {
+  if (block.rituals && block.rituals.length) return;
+  var name = (block.name || '').toLowerCase();
+  var seeded = null;
+  Object.keys(RITUAL_PRESETS).forEach(function(key) {
+    if (!seeded && name.indexOf(key) !== -1) seeded = RITUAL_PRESETS[key];
+  });
+  if (seeded) {
+    block.rituals = seeded.map(function(t) { return { text: t, done: false }; });
+  }
+}
+
+function openBlockDetail(idx) {
+  var block = blocks[idx];
+  if (!block) return;
+  // Only scroll the panel into view when it was closed or we're switching
+  // to a different block — not on every click while editing the name.
+  var shouldScroll = (blockDetailEl.style.display === 'none' || selectedBlockIdx !== idx);
+  selectedBlockIdx = idx;
+  seedPresetRitualsIfEmpty(block);
+  if (!block.rituals) block.rituals = [];
+  blockDetailEl.style.display = '';
+  renderBlockDetail();
+  if (shouldScroll) blockDetailEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function closeBlockDetail() {
+  selectedBlockIdx = null;
+  blockDetailEl.style.display = 'none';
+}
+
+function renderBlockDetail() {
+  if (selectedBlockIdx == null || !blocks[selectedBlockIdx]) { closeBlockDetail(); return; }
+  var block = blocks[selectedBlockIdx];
+  blockDetailTitle.textContent = block.name + ' — Rituals';
+  blockDetailRituals.innerHTML = '';
+
+  (block.rituals || []).forEach(function(r, i) {
+    var row = document.createElement('label');
+    row.className = 'ritual-row' + (r.done ? ' done' : '');
+
+    var cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = !!r.done;
+    cb.addEventListener('change', function() {
+      block.rituals[i].done = cb.checked;
+      stampBlock(selectedBlockIdx);
+      saveBlocks();
+      renderBlockDetail();
+    });
+
+    var span = document.createElement('span');
+    span.className = 'ritual-text';
+    span.textContent = r.text;
+
+    var rm = document.createElement('button');
+    rm.className = 'ritual-remove';
+    rm.textContent = '✕';
+    rm.title = 'Remove';
+    rm.addEventListener('click', function(e) {
+      e.preventDefault();
+      block.rituals.splice(i, 1);
+      stampBlock(selectedBlockIdx);
+      saveBlocks();
+      renderBlockDetail();
+    });
+
+    row.appendChild(cb);
+    row.appendChild(span);
+    row.appendChild(rm);
+    blockDetailRituals.appendChild(row);
+  });
+
+  if (!(block.rituals || []).length) {
+    var empty = document.createElement('p');
+    empty.className = 'ritual-empty';
+    empty.textContent = 'No rituals yet for this block. Add one below.';
+    blockDetailRituals.appendChild(empty);
+  }
+}
+
+document.getElementById('blockDetailClose').addEventListener('click', closeBlockDetail);
+(function() {
+  var input = document.getElementById('blockRitualInput');
+  function addRitual() {
+    if (selectedBlockIdx == null) return;
+    var val = input.value.trim();
+    if (!val) return;
+    var block = blocks[selectedBlockIdx];
+    if (!block.rituals) block.rituals = [];
+    block.rituals.push({ text: val, done: false });
+    input.value = '';
+    stampBlock(selectedBlockIdx);
+    saveBlocks();
+    renderBlockDetail();
+  }
+  document.getElementById('blockRitualAddBtn').addEventListener('click', addRitual);
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); addRitual(); }
+  });
+})();
+
 renderRuler();
 captureLocalDailySnapshotIfNeeded();
 loadTodayDraft();
@@ -4173,7 +4975,8 @@ renderMusts();
 loadTackle();
 renderWeeklyViz();
 renderYearlyViz();
-initTodaysMission();
+renderAccomplish();
+renderTodaysMission();
 updateLive();
 setInterval(updateLive, 1000);
 

@@ -1,0 +1,6 @@
+# Personal database dumps — real user data, never publish
+SQL files/
+
+# OS / editor cruft
+Thumbs.db
+.DS_Store
