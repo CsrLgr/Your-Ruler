@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>My Ruler</title>
+<title>Your Ruler</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0a0808">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -623,6 +623,7 @@
     min-width: 0;
   }
   .weekly-day-input:focus { outline: none; border-bottom-color: #c0b5a5; }
+  .weekly-day-done { accent-color: var(--rd-gold); }
 
   .weekly-col-headers {
     display: flex;
@@ -645,6 +646,21 @@
     color: #777;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+  }
+  .weekly-col-header-done {
+    width: 20px;
+    flex-shrink: 0;
+    font-size: 9px;
+    color: #777;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-align: center;
+  }
+  .weekly-day-done {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
   }
 
   .export-section {
@@ -1127,6 +1143,28 @@
     text-shadow: 0 0 16px rgba(176,24,24,0.5);
   }
 
+  /* ---- Daily Score — sits centered under the Block clock, same
+     visual family (gold, glowing) so the two read as one unit ---- */
+  .daily-score {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 0.6rem;
+  }
+  .daily-score-label {
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--rd-gold);
+  }
+  .daily-score-value {
+    font-size: 30px;
+    line-height: 1;
+    margin-top: 0.2rem;
+    color: var(--rd-gold-bright);
+    text-shadow: 0 0 16px rgba(176,24,24,0.5);
+  }
+
   /* ---- Today's Mission — big & prominent ---- */
   .todays-mission {
     max-width: 1100px;
@@ -1441,6 +1479,7 @@
   .clan-member-time, .clan-member-block, .clans-locked p,
   .journal-image-paste-hint, .journal-images-locked, .export-row-label,
   .export-to, .weekly-col-header-days, .weekly-col-header-details,
+  .weekly-col-header-done,
   .span-markers, .member-modal-text, .member-modal-musts-row,
   .auth-bar, .auth-bar .auth-status, .clans-msg, .export-checkbox-group,
   .entry-history-ts, .must-add-row input, .ritual-empty {
@@ -1492,6 +1531,7 @@
         <div class="weekly-col-headers">
           <span class="weekly-col-header-days">Days</span>
           <span class="weekly-col-header-details">Details</span>
+          <span class="weekly-col-header-done">Done</span>
         </div>
         <div id="weeklyDaysList"></div>
         <div class="section-share-row" id="weeklyShareRow" style="display:none;">
@@ -1502,7 +1542,7 @@
     </div>
 
     <div class="header">
-      <h1>My Ruler</h1>
+      <h1>Your Ruler</h1>
       <p class="tagline">For Dangerous Humans</p>
       <p>Your 12-block day planner</p>
       <div class="clocks-row">
@@ -1511,13 +1551,17 @@
           <span class="clock-value" id="utcClock">—</span>
         </div>
         <div class="clock-item clock-item-main">
-          <span class="clock-label">Local Time</span>
-          <span class="clock-value" id="localClock">—</span>
-        </div>
-        <div class="clock-item">
           <span class="clock-label">Block</span>
           <span class="clock-value" id="blockClock">—</span>
         </div>
+        <div class="clock-item">
+          <span class="clock-label">Local Time</span>
+          <span class="clock-value" id="localClock">—</span>
+        </div>
+      </div>
+      <div class="daily-score">
+        <span class="daily-score-label">Daily Score</span>
+        <span class="daily-score-value" id="dailyScoreValue">0/10</span>
       </div>
     </div>
 
@@ -1548,7 +1592,7 @@
   </div>
   <div class="span-markers">
     <span class="marker-start">Sunrise<span class="marker-sub">6:00 AM</span></span>
-    <span class="marker-mid">Sunset<span class="marker-sub">≈ Block 6</span></span>
+    <span class="marker-mid">Sunset<span class="marker-sub">≈ Block 5</span></span>
     <span class="marker-end">+24h</span>
   </div>
   <div class="ruler-track" id="rulerTrack"></div>
@@ -1718,6 +1762,11 @@ var TOTAL_MIN = 1440;
 var NUM_BLOCKS = 12;
 var DEFAULT_SIZE = TOTAL_MIN / NUM_BLOCKS; // 120
 var DAY_START_OFFSET = 360; // 6am reference
+// Fixed 120-minute cycle for the center Block clock. Deliberately a
+// separate constant from DEFAULT_SIZE: the Ruler's visual blocks are
+// user-resizable, but this clock always ticks in fixed 2-hour cycles
+// anchored to 6 AM, regardless of how the Ruler blocks are sized.
+var BLOCK_CLOCK_SIZE = 120;
 
 // Declared this early (before anything else in the script) on purpose:
 // a past bug happened when this was declared later in the file, after
@@ -1827,7 +1876,7 @@ function loadBlocks() {
   }
   var blocks = [];
   for (var i = 0; i < NUM_BLOCKS; i++) {
-    blocks.push({ name: 'Block ' + (i+1), minutes: DEFAULT_SIZE, sleep: false });
+    blocks.push({ name: 'Block ' + i, minutes: DEFAULT_SIZE, sleep: false });
   }
   return blocks;
 }
@@ -1881,7 +1930,7 @@ function renderRuler() {
     nameSpan.textContent = b.name;
     nameSpan.spellcheck = false;
     nameSpan.addEventListener('blur', function() {
-      blocks[idx].name = nameSpan.textContent.trim() || ('Block ' + (idx+1));
+      blocks[idx].name = nameSpan.textContent.trim() || ('Block ' + idx);
       stampBlock(idx);
       saveBlocks();
       updateCurrentBlockInfo();
@@ -2022,6 +2071,24 @@ function getSinceSix() {
   return (realMinutes - DAY_START_OFFSET + 1440) % 1440;
 }
 
+// Fixed 120-minute block cycle anchored to 6 AM — entirely independent
+// of the Ruler's resizable visual blocks (which use `blocks[i].minutes`
+// and can be dragged to any size). Block 0 = 6:00-8:00 AM, Block 1 =
+// 8:00-10:00 AM, ... Block 11 = 4:00-6:00 AM, wrapping past midnight.
+function getBlockTime(now) {
+  var minutesSinceMidnight = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+  var minutesSinceSix = (minutesSinceMidnight - DAY_START_OFFSET + 1440) % 1440;
+  var blockNumber = Math.floor(minutesSinceSix / BLOCK_CLOCK_SIZE);
+  var minutesIntoBlock = minutesSinceSix % BLOCK_CLOCK_SIZE;
+  var minutesElapsed = Math.floor(minutesIntoBlock);
+  var secondsElapsed = Math.floor((minutesIntoBlock - minutesElapsed) * 60);
+  return {
+    blockNumber: blockNumber,
+    minutesElapsed: minutesElapsed,
+    secondsElapsed: secondsElapsed
+  };
+}
+
 function updateCurrentBlockInfo() {
   var sinceSix = getSinceSix();
   var idx = findCurrentBlockIndex(sinceSix);
@@ -2049,17 +2116,11 @@ function updateLiveClock() {
   var utcStr = now.toLocaleTimeString('en-GB', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
   document.getElementById('utcClock').textContent = utcStr + ' UTC';
 
-  var sinceSix = getSinceSix();
-  var idx = findCurrentBlockIndex(sinceSix);
-  var blockEl = document.getElementById('blockClock');
-  if (idx !== -1 && blockEls[idx]) {
-    var be = blockEls[idx];
-    var elapsed = Math.round(sinceSix - be.startMin);
-    var total = Math.round(be.endMin - be.startMin);
-    blockEl.textContent = 'Block ' + (idx + 1) + ' • ' + elapsed + '/' + total + ' min';
-  } else {
-    blockEl.textContent = '—';
-  }
+  var bt = getBlockTime(now);
+  var secStr = (bt.secondsElapsed < 10 ? '0' : '') + bt.secondsElapsed;
+  var minStr = (bt.minutesElapsed < 10 ? '0' : '') + bt.minutesElapsed;
+  document.getElementById('blockClock').textContent =
+    bt.blockNumber + ':' + minStr + ':' + secStr;
 }
 
 function updateLive() {
@@ -2185,6 +2246,29 @@ function averageMustsScore() {
   return Math.round((sum / scored.length) * 10) / 10;
 }
 
+// ---- Daily Score: Mission (0/2) + Journal (0/2) + Musts avg (0-6) = 0-10 ----
+function hasJournalEntryToday() {
+  var todayStr = new Date().toDateString();
+  return loadEntries().some(function(e) {
+    return e.createdAt && new Date(e.createdAt).toDateString() === todayStr;
+  });
+}
+
+function computeDailyScore() {
+  var todayIdx = todayAsMondayFirstIndex();
+  var missionText = (weeklyVizDays[todayIdx] || '').trim();
+  var missionPoints = (missionText && weeklyMissionDone[todayIdx]) ? 2 : 0;
+  var journalPoints = hasJournalEntryToday() ? 2 : 0;
+  var avgMusts = averageMustsScore(); // null, or 1-3
+  var mustsPoints = avgMusts === null ? 0 : (avgMusts - 1) * 3; // 1-3 -> 0-6
+  return Math.round(missionPoints + journalPoints + mustsPoints);
+}
+
+function updateDailyScore() {
+  var el = document.getElementById('dailyScoreValue');
+  if (el) el.textContent = computeDailyScore() + '/10';
+}
+
 function renderEntries() {
   var entries = loadEntries();
   var container = document.getElementById('entriesList');
@@ -2192,6 +2276,7 @@ function renderEntries() {
   entries.slice().reverse().forEach(function(entry) {
     container.appendChild(buildEntryElement(entry, entries));
   });
+  updateDailyScore();
 }
 
 function buildEntryElement(entry) {
@@ -2703,6 +2788,7 @@ function renderMusts() {
   addRow.appendChild(input);
   addRow.appendChild(addBtn);
   mustsBox.appendChild(addRow);
+  updateDailyScore();
 }
 
 // ---- Tackle / Whiteboard ----
@@ -2775,6 +2861,25 @@ function saveWeeklyViz(days) {
 
 var weeklyVizDays = loadWeeklyViz();
 
+var WEEKLY_MISSION_DONE_KEY = 'csrAlignWeeklyMissionDone';
+
+function loadWeeklyMissionDone() {
+  var saved = localStorage.getItem(WEEKLY_MISSION_DONE_KEY);
+  if (saved) {
+    try {
+      var parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length === 7) return parsed.map(Boolean);
+    } catch(e) {}
+  }
+  return [false, false, false, false, false, false, false];
+}
+
+function saveWeeklyMissionDone(days) {
+  localStorage.setItem(WEEKLY_MISSION_DONE_KEY, JSON.stringify(days));
+}
+
+var weeklyMissionDone = loadWeeklyMissionDone();
+
 // Renders the "Today's Mission" component, which mirrors the weekly
 // visualization slot for today. If the slot already has text, display
 // it as a read-only label. If it's empty, show an editable input that
@@ -2802,9 +2907,13 @@ function renderTodaysMission() {
     fresh.addEventListener('input', function() {
       weeklyVizDays[idx] = fresh.value;
       saveWeeklyViz(weeklyVizDays);
+      updateDailyScore();
+    });
+    fresh.addEventListener('blur', function() {
       renderWeeklyViz();
     });
   }
+  updateDailyScore();
 }
 
 // JS Date.getDay() returns 0=Sunday...6=Saturday. We want Monday=1
@@ -2844,6 +2953,21 @@ function renderWeeklyViz() {
 
     row.appendChild(num);
     row.appendChild(input);
+
+    var done = document.createElement('input');
+    done.type = 'checkbox';
+    done.className = 'weekly-day-done';
+    done.checked = !!weeklyMissionDone[i];
+    done.title = 'Mark mission complete';
+    (function(idx, checkbox) {
+      checkbox.addEventListener('change', function() {
+        weeklyMissionDone[idx] = checkbox.checked;
+        saveWeeklyMissionDone(weeklyMissionDone);
+        updateDailyScore();
+      });
+    })(i, done);
+    row.appendChild(done);
+
     weeklyDaysList.appendChild(row);
   }
 
@@ -3521,7 +3645,7 @@ function showClansMsg(text, isError) {
 //
 // Calls the merge_ruler_blocks RPC instead of a plain upsert. A plain
 // upsert always replaces the WHOLE blocks array, so if you renamed
-// Block 3 on your phone and resized Block 7 on your laptop seconds
+// Block 2 on your phone and resized Block 6 on your laptop seconds
 // apart, whichever write landed last would silently wipe out the
 // other device's change. merge_ruler_blocks merges block-by-block on
 // the server, using each block's individual block_updated_at
@@ -4384,7 +4508,7 @@ function annotateBlocksWithTimes(blockList) {
     var endMin = cumulative + b.minutes;
     cumulative = endMin;
     return {
-      blockNumber: idx + 1,
+      blockNumber: idx,
       name: b.name,
       minutes: b.minutes,
       sleep: !!b.sleep,
@@ -4623,7 +4747,7 @@ function renderPdfDocument(bundle, imagesByEntryId, onComplete) {
   // ---- Cover / summary page ----
   doc.setFont('times', 'bold');
   doc.setFontSize(24);
-  doc.text('My Ruler', pageWidth / 2, cursorY, { align: 'center' });
+  doc.text('Your Ruler', pageWidth / 2, cursorY, { align: 'center' });
 
   doc.setFont('times', 'italic');
   doc.setFontSize(11);
