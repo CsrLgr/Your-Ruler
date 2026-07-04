@@ -456,9 +456,32 @@
     border-bottom: 1px solid #232323;
   }
   .must-item:last-child { border-bottom: none; }
-  .must-item .must-label { flex: 1; }
+  .must-item .must-label { flex: 0 0 auto; }
   .must-item .must-note { font-size: 10px; color: #666; }
-  .must-score-wrap { display: flex; gap: 0.25rem; margin-left: auto; }
+  .must-metric-input {
+    flex: 1;
+    min-width: 60px;
+    font-family: Georgia, serif;
+    font-size: 10px;
+    padding: 0.3rem 0.5rem;
+    border-radius: 6px;
+  }
+  .must-metric-input::placeholder { font-style: italic; }
+  .must-score-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+  .must-score-label {
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #666;
+  }
+  .must-score-wrap { display: flex; gap: 0.25rem; }
   .must-score-btn {
     width: 20px;
     height: 20px;
@@ -582,7 +605,24 @@
     padding: 0.75rem;
     box-shadow: 0 6px 18px rgba(0,0,0,0.45);
   }
-  .weekly-box .section-label { font-size: 11px; margin-bottom: 0.4rem; }
+  .weekly-box .section-label { font-size: 11px; margin-bottom: 0.4rem; display: block; text-align: center; }
+
+  .weekly-focus-row { margin-bottom: 0.6rem; }
+  .weekly-focus-label {
+    display: block;
+    font-size: 9px;
+    color: #777;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+  }
+  .weekly-focus-input {
+    width: 100%;
+    font-family: Georgia, serif;
+    font-size: 12px;
+    padding: 0.45rem 0.6rem;
+    border-radius: 6px;
+  }
 
   .yearly-box {
     width: 100%;
@@ -813,6 +853,17 @@
     font-family: Georgia, serif;
   }
   .entry-edit-btn:hover { border-color: #c0b5a5; color: #c0b5a5; }
+  .entry-delete-btn {
+    background: none;
+    border: 1px solid #444;
+    color: #888;
+    font-size: 10px;
+    padding: 0.25rem 0.55rem;
+    cursor: pointer;
+    border-radius: 4px;
+    font-family: Georgia, serif;
+  }
+  .entry-delete-btn:hover { border-color: #c77; color: #c77; }
   .entry-edit-form {
     margin-top: 0.6rem;
     padding-top: 0.6rem;
@@ -1110,6 +1161,7 @@
     cursor: pointer;
   }
   .tab-btn:hover { color: var(--rd-gold); background: rgba(176,24,24,0.08); }
+  .site-banner { max-width: 1100px; margin: 0 auto 1.5rem auto; }
   .tab-btn.active {
     color: var(--rd-gold-bright);
     border-color: var(--rd-edge);
@@ -1165,43 +1217,49 @@
     text-shadow: 0 0 16px rgba(176,24,24,0.5);
   }
 
-  /* ---- Today's Mission — big & prominent ---- */
+  /* ---- Today's Mission — now a compact card in the center column,
+     between Weekly Visualization and the Tackle board ---- */
   .todays-mission {
-    max-width: 1100px;
-    margin: 1.75rem auto 0 auto;
+    margin-top: 0.9rem;
     text-align: center;
-    padding: 1rem 1rem 1.2rem 1rem;
-    border-top: 1px solid var(--rd-edge);
-    border-bottom: 1px solid var(--rd-edge);
+    padding: 0.75rem 0.9rem;
+    border: 1px solid var(--rd-edge);
+    border-radius: 8px;
     background: linear-gradient(180deg, rgba(176,24,24,0.06), transparent);
   }
+  .todays-mission-header-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.4rem;
+  }
   .todays-mission-label {
-    display: block;
-    font-size: 12px;
+    font-size: 10px;
     letter-spacing: 0.35em;
     text-transform: uppercase;
     color: var(--rd-gold);
-    margin-bottom: 0.5rem;
+  }
+  .todays-mission-progress {
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    color: var(--rd-muted);
   }
   .todays-mission-text {
     display: block;
-    font-size: 30px;
+    font-size: 18px;
     font-weight: bold;
     color: var(--rd-text);
     text-shadow: 0 0 14px rgba(0,0,0,0.6);
   }
   .todays-mission-input {
     width: 100%;
-    max-width: 640px;
-    margin: 0 auto;
     text-align: center;
-    background: #140f0f;
-    border: 1px solid var(--rd-edge);
-    border-radius: 8px;
-    color: var(--rd-text);
     font-family: Georgia, serif;
-    font-size: 22px;
-    padding: 0.6rem 0.8rem;
+    font-size: 15px;
+    padding: 0.5rem 0.6rem;
+    border-radius: 8px;
   }
   .todays-mission-input:focus { outline: 1px solid var(--rd-gold); }
 
@@ -1309,46 +1367,69 @@
   /* ---- LIFE tab ---- */
   .life-section { max-width: 1100px; margin: 0 auto 2rem auto; }
   .yearly-months-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
   }
   .yearly-month {
+    display: flex;
+    align-items: stretch;
+    gap: 0.6rem;
     background: var(--rd-panel-2);
     border: 1px solid var(--rd-edge);
     border-radius: 8px;
-    padding: 0.7rem;
+    padding: 0.5rem 0.7rem;
   }
   .yearly-month.is-current {
     border-color: var(--rd-gold);
     box-shadow: 0 0 0 1px var(--rd-gold), 0 0 18px rgba(201,162,75,0.18);
   }
-  .yearly-month-name {
-    font-size: 13px;
+  .yearly-month-num {
+    flex: 0 0 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
     font-weight: bold;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
     color: var(--rd-gold);
-    margin-bottom: 0.55rem;
   }
   .yearly-weeks {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    display: flex;
+    flex: 1;
     gap: 0.5rem;
+    min-width: 0;
+  }
+  .yearly-week-box-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 0;
   }
   .yearly-week-box {
-    min-height: 58px;
+    min-height: 50px;
     background: #140f0f;
     border: 1px solid #2a1a1a;
     border-radius: 6px;
     color: var(--rd-text);
     font-family: Georgia, serif;
     font-size: 12px;
-    padding: 0.45rem 0.55rem;
+    padding: 0.45rem 2rem 1.2rem 0.55rem;
     resize: vertical;
     width: 100%;
   }
   .yearly-week-box:focus { outline: 1px solid var(--rd-gold); }
+  .yearly-week-score {
+    position: absolute;
+    right: 6px;
+    bottom: 6px;
+    font-size: 9px;
+    font-weight: bold;
+    color: var(--rd-gold);
+    background: rgba(0,0,0,0.4);
+    border: 1px solid var(--rd-edge);
+    border-radius: 4px;
+    padding: 1px 5px;
+    pointer-events: none;
+  }
 
   /* "What I Want To Accomplish This Year" — exactly 3 long lines */
   .accomplish-box { display: flex; flex-direction: column; gap: 0.75rem; }
@@ -1418,7 +1499,9 @@
 
   @media (max-width: 700px) {
     .tab-title { font-size: 32px; }
-    .yearly-months-grid { grid-template-columns: 1fr; }
+    .yearly-month { flex-wrap: wrap; }
+    .yearly-weeks { flex-wrap: wrap; }
+    .yearly-week-box-wrap { flex: 1 1 45%; }
   }
 
   /* ============================================================
@@ -1479,7 +1562,8 @@
   .clan-member-time, .clan-member-block, .clans-locked p,
   .journal-image-paste-hint, .journal-images-locked, .export-row-label,
   .export-to, .weekly-col-header-days, .weekly-col-header-details,
-  .weekly-col-header-done,
+  .weekly-col-header-done, .weekly-focus-label,
+  .must-score-label,
   .span-markers, .member-modal-text, .member-modal-musts-row,
   .auth-bar, .auth-bar .auth-status, .clans-msg, .export-checkbox-group,
   .entry-history-ts, .must-add-row input, .ritual-empty {
@@ -1487,7 +1571,7 @@
   }
   .section-label, .clock-item .clock-label, .clock-item .clock-value,
   .cb-name, .progress-pct, .weekly-day-num, .must-rank, .clan-name,
-  .entry-date, .yearly-month-name, .member-modal-header,
+  .entry-date, .yearly-month-num, .member-modal-header,
   .member-modal-section h4, .block-detail-title {
     color: var(--rd-gold) !important;
   }
@@ -1511,6 +1595,13 @@
   <!-- Filled in by JS depending on logged-in/out state -->
 </div>
 
+<!-- Site banner: title + tagline, above the tab nav so it's shared
+     across all four tabs rather than living inside the Ruler tab. -->
+<div class="header site-banner">
+  <h1>Your Ruler</h1>
+  <p class="tagline">For Dangerous Humans</p>
+</div>
+
 <!-- ==== 3-tab navigation. Tab 1 (Ruler) is fully built out below;
      Journal + Clans reuse the existing sections, regrouped. ==== -->
 <nav class="tab-nav" id="tabNav">
@@ -1528,6 +1619,10 @@
     <div class="weekly-wrap">
       <div class="weekly-box">
         <span class="section-label">Weekly Visualization</span>
+        <div class="weekly-focus-row">
+          <span class="weekly-focus-label">Focus</span>
+          <input type="text" class="weekly-focus-input" id="weeklyFocusInput" placeholder="This week's focus...">
+        </div>
         <div class="weekly-col-headers">
           <span class="weekly-col-header-days">Days</span>
           <span class="weekly-col-header-details">Details</span>
@@ -1542,22 +1637,28 @@
     </div>
 
     <div class="header">
-      <h1>Your Ruler</h1>
-      <p class="tagline">For Dangerous Humans</p>
-      <p>Your 12-block day planner</p>
       <div class="clocks-row">
         <div class="clock-item">
           <span class="clock-label">UTC</span>
           <span class="clock-value" id="utcClock">—</span>
         </div>
         <div class="clock-item clock-item-main">
-          <span class="clock-label">Block</span>
+          <span class="clock-label">Daily Alignment</span>
           <span class="clock-value" id="blockClock">—</span>
         </div>
         <div class="clock-item">
           <span class="clock-label">Local Time</span>
           <span class="clock-value" id="localClock">—</span>
         </div>
+      </div>
+      <div id="todaysMission" class="todays-mission">
+        <div class="todays-mission-header-row">
+          <span class="todays-mission-label">Today's Mission</span>
+          <span class="todays-mission-progress" id="dayProgress">0% elapsed</span>
+        </div>
+        <span id="todaysMissionText" class="todays-mission-text"></span>
+        <input id="todaysMissionInput" type="text" class="todays-mission-input"
+          placeholder="What's the mission for today?" style="display:none;">
       </div>
       <div class="daily-score">
         <span class="daily-score-label">Daily Score</span>
@@ -1578,18 +1679,7 @@
   </div>
 </div>
 
-<div id="todaysMission" class="todays-mission">
-  <span class="todays-mission-label">Today's Mission</span>
-  <span id="todaysMissionText" class="todays-mission-text"></span>
-  <input id="todaysMissionInput" type="text" class="todays-mission-input"
-    placeholder="What's the mission for today?" style="display:none;">
-</div>
-
 <div class="ruler-container">
-  <div class="progress-row">
-    <span class="section-label">Today's Ruler</span>
-    <span class="progress-pct" id="dayProgress">0% elapsed</span>
-  </div>
   <div class="span-markers">
     <span class="marker-start">Sunrise<span class="marker-sub">6:00 AM</span></span>
     <span class="marker-mid">Sunset<span class="marker-sub">≈ Block 5</span></span>
@@ -1624,6 +1714,12 @@
 <div class="tab-panel" id="tab-life">
   <h2 class="tab-title">Life</h2>
 
+  <!-- What I Want To Accomplish This Year: exactly 3 long lines -->
+  <div class="life-section">
+    <span class="section-label">What I Want To Accomplish This Year</span>
+    <div class="accomplish-box" id="accomplishBox"></div>
+  </div>
+
   <!-- Yearly Visualization: 12 months, each with 4 large week-boxes -->
   <div class="life-section">
     <span class="section-label">Yearly Visualization</span>
@@ -1647,12 +1743,6 @@
       <input type="checkbox" id="mustsShare">
       <label for="mustsShare">Share with Clan</label>
     </div>
-  </div>
-
-  <!-- What I Want To Accomplish This Year: exactly 3 long lines -->
-  <div class="life-section">
-    <span class="section-label">What I Want To Accomplish This Year</span>
-    <div class="accomplish-box" id="accomplishBox"></div>
   </div>
 </div><!-- ============================ /TAB 2: LIFE ============================ -->
 
@@ -2125,6 +2215,7 @@ function updateLiveClock() {
 
 function updateLive() {
   updateLiveClock();
+  checkDayRollover();
   var sinceSix = getSinceSix();
   var idx = findCurrentBlockIndex(sinceSix);
 
@@ -2446,6 +2537,15 @@ function buildEntryElement(entry) {
   });
   bottomRow.appendChild(editBtn);
 
+  var deleteBtn = document.createElement('button');
+  deleteBtn.className = 'entry-delete-btn';
+  deleteBtn.textContent = 'Delete';
+  deleteBtn.addEventListener('click', function() {
+    if (!confirm('Remove this entry from view?')) return;
+    div.remove();
+  });
+  bottomRow.appendChild(deleteBtn);
+
   div.appendChild(bottomRow);
 
   return div;
@@ -2651,6 +2751,18 @@ var musts = loadMusts();
 var mustsBox = document.getElementById('mustsBox');
 var SCORE_LABELS = { 1: 'Poor', 2: 'Average', 3: 'Excellent' };
 
+// Example anchors shown as placeholder text in each must's open metric
+// field, to suggest what "1/2/3" means for that specific item. Purely
+// illustrative — no backend logic yet; users can type over them.
+var MUST_METRIC_PLACEHOLDERS = {
+  sleep: '1: Late night, 2: Uncomfortable sleep, 3: 420+ minutes',
+  sunlight: '1: Indoors all day, 2: Window time, 3: Outside 20+ mins',
+  exercise: '1: No movement, 2: Light activity, 3: Full workout'
+};
+function mustMetricPlaceholder(m) {
+  return MUST_METRIC_PLACEHOLDERS[m.id] || '1: Poor, 2: Average, 3: Excellent';
+}
+
 // ---- Drag-to-reorder ranking for the Musts list ----
 // Pointer-events based so it works with both mouse and touch (the app
 // is a mobile PWA). The move/up listeners live on `document`, not on
@@ -2735,6 +2847,20 @@ function renderMusts() {
       row.appendChild(note);
     }
 
+    var metricInput = document.createElement('input');
+    metricInput.type = 'text';
+    metricInput.className = 'must-metric-input';
+    metricInput.placeholder = mustMetricPlaceholder(m);
+    row.appendChild(metricInput);
+
+    var scoreCol = document.createElement('div');
+    scoreCol.className = 'must-score-col';
+
+    var scoreLabel = document.createElement('span');
+    scoreLabel.className = 'must-score-label';
+    scoreLabel.textContent = 'Score';
+    scoreCol.appendChild(scoreLabel);
+
     var scoreWrap = document.createElement('span');
     scoreWrap.className = 'must-score-wrap';
     [1, 2, 3].forEach(function(val) {
@@ -2749,7 +2875,8 @@ function renderMusts() {
       });
       scoreWrap.appendChild(btn);
     });
-    row.appendChild(scoreWrap);
+    scoreCol.appendChild(scoreWrap);
+    row.appendChild(scoreCol);
 
     if (!m.fixed) {
       var rm = document.createElement('button');
@@ -2923,6 +3050,20 @@ function todayAsMondayFirstIndex() {
   return jsDay === 0 ? 6 : jsDay - 1; // 0=Mon ... 6=Sun
 }
 
+// Detects the calendar day rolling over while the app is left open
+// (no reload, no user interaction). Without this, the Weekly
+// Visualization's "today" highlight, Today's Mission, and the Daily
+// Score all stay frozen on whatever day was "today" at last render,
+// since none of them are otherwise on a timer.
+var lastKnownDayIdx = todayAsMondayFirstIndex();
+function checkDayRollover() {
+  var idx = todayAsMondayFirstIndex();
+  if (idx !== lastKnownDayIdx) {
+    lastKnownDayIdx = idx;
+    renderWeeklyViz(); // cascades to renderTodaysMission() -> updateDailyScore()
+  }
+}
+
 function renderWeeklyViz() {
   weeklyDaysList.innerHTML = '';
   var todayIdx = todayAsMondayFirstIndex();
@@ -3032,10 +3173,10 @@ function renderYearlyViz() {
     var monthBlock = document.createElement('div');
     monthBlock.className = 'yearly-month' + (i === currentMonthIdx ? ' is-current' : '');
 
-    var name = document.createElement('div');
-    name.className = 'yearly-month-name';
-    name.textContent = MONTH_NAMES[i];
-    monthBlock.appendChild(name);
+    var num = document.createElement('div');
+    num.className = 'yearly-month-num';
+    num.textContent = String(i + 1);
+    monthBlock.appendChild(num);
 
     var weeksWrap = document.createElement('div');
     weeksWrap.className = 'yearly-weeks';
@@ -3043,6 +3184,9 @@ function renderYearlyViz() {
     if (!Array.isArray(yearlyVizMonths[i])) yearlyVizMonths[i] = ['', '', '', ''];
 
     for (var w = 0; w < 4; w++) {
+      var boxWrap = document.createElement('div');
+      boxWrap.className = 'yearly-week-box-wrap';
+
       var box = document.createElement('textarea');
       box.className = 'yearly-week-box';
       box.placeholder = 'Week ' + (w + 1);
@@ -3054,7 +3198,14 @@ function renderYearlyViz() {
           saveYearlyViz(yearlyVizMonths);
         });
       })(i, w, box);
-      weeksWrap.appendChild(box);
+      boxWrap.appendChild(box);
+
+      var score = document.createElement('span');
+      score.className = 'yearly-week-score';
+      score.textContent = '—';
+      boxWrap.appendChild(score);
+
+      weeksWrap.appendChild(boxWrap);
     }
 
     monthBlock.appendChild(weeksWrap);
