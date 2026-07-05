@@ -21,7 +21,7 @@
     min-height: 100vh;
     font-family: Georgia, serif;
     color: #eee;
-    padding: 2rem 1rem;
+    padding: 1rem 1rem 2rem 1rem;
   }
   .page-wrap {
     position: relative;
@@ -73,6 +73,12 @@
 
 
   .header { text-align: center; margin-bottom: 0.5rem; flex: 1 1 auto; min-width: 0; }
+  .header-row .header {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-self: stretch;
+  }
   .header h1 { font-size: 28px; margin: 0; color: #eee; }
   .header p { font-size: 14px; color: #999; margin-top: 0.4rem; }
   .header .tagline {
@@ -530,9 +536,14 @@
   /* Tackle / Whiteboard box, sits in the header row on the right */
   .tackle-wrap {
     flex: 0 0 auto;
+    align-self: stretch;
   }
   .tackle-box {
     width: 240px;
+    height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
     background: #161616;
     border: 1px solid #3a3327;
     border-radius: 8px;
@@ -541,6 +552,7 @@
   }
   .tackle-box .section-label { font-size: 11px; margin-bottom: 0.4rem; }
   .tackle-box textarea {
+    flex: 1;
     min-height: 200px;
     font-size: 12px;
     padding: 0.6rem;
@@ -1140,11 +1152,11 @@
   /* ---- Tab navigation ---- */
   .tab-nav {
     max-width: 1100px;
-    margin: 0 auto 0.6rem auto;
+    margin: 0 auto 0.5rem auto;
     display: flex;
     gap: 0.5rem;
     justify-content: center;
-    padding-bottom: 0.3rem;
+    padding-bottom: 0.2rem;
   }
   .tab-btn {
     background: transparent;
@@ -1160,7 +1172,7 @@
     cursor: pointer;
   }
   .tab-btn:hover { color: var(--rd-gold); background: rgba(176,24,24,0.08); }
-  .site-banner { max-width: 1100px; margin: 0 auto 1.5rem auto; }
+  .site-banner { max-width: 1100px; margin: 0 auto 0.75rem auto; }
   .tab-btn.active {
     color: var(--rd-gold-bright);
     border-color: var(--rd-edge);
@@ -1200,7 +1212,6 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin-top: 0.6rem;
   }
   .daily-score-label {
     font-size: 10px;
@@ -1209,22 +1220,20 @@
     color: var(--rd-gold);
   }
   .daily-score-value {
-    font-size: 44px;
+    font-size: 56px;
     line-height: 1;
     margin-top: 0.2rem;
     color: var(--rd-gold-bright);
-    text-shadow: 0 0 16px rgba(176,24,24,0.5);
+    text-shadow: 0 0 22px rgba(176,24,24,0.65);
   }
 
   /* ---- Today's Mission — full-width banner directly above the
      Ruler, closing the flow: time -> score -> mission -> schedule ---- */
   .todays-mission {
-    max-width: 1100px;
-    margin: 1.25rem auto 0 auto;
     text-align: center;
-    padding: 1rem 1rem 1.2rem 1rem;
-    border-top: 1px solid var(--rd-edge);
-    border-bottom: 1px solid var(--rd-edge);
+    padding: 0.9rem 1rem;
+    border: 1px solid var(--rd-edge);
+    border-radius: 8px;
     background: linear-gradient(180deg, rgba(176,24,24,0.06), transparent);
   }
   .todays-mission-header-row {
@@ -1368,6 +1377,16 @@
 
   /* ---- LIFE tab ---- */
   .life-section { max-width: 1100px; margin: 0 auto 2rem auto; }
+  .life-row {
+    max-width: 1100px;
+    margin: 0 auto 2rem auto;
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+  }
+  .life-row .life-section { margin: 0; max-width: none; min-width: 0; }
+  .life-col-accomplish { flex: 2 1 0; }
+  .life-col-musts { flex: 1 1 0; }
   .yearly-months-grid {
     display: flex;
     flex-direction: column;
@@ -1501,6 +1520,7 @@
 
   @media (max-width: 700px) {
     .tab-title { font-size: 32px; }
+    .life-row { flex-direction: column; }
     .yearly-month { flex-wrap: wrap; }
     .yearly-weeks { flex-wrap: wrap; }
     .yearly-week-box-wrap { flex: 1 1 45%; }
@@ -1657,6 +1677,15 @@
         <span class="daily-score-label">Daily Score</span>
         <span class="daily-score-value" id="dailyScoreValue">0/10</span>
       </div>
+      <div id="todaysMission" class="todays-mission">
+        <div class="todays-mission-header-row">
+          <span class="todays-mission-label">Today's Mission</span>
+          <span class="todays-mission-progress" id="dayProgress">0% elapsed</span>
+        </div>
+        <span id="todaysMissionText" class="todays-mission-text"></span>
+        <input id="todaysMissionInput" type="text" class="todays-mission-input"
+          placeholder="What's the mission for today?" style="display:none;">
+      </div>
     </div>
 
   <div class="tackle-wrap">
@@ -1670,16 +1699,6 @@
     </div>
   </div>
   </div>
-</div>
-
-<div id="todaysMission" class="todays-mission">
-  <div class="todays-mission-header-row">
-    <span class="todays-mission-label">Today's Mission</span>
-    <span class="todays-mission-progress" id="dayProgress">0% elapsed</span>
-  </div>
-  <span id="todaysMissionText" class="todays-mission-text"></span>
-  <input id="todaysMissionInput" type="text" class="todays-mission-input"
-    placeholder="What's the mission for today?" style="display:none;">
 </div>
 
 <div class="ruler-container">
@@ -1717,10 +1736,21 @@
 <div class="tab-panel" id="tab-life">
   <h2 class="tab-title">Life</h2>
 
-  <!-- What I Want To Accomplish This Year: exactly 3 long lines -->
-  <div class="life-section">
-    <span class="section-label">What I Want To Accomplish This Year</span>
-    <div class="accomplish-box" id="accomplishBox"></div>
+  <!-- Accomplish (2/3 width) + Musts & In-between (1/3 width), side by side -->
+  <div class="life-row">
+    <div class="life-section life-col-accomplish">
+      <span class="section-label">What I Want To Accomplish This Year</span>
+      <div class="accomplish-box" id="accomplishBox"></div>
+    </div>
+
+    <div class="life-section life-col-musts">
+      <span class="section-label">Musts &amp; In-between</span>
+      <div class="musts-box" id="mustsBox"></div>
+      <div class="section-share-row" id="mustsShareRow" style="display:none;">
+        <input type="checkbox" id="mustsShare">
+        <label for="mustsShare">Share with Clan</label>
+      </div>
+    </div>
   </div>
 
   <!-- Yearly Visualization: 12 months, each with 4 large week-boxes -->
@@ -1735,16 +1765,6 @@
     </div>
     <div class="yearly-box yearly-locked" id="yearlyBoxLocked">
       <p>📅 Yearly Visualization is a paid feature. <a id="yearlyUpgradeLink">Upgrade to unlock.</a></p>
-    </div>
-  </div>
-
-  <!-- Musts & In-between: ranked daily musts with scoring -->
-  <div class="life-section">
-    <span class="section-label">Musts &amp; In-between</span>
-    <div class="musts-box" id="mustsBox"></div>
-    <div class="section-share-row" id="mustsShareRow" style="display:none;">
-      <input type="checkbox" id="mustsShare">
-      <label for="mustsShare">Share with Clan</label>
     </div>
   </div>
 </div><!-- ============================ /TAB 2: LIFE ============================ -->
