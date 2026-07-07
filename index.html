@@ -1109,18 +1109,25 @@
     gap: 0.6rem;
   }
   .clan-member-name { font-size: 13px; color: #ddd; flex: 1 1 auto; min-width: 0; }
-  .clan-member-block {
-    font-size: 12px;
-    color: #c0b5a5;
-    flex: 1 1 auto;
-    min-width: 0;
-    text-align: center;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .clan-member-clocks { display: flex; gap: 0.4rem; flex-shrink: 0; }
+  .clan-member-clock-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: #1a1414;
+    border: 1px solid var(--rd-edge);
+    border-radius: 5px;
+    padding: 0.2rem 0.5rem;
+    min-width: 58px;
   }
-  .clan-member-time { font-size: 12px; color: #999; font-variant-numeric: tabular-nums; flex-shrink: 0; }
-  .clan-member-time.is-night { color: #555; }
+  .clan-member-clock-label {
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--rd-muted);
+  }
+  .clan-member-clock-value { font-size: 11px; color: #ddd; font-variant-numeric: tabular-nums; }
+  .clan-member-clock-value.is-night { color: #555; }
 
   /* Member detail modal */
   .member-modal-overlay {
@@ -1773,7 +1780,7 @@
   /* ---- Text: gold, never gray ---- */
   body, .header p, .current-block-info .cb-time, .must-note, .must-label,
   .block-mins, .entry-text, .entry-edited, .clan-meta, .clan-member-name,
-  .clan-member-time, .clan-member-block, .clans-locked p,
+  .clan-member-clock-value, .clan-member-clock-label, .clans-locked p,
   .journal-image-paste-hint, .journal-images-locked, .export-row-label,
   .export-to, .weekly-col-header-days,
   .weekly-col-header-done, .weekly-col-header-score, .weekly-focus-label,
@@ -2616,6 +2623,38 @@ function getBlockTime(now) {
   };
 }
 
+// Same fixed 120-minute cycle as getBlockTime(), but computed from an
+// arbitrary IANA timezone's wall clock instead of the viewer's own —
+// for showing a clan member's own "Ruler Alignment" reading based on
+// their local time, not the viewer's.
+function getBlockTimeInTimezone(timezone) {
+  try {
+    var now = new Date();
+    var parts = now.toLocaleString('en-US', {
+      timeZone: timezone, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+    });
+    var bits = parts.split(':');
+    var minutesSinceMidnight = parseInt(bits[0], 10) * 60 + parseInt(bits[1], 10) + (parseInt(bits[2], 10) || 0) / 60;
+    var minutesSinceSix = (minutesSinceMidnight - DAY_START_OFFSET + 1440) % 1440;
+    var blockNumber = Math.floor(minutesSinceSix / BLOCK_CLOCK_SIZE);
+    var minutesIntoBlock = minutesSinceSix % BLOCK_CLOCK_SIZE;
+    var minutesElapsed = Math.floor(minutesIntoBlock);
+    var secondsElapsed = Math.floor((minutesIntoBlock - minutesElapsed) * 60);
+    return { blockNumber: blockNumber, minutesElapsed: minutesElapsed, secondsElapsed: secondsElapsed };
+  } catch (e) {
+    return getBlockTime(new Date());
+  }
+}
+
+// Shared Block:Minutes:Seconds formatter for any getBlockTime()-shaped
+// result — used by the main clock and the Clans list/modal alike, so
+// there's one formatting rule instead of duplicated padding logic.
+function formatBlockTime(bt) {
+  var minStr = (bt.minutesElapsed < 10 ? '0' : '') + bt.minutesElapsed;
+  var secStr = (bt.secondsElapsed < 10 ? '0' : '') + bt.secondsElapsed;
+  return bt.blockNumber + ':' + minStr + ':' + secStr;
+}
+
 function updateCurrentBlockInfo() {
   var sinceSix = getSinceSix();
   var idx = findCurrentBlockIndex(sinceSix);
@@ -2687,11 +2726,7 @@ function updateLiveClock() {
   var utcStr = now.toLocaleTimeString('en-GB', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
   document.getElementById('utcClock').textContent = utcStr + ' UTC';
 
-  var bt = getBlockTime(now);
-  var secStr = (bt.secondsElapsed < 10 ? '0' : '') + bt.secondsElapsed;
-  var minStr = (bt.minutesElapsed < 10 ? '0' : '') + bt.minutesElapsed;
-  document.getElementById('blockClock').textContent =
-    bt.blockNumber + ':' + minStr + ':' + secStr;
+  document.getElementById('blockClock').textContent = formatBlockTime(getBlockTime(now));
 }
 
 function updateLive() {
@@ -4859,43 +4894,18 @@ function renderOneClanCardRefresh(clan, membersWrap) {
     });
 }
 
-// Given a member's own blocks, figures out which one is "current"
-// right now using the same 6am-anchored math the main Ruler uses —
-// just applied to someone else's block data instead of your own.
-// Same idea as getSinceSix(), but computed in a SPECIFIC timezone
-// rather than the viewer's own. Needed because a clan member's
-// current block must be calculated using THEIR local 6am, not the
-// person looking at the screen's 6am — otherwise everyone's card
-// shows the wrong block except your own.
-function getSinceSixInTimezone(timezone) {
-  try {
-    var now = new Date();
-    var parts = now.toLocaleString('en-US', {
-      timeZone: timezone, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
-    });
-    var bits = parts.split(':');
-    var hours = parseInt(bits[0], 10);
-    var minutes = parseInt(bits[1], 10);
-    var seconds = parseInt(bits[2], 10) || 0;
-    var realMinutes = hours * 60 + minutes + seconds / 60;
-    return (realMinutes - DAY_START_OFFSET + 1440) % 1440;
-  } catch (e) {
-    return getSinceSix(); // fall back to viewer's own time if the timezone is somehow invalid
-  }
-}
-
-function findMemberCurrentBlock(memberBlocks, timezone) {
-  if (!memberBlocks || !memberBlocks.length) return null;
-  var sinceSix = getSinceSixInTimezone(timezone);
-  var cumulative = 0;
-  for (var i = 0; i < memberBlocks.length; i++) {
-    var b = memberBlocks[i];
-    var startMin = cumulative;
-    var endMin = cumulative + b.minutes;
-    cumulative = endMin;
-    if (sinceSix >= startMin && sinceSix < endMin) return b;
-  }
-  return memberBlocks[memberBlocks.length - 1] || null;
+function buildClanClockBox(label, value, isNight) {
+  var box = document.createElement('div');
+  box.className = 'clan-member-clock-box';
+  var labelEl = document.createElement('span');
+  labelEl.className = 'clan-member-clock-label';
+  labelEl.textContent = label;
+  var valueEl = document.createElement('span');
+  valueEl.className = 'clan-member-clock-value' + (isNight ? ' is-night' : '');
+  valueEl.textContent = value;
+  box.appendChild(labelEl);
+  box.appendChild(valueEl);
+  return box;
 }
 
 function renderClanMembers(container, profiles, rulerMap) {
@@ -4911,23 +4921,15 @@ function renderClanMembers(container, profiles, rulerMap) {
     var nameSpan = document.createElement('span');
     nameSpan.className = 'clan-member-name';
     nameSpan.textContent = profile.display_name + (profile.id === currentUser.id ? ' (you)' : '');
-
-    var memberBlocks = rulerMap[profile.id] || [];
-    var currentBlock = findMemberCurrentBlock(memberBlocks, profile.timezone);
-
-    var blockSpan = document.createElement('span');
-    blockSpan.className = 'clan-member-block';
-    blockSpan.textContent = currentBlock ? currentBlock.name : '—';
-
-    var timeSpan = document.createElement('span');
-    timeSpan.className = 'clan-member-time';
-    var localInfo = getLocalTimeInfo(profile.timezone);
-    timeSpan.textContent = localInfo.text;
-    if (localInfo.isNight) timeSpan.classList.add('is-night');
-
     row.appendChild(nameSpan);
-    row.appendChild(blockSpan);
-    row.appendChild(timeSpan);
+
+    var localInfo = getLocalTimeInfo(profile.timezone);
+    var clocksWrap = document.createElement('div');
+    clocksWrap.className = 'clan-member-clocks';
+    clocksWrap.appendChild(buildClanClockBox('Local', localInfo.text, localInfo.isNight));
+    clocksWrap.appendChild(buildClanClockBox('Alignment', formatBlockTime(getBlockTimeInTimezone(profile.timezone)), false));
+    row.appendChild(clocksWrap);
+
     memberDiv.appendChild(row);
     container.appendChild(memberDiv);
 
@@ -5026,10 +5028,10 @@ function loadMemberDetailContent(profile, body) {
     var timeRow = document.createElement('div');
     timeRow.className = 'member-modal-time-row';
     var localInfo = getLocalTimeInfo(profile.timezone);
-    var currentBlock = rulerShared ? findMemberCurrentBlock(memberBlocks, profile.timezone) : null;
+    var alignBt = getBlockTimeInTimezone(profile.timezone);
     timeRow.innerHTML =
       '<span><strong>Local time:</strong> ' + localInfo.text + '</span>' +
-      '<span><strong>Current block:</strong> ' + (currentBlock ? escapeHtml(currentBlock.name) : '—') + '</span>';
+      '<span><strong>Ruler Alignment:</strong> ' + formatBlockTime(alignBt) + '</span>';
     body.appendChild(timeRow);
 
     // Whiteboard — content display now respects the member's own
