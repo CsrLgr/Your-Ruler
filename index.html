@@ -138,28 +138,22 @@
   /* Sunrise / Sunset / 24h span markers below the track */
   .span-markers {
     display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
     font-size: 10px;
     color: #888;
     letter-spacing: 0.05em;
     margin-top: 10px;
     padding: 0 1px;
-    position: relative;
-    height: 28px;
   }
   .span-markers .marker-start {
-    position: absolute;
-    left: 0;
     text-align: left;
   }
   .span-markers .marker-mid {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
     text-align: center;
   }
   .span-markers .marker-end {
-    position: absolute;
-    right: 0;
     text-align: right;
   }
   .span-markers .marker-sub {
@@ -293,9 +287,9 @@
     max-width: 1100px;
     margin: 0.75rem auto 0 auto;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 0.75rem;
+    gap: 0.4rem;
   }
   .quick-energy-label {
     font-size: 11px;
@@ -304,6 +298,9 @@
     color: var(--rd-gold);
   }
   .quick-energy-btns { display: flex; gap: 0.4rem; }
+
+  .sleep-log-btn-inline { padding: 0.3rem 0.65rem; font-size: 11px; white-space: nowrap; flex-shrink: 0; }
+  .sleep-log-last { display: block; text-align: center; font-size: 10px; color: var(--rd-muted); margin-top: 4px; }
 
   .energy-modal-overlay {
     position: fixed;
@@ -1669,6 +1666,180 @@
   }
   .accomplish-line:focus { outline: 1px solid var(--rd-gold); border-left-color: var(--rd-gold); }
 
+  /* ---- INSIGHTS tab ----
+     Energy uses one ordinal gold ramp (dark->light = low->high energy),
+     same hue family as the rest of the app. Sleep is a fixed, distinct
+     color from the app's other established hue (red — same family as
+     the Ruler's own sleep-zone blocks), so it never reads as "a 4th
+     energy level." No-data uses a neutral panel tone. */
+  .insights-headline-card {
+    max-width: 1100px;
+    margin: 0 auto 1.5rem auto;
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    background: var(--rd-panel);
+    border: 1px solid var(--rd-edge);
+    border-radius: 10px;
+    padding: 1.1rem 1.3rem;
+  }
+  .insights-headline-metric {
+    flex: 1 1 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  .insights-metric-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--rd-gold);
+  }
+  .insights-metric-value {
+    font-size: 32px;
+    line-height: 1.1;
+    color: var(--rd-gold-bright);
+    text-shadow: 0 0 12px rgba(176,24,24,0.4);
+  }
+  .insights-metric-value-small { font-size: 18px; text-shadow: none; }
+
+  .insights-range-row {
+    max-width: 1100px;
+    margin: 0 auto 0.4rem auto;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .insights-range-locked {
+    max-width: 1100px;
+    margin: 0 auto 1.5rem auto;
+    font-size: 12px;
+    color: var(--rd-muted);
+  }
+  .insights-range-locked a { color: var(--rd-gold); cursor: pointer; text-decoration: underline; }
+
+  .insights-breakdown-grid {
+    max-width: 1100px;
+    margin: 0 auto 1.25rem auto;
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .insights-card {
+    flex: 1 1 260px;
+    background: var(--rd-panel);
+    border: 1px solid var(--rd-edge);
+    border-radius: 10px;
+    padding: 1rem 1.1rem;
+  }
+  .insights-full { max-width: 1100px; margin: 0 auto 1.25rem auto; flex: none; }
+  .insights-empty { font-size: 12px; color: var(--rd-muted); font-style: italic; }
+
+  .insights-mini-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--rd-text);
+    padding: 0.3rem 0;
+    border-bottom: 1px solid var(--rd-edge);
+  }
+  .insights-mini-row:last-child { border-bottom: none; }
+  .insights-theme-row {
+    font-size: 12px;
+    color: var(--rd-text);
+    padding: 0.3rem 0;
+    border-bottom: 1px solid var(--rd-edge);
+    margin: 0;
+  }
+  .insights-theme-row:last-child { border-bottom: none; }
+
+  .insights-legend {
+    display: flex;
+    gap: 0.9rem;
+    flex-wrap: wrap;
+    font-size: 10px;
+    color: var(--rd-muted);
+    margin-bottom: 0.75rem;
+  }
+  .insights-legend-item { display: flex; align-items: center; gap: 0.3rem; }
+  .insights-legend-swatch {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+  }
+
+  /* Combo chart: sleep-minutes bars + a performance-metric line, both
+     indexed onto ONE shared 0-100% scale (no numbered axis drawn) —
+     the anti-dual-axis technique from the dataviz skill. Real values
+     live in direct labels + tooltips instead of a fabricated 2nd axis. */
+  .insights-chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem; }
+  .insights-combo-chart {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    height: 220px;
+    background: #140f0f;
+    border-radius: 8px;
+    padding: 20px 12px 8px 12px;
+  }
+  .insights-combo-col {
+    position: relative;
+    flex: 1;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+  }
+  .insights-combo-bar-label {
+    font-size: 9px;
+    color: var(--rd-muted);
+    margin-bottom: 3px;
+    font-variant-numeric: tabular-nums;
+  }
+  .insights-combo-bar { width: 60%; border-radius: 3px 3px 0 0; min-height: 2px; }
+  .insights-combo-day-label { font-size: 10px; color: var(--rd-muted); margin-top: 6px; }
+  .insights-combo-dot {
+    position: absolute;
+    left: 50%;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--rd-gold-bright);
+    border: 2px solid #140f0f;
+    transform: translate(-50%, 50%);
+  }
+  .insights-combo-dot-label {
+    position: absolute;
+    left: 50%;
+    font-size: 9px;
+    color: var(--rd-gold-bright);
+    transform: translate(-50%, -100%);
+    white-space: nowrap;
+  }
+  .insights-combo-line-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+
+  .insights-weekly-summary-row { margin-bottom: 1rem; }
+  .insights-weekly-summary-row:last-child { margin-bottom: 0; }
+  .insights-weekly-summary-label {
+    display: block;
+    font-size: 11px;
+    color: var(--rd-gold);
+    margin-bottom: 0.35rem;
+  }
+  .insights-weekly-summary-input {
+    width: 100%;
+    min-height: 60px;
+    border-radius: 8px;
+    font-family: Georgia, serif;
+    font-size: 13px;
+    padding: 0.6rem 0.75rem;
+    resize: vertical;
+  }
+
   /* ---- JOURNAL tab ---- */
   .journal-split {
     max-width: 1100px;
@@ -1832,6 +2003,7 @@
   <button class="tab-btn" data-tab="tab-life">Life</button>
   <button class="tab-btn" data-tab="tab-journal">Journal</button>
   <button class="tab-btn" data-tab="tab-clans">Clans</button>
+  <button class="tab-btn" data-tab="tab-insights">Insights</button>
 </nav>
 
 <!-- ============================ TAB 1: RULER ============================ -->
@@ -1913,9 +2085,12 @@
   <div class="ruler-track" id="rulerTrack"></div>
   <div class="span-markers">
     <span class="marker-start">Sunrise<span class="marker-sub">6:00 AM</span></span>
+    <button type="button" class="secondary sleep-log-btn-inline" id="logAwakeBtn">☀️ Awake</button>
     <span class="marker-mid">Sunset<span class="marker-sub">≈ Block 5</span></span>
+    <button type="button" class="secondary sleep-log-btn-inline" id="logSleepBtn">🌙 Sleep</button>
     <span class="marker-end">+24h</span>
   </div>
+  <span class="sleep-log-last" id="sleepLogLast"></span>
   <div class="section-share-row" id="rulerShareRow" style="display:none;">
     <input type="checkbox" id="rulerShare">
     <label for="rulerShare">Share with Clan</label>
@@ -2125,6 +2300,75 @@
   </div>
 </div><!-- /bottom-row -->
 </div><!-- ============================ /TAB 4: CLANS ============================ -->
+
+<!-- ============================ TAB 5: INSIGHTS ============================ -->
+<div class="tab-panel" id="tab-insights">
+  <h2 class="tab-title">Insights</h2>
+
+  <div class="insights-headline-card">
+    <div class="insights-headline-metric">
+      <span class="insights-metric-label">Performance Score</span>
+      <span class="insights-metric-value" id="insightsPerfScore">—/10</span>
+    </div>
+    <div class="insights-headline-metric">
+      <span class="insights-metric-label">Yesterday vs Today</span>
+      <span class="insights-metric-value insights-metric-value-small" id="insightsYesterdayToday">—</span>
+    </div>
+    <div class="insights-headline-metric">
+      <span class="insights-metric-label">Sleep vs Energy</span>
+      <span class="insights-metric-value insights-metric-value-small" id="insightsSleepEnergyCorr">—</span>
+    </div>
+  </div>
+
+  <div class="insights-range-row" id="insightsRangeRow">
+    <span class="section-label">Date Range</span>
+    <select id="insightsRangeSelect">
+      <option value="last7">Last 7 Days</option>
+      <option value="last30">Last 30 Days</option>
+      <option value="last90">Last 90 Days</option>
+      <option value="custom">Custom Range</option>
+    </select>
+    <span id="insightsCustomDates" style="display:none;">
+      <input type="date" id="insightsStartDate">
+      <span class="export-to">to</span>
+      <input type="date" id="insightsEndDate">
+    </span>
+  </div>
+  <p class="insights-range-locked" id="insightsRangeLocked" style="display:none;">
+    Showing Last 7 Days. <a id="insightsUpgradeLink">Upgrade</a> to unlock 30/90-day and custom ranges.
+  </p>
+
+  <div class="insights-breakdown-grid">
+    <div class="insights-card">
+      <span class="section-label">Weekly Focus Themes</span>
+      <div id="insightsFocusThemes"></div>
+    </div>
+    <div class="insights-card">
+      <span class="section-label">Average Energy by Time of Day</span>
+      <div id="insightsEnergyByTime"></div>
+    </div>
+    <div class="insights-card">
+      <span class="section-label">Musts Completion Rate</span>
+      <div id="insightsMustsRate"></div>
+    </div>
+  </div>
+
+  <div class="insights-card insights-full">
+    <div class="insights-chart-header">
+      <span class="section-label">Sleep vs Performance — Last 7 Days</span>
+      <select id="insightsSleepChartMetric">
+        <option value="dailyScore">Daily Score</option>
+        <option value="avgEnergy">Avg Energy</option>
+      </select>
+    </div>
+    <div id="insightsSleepPerfChart"></div>
+  </div>
+
+  <div class="insights-card insights-full">
+    <span class="section-label">Editable Weekly Summaries</span>
+    <div id="insightsWeeklySummaries"></div>
+  </div>
+</div><!-- ============================ /TAB 5: INSIGHTS ============================ -->
 
 <script>
 var TOTAL_MIN = 1440;
@@ -2709,6 +2953,78 @@ Array.prototype.forEach.call(document.getElementById('quickEnergyBtns').querySel
     if (selectedBlockIdx === idx) renderBlockDetail();
   });
 });
+
+// ---- Sleep / Wake log ----
+// Captures the ACTUAL clock time you fell asleep or woke up — entirely
+// independent of the Ruler's block scheduling (doesn't touch blocks,
+// doesn't toggle any block's sleep flag). Stored as a flat chronological
+// event log (sleep spans midnight, so a per-calendar-day bucket doesn't
+// fit it cleanly). When an 'awake' click closes a prior unmatched
+// 'sleep' event, the resulting duration is also written onto that
+// morning's Daily Archive record as actualSleepMinutes — same "derive
+// a summary field, keep the raw log elsewhere" pattern journalEntryCount
+// already uses for Journal entries — so Insights has one place to read
+// real sleep duration from, preferring it over the block-based proxy.
+var SLEEP_LOG_KEY = 'csrAlignSleepLog';
+
+function loadSleepLog() {
+  var saved = localStorage.getItem(SLEEP_LOG_KEY);
+  if (saved) {
+    try { var parsed = JSON.parse(saved); return Array.isArray(parsed) ? parsed : []; } catch(e) { return []; }
+  }
+  return [];
+}
+
+function saveSleepLog(log) {
+  localStorage.setItem(SLEEP_LOG_KEY, JSON.stringify(log));
+}
+
+function logSleepWakeEvent(type) {
+  var log = loadSleepLog();
+  var now = new Date();
+
+  if (type === 'awake') {
+    var lastEvent = log.length ? log[log.length - 1] : null;
+    if (lastEvent && lastEvent.type === 'sleep') {
+      var durationMin = Math.round((now - new Date(lastEvent.timestamp)) / 60000);
+      if (durationMin > 0 && durationMin < 1440) {
+        var today = todayUTCDateString();
+        var archive = loadDailyArchive();
+        var rec = archive[today] || { date: today };
+        rec.actualSleepMinutes = durationMin;
+        archive[today] = rec;
+        saveDailyArchive(archive);
+      }
+    }
+  }
+
+  log.push({ type: type, timestamp: now.toISOString() });
+  saveSleepLog(log);
+  return now;
+}
+
+function updateSleepLogDisplay() {
+  var log = loadSleepLog();
+  var last = log[log.length - 1];
+  var el = document.getElementById('sleepLogLast');
+  if (!el) return;
+  if (!last) { el.textContent = ''; return; }
+  var label = last.type === 'sleep' ? 'Sleep' : 'Awake';
+  var timeStr = new Date(last.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  el.textContent = 'Last: ' + label + ' at ' + timeStr;
+}
+
+document.getElementById('logAwakeBtn').addEventListener('click', function() {
+  var now = logSleepWakeEvent('awake');
+  updateSleepLogDisplay();
+  showToast('Wake time logged: ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 'success');
+});
+document.getElementById('logSleepBtn').addEventListener('click', function() {
+  var now = logSleepWakeEvent('sleep');
+  updateSleepLogDisplay();
+  showToast('Sleep time logged: ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 'success');
+});
+updateSleepLogDisplay();
 
 function findCurrentBlockIndex(sinceSix) {
   for (var i = 0; i < blockEls.length; i++) {
@@ -6222,9 +6538,410 @@ function updateSectionShareRowsVisibility() {
 updateSectionShareRowsVisibility();
 
 // ============================================================
-// Tab navigation — three panels (Ruler / Journal / Clans), only
-// one visible at a time. Everything stays in the DOM (just
-// hidden), so all existing init/render/sync logic is untouched.
+// ============================================================
+// Insights — all data pulled from the unified Daily/Weekly Archive.
+// Free tier is locked to "Last 7 Days" (no picker shown); paid tier
+// gets Last 7/30/90 and a custom range. Re-rendered whenever the
+// range changes and once when the tab is opened (see the tab-switch
+// hook below) rather than kept continuously live in the background.
+// ============================================================
+var INSIGHTS_ENERGY_COLORS = ['#8a6a2f', '#c9a24b', '#e6c25c']; // ordinal gold ramp, energy 1/2/3 (dark -> light)
+var INSIGHTS_SLEEP_COLOR = '#8a2020'; // app's established red family — distinct from the energy ramp
+
+var insightsRangeOption = 'last7';
+
+function resolveInsightsRange() {
+  var now = new Date();
+  var isPaidUser = !!(currentUser && currentUserIsPaid);
+  var option = isPaidUser ? insightsRangeOption : 'last7';
+  var end = now;
+  var start;
+  if (option === 'custom' && isPaidUser) {
+    var startVal = document.getElementById('insightsStartDate').value;
+    var endVal = document.getElementById('insightsEndDate').value;
+    if (startVal && endVal) {
+      start = new Date(startVal + 'T00:00:00Z');
+      end = new Date(endVal + 'T23:59:59Z');
+    } else {
+      start = new Date(now.getTime() - 7 * 86400000);
+    }
+  } else if (option === 'last30' && isPaidUser) {
+    start = new Date(now.getTime() - 30 * 86400000);
+  } else if (option === 'last90' && isPaidUser) {
+    start = new Date(now.getTime() - 90 * 86400000);
+  } else {
+    option = 'last7';
+    start = new Date(now.getTime() - 7 * 86400000);
+  }
+  return { start: start, end: end, option: option };
+}
+
+function computePerformanceScore(dayRecords) {
+  var scored = dayRecords.filter(function(r) { return typeof r.dailyScore === 'number'; });
+  if (!scored.length) return null;
+  var sum = scored.reduce(function(a, r) { return a + r.dailyScore; }, 0);
+  return Math.round((sum / scored.length) * 10) / 10;
+}
+
+// Two most recent days *within the current range* that actually have
+// a score — not a hardcoded "today vs the day before," since either
+// may not have data yet.
+function computeYesterdayVsToday(dayRecords) {
+  var sorted = dayRecords
+    .filter(function(r) { return typeof r.dailyScore === 'number'; })
+    .sort(function(a, b) { return a.date < b.date ? 1 : -1; });
+  return { today: sorted[0] || null, yesterday: sorted[1] || null };
+}
+
+function computeDayAvgEnergy(blocks) {
+  var energies = (blocks || []).filter(function(b) { return typeof b.energy === 'number'; }).map(function(b) { return b.energy; });
+  if (!energies.length) return null;
+  return energies.reduce(function(a, b) { return a + b; }, 0) / energies.length;
+}
+
+function computeDaySleepMinutes(blocks) {
+  return (blocks || []).filter(function(b) { return b.sleep; }).reduce(function(a, b) { return a + (b.minutes || 0); }, 0);
+}
+
+// Prefers the real Sleep/Wake log's actualSleepMinutes (see
+// logSleepWakeEvent) over the block-based "sleep zone" proxy, since
+// the log reflects when you actually slept, not just how blocks were
+// scheduled. Falls back to the block proxy for days logged before
+// this feature existed or where the buttons weren't used.
+function getDaySleepMinutes(dayRecord) {
+  if (!dayRecord) return 0;
+  if (typeof dayRecord.actualSleepMinutes === 'number') return dayRecord.actualSleepMinutes;
+  return computeDaySleepMinutes(dayRecord.blocks);
+}
+
+function pearsonCorrelation(xs, ys) {
+  var n = xs.length;
+  if (n < 2) return null;
+  var meanX = xs.reduce(function(a, b) { return a + b; }, 0) / n;
+  var meanY = ys.reduce(function(a, b) { return a + b; }, 0) / n;
+  var num = 0, denX = 0, denY = 0;
+  for (var i = 0; i < n; i++) {
+    var dx = xs[i] - meanX, dy = ys[i] - meanY;
+    num += dx * dy; denX += dx * dx; denY += dy * dy;
+  }
+  if (denX === 0 || denY === 0) return null;
+  return num / Math.sqrt(denX * denY);
+}
+
+function computeSleepEnergyCorrelation(dayRecords) {
+  var xs = [], ys = [];
+  dayRecords.forEach(function(r) {
+    var avgEnergy = computeDayAvgEnergy(r.blocks);
+    if (avgEnergy != null) {
+      xs.push(getDaySleepMinutes(r));
+      ys.push(avgEnergy);
+    }
+  });
+  return { r: pearsonCorrelation(xs, ys), n: xs.length };
+}
+
+function labelCorrelation(corr) {
+  if (corr.r == null) return 'Not enough data';
+  if (corr.r > 0.3) return 'Positive (' + corr.r.toFixed(2) + ')';
+  if (corr.r < -0.3) return 'Negative (' + corr.r.toFixed(2) + ')';
+  return 'No clear pattern (' + corr.r.toFixed(2) + ')';
+}
+
+function insightsBucketForStartMin(startMin) {
+  var totalMin = (DAY_START_OFFSET + startMin) % 1440;
+  var hour = Math.floor(totalMin / 60);
+  if (hour >= 6 && hour < 12) return 'Morning';
+  if (hour >= 12 && hour < 18) return 'Afternoon';
+  if (hour >= 18 && hour < 24) return 'Evening';
+  return 'Night';
+}
+
+function computeAverageEnergyByTimeOfDay(dayRecords) {
+  var buckets = { Morning: [], Afternoon: [], Evening: [], Night: [] };
+  dayRecords.forEach(function(r) {
+    var cumulative = 0;
+    (r.blocks || []).forEach(function(b) {
+      var startMin = cumulative;
+      cumulative += b.minutes;
+      if (typeof b.energy === 'number') buckets[insightsBucketForStartMin(startMin)].push(b.energy);
+    });
+  });
+  var result = {};
+  Object.keys(buckets).forEach(function(k) {
+    var arr = buckets[k];
+    result[k] = arr.length ? Math.round((arr.reduce(function(a, b) { return a + b; }, 0) / arr.length) * 10) / 10 : null;
+  });
+  return result;
+}
+
+// Distinct from the average score: this is the % of days in range
+// that have ANY Musts rating at all, not how good those ratings were.
+function computeMustsCompletionRate(dayRecords) {
+  if (!dayRecords.length) return { rate: null, avg: null };
+  var withMusts = dayRecords.filter(function(r) { return typeof r.mustsAverage === 'number'; });
+  var rate = Math.round((withMusts.length / dayRecords.length) * 100);
+  var avg = withMusts.length
+    ? Math.round((withMusts.reduce(function(a, r) { return a + r.mustsAverage; }, 0) / withMusts.length) * 10) / 10
+    : null;
+  return { rate: rate, avg: avg };
+}
+
+var INSIGHTS_DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+// Unified Sleep vs Performance chart: sleep-minutes bars + a
+// performance-metric line (Daily Score or Avg Energy), hardcoded to
+// the last 7 CALENDAR days regardless of the tab's date-range picker
+// (a 30/90-day combo chart of this shape would be unreadable). Both
+// series share ONE 0-100% visual scale — no numbered second axis is
+// drawn, per the dataviz skill's anti-dual-axis rule — real values
+// live in the direct labels and tooltips instead.
+function renderInsightsSleepPerfChart(container, metric) {
+  container.innerHTML = '';
+
+  var today = new Date();
+  var days = [];
+  for (var i = 6; i >= 0; i--) {
+    days.push(new Date(today.getTime() - i * 86400000).toISOString().slice(0, 10));
+  }
+  var records = days.map(function(dateStr) { return getDayRecord(dateStr); });
+  var sleepVals = records.map(function(r) { return r ? getDaySleepMinutes(r) : 0; });
+  var maxSleep = Math.max.apply(null, sleepVals.concat([60]));
+
+  var metricMax = metric === 'avgEnergy' ? 3 : 10;
+  var metricLabel = metric === 'avgEnergy' ? 'Avg Energy' : 'Daily Score';
+  var metricSuffix = metric === 'avgEnergy' ? '/3' : '/10';
+  var metricVals = records.map(function(r) {
+    if (!r) return null;
+    return metric === 'avgEnergy' ? computeDayAvgEnergy(r.blocks) : (typeof r.dailyScore === 'number' ? r.dailyScore : null);
+  });
+
+  if (!records.some(Boolean)) {
+    container.innerHTML = '<p class="insights-empty">No data in the last 7 days yet.</p>';
+    return;
+  }
+
+  var legend = document.createElement('div');
+  legend.className = 'insights-legend';
+  legend.innerHTML =
+    '<span class="insights-legend-item"><span class="insights-legend-swatch" style="background:' + INSIGHTS_SLEEP_COLOR + '"></span>Sleep (minutes)</span>' +
+    '<span class="insights-legend-item"><span class="insights-legend-swatch" style="background:' + INSIGHTS_ENERGY_COLORS[2] + ';border-radius:50%;"></span>' + metricLabel + '</span>';
+  container.appendChild(legend);
+
+  var chart = document.createElement('div');
+  chart.className = 'insights-combo-chart';
+
+  var svgNS = 'http://www.w3.org/2000/svg';
+  var svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('class', 'insights-combo-line-svg');
+  svg.setAttribute('viewBox', '0 0 100 100');
+  svg.setAttribute('preserveAspectRatio', 'none');
+  var linePoints = [];
+
+  days.forEach(function(dateStr, i) {
+    var col = document.createElement('div');
+    col.className = 'insights-combo-col';
+
+    var barLabel = document.createElement('span');
+    barLabel.className = 'insights-combo-bar-label';
+    barLabel.textContent = sleepVals[i] ? Math.round(sleepVals[i]) + 'm' : '—';
+    col.appendChild(barLabel);
+
+    var bar = document.createElement('div');
+    bar.className = 'insights-combo-bar';
+    bar.style.height = Math.max(2, (sleepVals[i] / maxSleep) * 100) + '%';
+    bar.style.background = INSIGHTS_SLEEP_COLOR;
+    bar.title = dateStr + ': ' + Math.round(sleepVals[i]) + ' min sleep';
+    col.appendChild(bar);
+
+    var dayLabel = document.createElement('span');
+    dayLabel.className = 'insights-combo-day-label';
+    var jsDay = new Date(dateStr + 'T12:00:00Z').getDay();
+    dayLabel.textContent = INSIGHTS_DAY_LABELS[jsDay === 0 ? 6 : jsDay - 1];
+    col.appendChild(dayLabel);
+
+    if (metricVals[i] != null) {
+      var pct = Math.max(2, (metricVals[i] / metricMax) * 100);
+      var dot = document.createElement('div');
+      dot.className = 'insights-combo-dot';
+      dot.style.bottom = pct + '%';
+      dot.title = dateStr + ': ' + metricVals[i].toFixed(1) + metricSuffix;
+      col.appendChild(dot);
+
+      var dotLabel = document.createElement('span');
+      dotLabel.className = 'insights-combo-dot-label';
+      dotLabel.style.bottom = (pct + 5) + '%';
+      dotLabel.textContent = metricVals[i].toFixed(1);
+      col.appendChild(dotLabel);
+
+      linePoints.push({ x: (i + 0.5) / 7 * 100, y: 100 - pct });
+    }
+
+    chart.appendChild(col);
+  });
+
+  if (linePoints.length > 1) {
+    var polyline = document.createElementNS(svgNS, 'polyline');
+    polyline.setAttribute('points', linePoints.map(function(p) { return p.x + ',' + p.y; }).join(' '));
+    polyline.setAttribute('fill', 'none');
+    polyline.setAttribute('stroke', INSIGHTS_ENERGY_COLORS[2]);
+    polyline.setAttribute('stroke-width', '2');
+    polyline.setAttribute('vector-effect', 'non-scaling-stroke');
+    svg.appendChild(polyline);
+  }
+  chart.appendChild(svg);
+  container.appendChild(chart);
+}
+
+// Editable Weekly Summaries — the SAME WeeklyArchive.focusText field
+// Weekly Visualization's panel edits (with the same history-on-blur
+// pattern), just exposed here so a past week can be annotated without
+// navigating back to that specific week. Editing the CURRENT week's
+// row also keeps the live weeklyFocusInput in sync.
+function renderInsightsWeeklySummaries(weekRecords, container) {
+  container.innerHTML = '';
+  if (!weekRecords.length) {
+    container.innerHTML = '<p class="insights-empty">No weeks in this range yet.</p>';
+    return;
+  }
+  weekRecords.slice().sort(function(a, b) { return a.weekKey < b.weekKey ? -1 : 1; }).forEach(function(rec) {
+    var row = document.createElement('div');
+    row.className = 'insights-weekly-summary-row';
+
+    var label = document.createElement('span');
+    label.className = 'insights-weekly-summary-label';
+    label.textContent = rec.weekKey + (typeof rec.scoreAverage === 'number' ? ' — ' + rec.scoreAverage + '/10' : '');
+    row.appendChild(label);
+
+    var input = document.createElement('textarea');
+    input.className = 'insights-weekly-summary-input';
+    input.placeholder = 'Add context for this week...';
+    input.value = rec.focusText || '';
+
+    (function(weekKey, el) {
+      var valueAtFocus = el.value;
+      el.addEventListener('focus', function() { valueAtFocus = el.value; });
+      el.addEventListener('input', function() {
+        var archive = loadWeeklyArchive();
+        var existing = archive[weekKey] || {};
+        archive[weekKey] = { focusText: el.value, scoreAverage: existing.scoreAverage, focusHistory: existing.focusHistory || [] };
+        saveWeeklyArchive(archive);
+        if (weekKey === isoWeekKey(new Date())) {
+          weeklyFocusText = el.value;
+          localStorage.setItem(WEEKLY_FOCUS_KEY, weeklyFocusText);
+          if (weeklyFocusInputEl) weeklyFocusInputEl.value = weeklyFocusText;
+        }
+      });
+      el.addEventListener('blur', function() {
+        if (el.value === valueAtFocus) return;
+        var archive = loadWeeklyArchive();
+        var existing = archive[weekKey] || { focusText: el.value, scoreAverage: null, focusHistory: [] };
+        if (!existing.focusHistory) existing.focusHistory = [];
+        existing.focusHistory.push({ text: valueAtFocus, editedAt: new Date().toISOString() });
+        archive[weekKey] = existing;
+        saveWeeklyArchive(archive);
+      });
+    })(rec.weekKey, input);
+
+    row.appendChild(input);
+    container.appendChild(row);
+  });
+}
+
+function renderInsights() {
+  var isPaidUser = !!(currentUser && currentUserIsPaid);
+  var rangeRowEl = document.getElementById('insightsRangeRow');
+  var rangeLockedEl = document.getElementById('insightsRangeLocked');
+  if (rangeRowEl) rangeRowEl.style.display = isPaidUser ? '' : 'none';
+  if (rangeLockedEl) rangeLockedEl.style.display = isPaidUser ? 'none' : '';
+
+  var range = resolveInsightsRange();
+  var dayRecords = queryDailyRange(range.start, range.end);
+  var weekRecords = queryWeeklyRange(range.start, range.end);
+
+  var perf = computePerformanceScore(dayRecords);
+  document.getElementById('insightsPerfScore').textContent = (perf == null ? '—' : perf) + '/10';
+
+  var ytd = computeYesterdayVsToday(dayRecords);
+  var ytdEl = document.getElementById('insightsYesterdayToday');
+  if (ytd.today && ytd.yesterday) {
+    var delta = Math.round((ytd.today.dailyScore - ytd.yesterday.dailyScore) * 10) / 10;
+    ytdEl.textContent = ytd.yesterday.dailyScore + ' → ' + ytd.today.dailyScore + ' (' + (delta >= 0 ? '+' : '') + delta + ')';
+  } else if (ytd.today) {
+    ytdEl.textContent = ytd.today.dailyScore + '/10 (only one day with data)';
+  } else {
+    ytdEl.textContent = 'Not enough data';
+  }
+
+  document.getElementById('insightsSleepEnergyCorr').textContent = labelCorrelation(computeSleepEnergyCorrelation(dayRecords));
+
+  var themesEl = document.getElementById('insightsFocusThemes');
+  themesEl.innerHTML = '';
+  var themed = weekRecords.filter(function(r) { return r.focusText && r.focusText.trim(); });
+  if (!themed.length) {
+    themesEl.innerHTML = '<p class="insights-empty">No weekly focus set in this range.</p>';
+  } else {
+    themed.forEach(function(r) {
+      var p = document.createElement('p');
+      p.className = 'insights-theme-row';
+      p.textContent = r.weekKey + ': ' + r.focusText;
+      themesEl.appendChild(p);
+    });
+  }
+
+  var energyByTime = computeAverageEnergyByTimeOfDay(dayRecords);
+  var timeEl = document.getElementById('insightsEnergyByTime');
+  timeEl.innerHTML = '';
+  ['Morning', 'Afternoon', 'Evening', 'Night'].forEach(function(bucket) {
+    var row = document.createElement('div');
+    row.className = 'insights-mini-row';
+    var label = document.createElement('span');
+    label.textContent = bucket;
+    var value = document.createElement('span');
+    value.textContent = energyByTime[bucket] == null ? '—' : energyByTime[bucket] + '/3';
+    row.appendChild(label);
+    row.appendChild(value);
+    timeEl.appendChild(row);
+  });
+
+  var mustsRate = computeMustsCompletionRate(dayRecords);
+  var mustsEl = document.getElementById('insightsMustsRate');
+  mustsEl.innerHTML = '';
+  [['Days rated', mustsRate.rate == null ? '—' : mustsRate.rate + '%'],
+   ['Avg score', mustsRate.avg == null ? '—' : mustsRate.avg + '/3']].forEach(function(pair) {
+    var row = document.createElement('div');
+    row.className = 'insights-mini-row';
+    var label = document.createElement('span');
+    label.textContent = pair[0];
+    var value = document.createElement('span');
+    value.textContent = pair[1];
+    row.appendChild(label);
+    row.appendChild(value);
+    mustsEl.appendChild(row);
+  });
+
+  var metricSelect = document.getElementById('insightsSleepChartMetric');
+  renderInsightsSleepPerfChart(document.getElementById('insightsSleepPerfChart'), metricSelect ? metricSelect.value : 'dailyScore');
+  renderInsightsWeeklySummaries(weekRecords, document.getElementById('insightsWeeklySummaries'));
+}
+
+document.getElementById('insightsRangeSelect').addEventListener('change', function() {
+  insightsRangeOption = document.getElementById('insightsRangeSelect').value;
+  document.getElementById('insightsCustomDates').style.display = (insightsRangeOption === 'custom') ? '' : 'none';
+  renderInsights();
+});
+document.getElementById('insightsStartDate').addEventListener('change', renderInsights);
+document.getElementById('insightsEndDate').addEventListener('change', renderInsights);
+document.getElementById('insightsUpgradeLink').addEventListener('click', function() {
+  window.alert('Extended date ranges are a paid feature. Upgrade flow coming soon — for now, contact support to upgrade your account.');
+});
+document.getElementById('insightsSleepChartMetric').addEventListener('change', function() {
+  renderInsightsSleepPerfChart(document.getElementById('insightsSleepPerfChart'), this.value);
+});
+
+// ============================================================
+// Tab navigation — five panels (Ruler / Life / Journal / Clans /
+// Insights), only one visible at a time. Everything stays in the DOM
+// (just hidden), so all existing init/render/sync logic is untouched.
 // ============================================================
 (function() {
   var btns = document.querySelectorAll('.tab-btn');
@@ -6234,6 +6951,7 @@ updateSectionShareRowsVisibility();
       var target = btn.getAttribute('data-tab');
       btns.forEach(function(b) { b.classList.toggle('active', b === btn); });
       panels.forEach(function(p) { p.classList.toggle('active', p.id === target); });
+      if (target === 'tab-insights' && typeof renderInsights === 'function') renderInsights();
     });
   });
 })();
@@ -6457,6 +7175,7 @@ renderWeeklyViz();
 renderYearlyViz();
 renderAccomplish();
 renderTodaysMission();
+renderInsights();
 updateLive();
 setInterval(updateLive, 1000);
 
