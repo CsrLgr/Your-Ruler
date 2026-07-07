@@ -135,13 +135,13 @@
     margin: 2rem auto 1.5rem auto;
   }
 
-  /* Sunrise / Sunset / 24h span markers above the track */
+  /* Sunrise / Sunset / 24h span markers below the track */
   .span-markers {
     display: flex;
     font-size: 10px;
     color: #888;
     letter-spacing: 0.05em;
-    margin-bottom: 10px;
+    margin-top: 10px;
     padding: 0 1px;
     position: relative;
     height: 28px;
@@ -288,6 +288,64 @@
   }
   .current-block-info .cb-name { font-size: 16px; color: #c0b5a5; }
   .current-block-info .cb-time { font-size: 13px; color: #888; }
+
+  .quick-energy-box {
+    max-width: 1100px;
+    margin: 0.75rem auto 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+  .quick-energy-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--rd-gold);
+  }
+  .quick-energy-btns { display: flex; gap: 0.4rem; }
+
+  .energy-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 1rem;
+  }
+  .energy-modal {
+    background: var(--rd-panel);
+    border: 1px solid var(--rd-edge);
+    border-radius: 10px;
+    width: 100%;
+    max-width: 340px;
+    padding: 1.25rem;
+    text-align: center;
+  }
+  .energy-modal-question {
+    font-size: 14px;
+    color: var(--rd-text);
+    margin: 0 0 1rem 0;
+  }
+  .energy-modal-btns { display: flex; justify-content: center; gap: 0.6rem; margin-bottom: 1rem; }
+  .energy-modal-cancel { width: 100%; }
+
+  .block-energy-badge {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    font-size: 9px;
+    font-weight: bold;
+    color: var(--rd-gold);
+    background: rgba(0,0,0,0.4);
+    border: 1px solid var(--rd-edge);
+    border-radius: 4px;
+    padding: 1px 4px;
+    pointer-events: none;
+    z-index: 6;
+  }
 
   /* Two-column area: Journal Notes (left, slightly smaller/personal) + Musts & In-between (right) */
   .panels-row {
@@ -539,7 +597,7 @@
     align-self: stretch;
   }
   .tackle-box {
-    width: 240px;
+    width: 290px;
     height: 100%;
     box-sizing: border-box;
     display: flex;
@@ -547,15 +605,15 @@
     background: #161616;
     border: 1px solid #3a3327;
     border-radius: 8px;
-    padding: 0.75rem;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+    padding: 1rem;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.45), 0 0 0 1px rgba(201,162,75,0.15);
   }
-  .tackle-box .section-label { font-size: 11px; margin-bottom: 0.4rem; }
+  .tackle-box .section-label { font-size: 13px; margin-bottom: 0.6rem; letter-spacing: 0.08em; }
   .tackle-box textarea {
     flex: 1;
     min-height: 200px;
-    font-size: 12px;
-    padding: 0.6rem;
+    font-size: 14px;
+    padding: 0.8rem;
   }
   .tackle-share-row {
     display: flex;
@@ -610,7 +668,7 @@
     flex: 0 0 auto;
   }
   .weekly-box {
-    width: 240px;
+    width: 290px;
     background: #161616;
     border: 1px solid #3a3327;
     border-radius: 8px;
@@ -619,7 +677,13 @@
   }
   .weekly-box .section-label { font-size: 11px; margin-bottom: 0.4rem; display: block; text-align: center; }
 
-  .weekly-focus-row { margin-bottom: 0.6rem; }
+  .weekly-focus-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.75rem;
+    margin-bottom: 0.6rem;
+  }
+  .weekly-focus-field { flex: 1; min-width: 0; }
   .weekly-focus-label {
     display: block;
     font-size: 9px;
@@ -636,6 +700,26 @@
     border-radius: 6px;
   }
 
+  .weekly-score-summary {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .weekly-score-summary-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--rd-gold);
+  }
+  .weekly-score-summary-value {
+    font-size: 24px;
+    line-height: 1;
+    margin-top: 0.2rem;
+    color: var(--rd-gold-bright);
+    text-shadow: 0 0 12px rgba(176,24,24,0.5);
+  }
+
   .yearly-box {
     width: 100%;
     background: #161616;
@@ -646,7 +730,7 @@
   .weekly-day-row {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.5rem;
     padding: 0.25rem 0.3rem;
     border-radius: 4px;
     margin-bottom: 2px;
@@ -656,7 +740,7 @@
     box-shadow: inset 0 0 0 1px rgba(192,181,165,0.4);
   }
   .weekly-day-num {
-    width: 28px;
+    width: 24px;
     flex-shrink: 0;
     font-size: 11px;
     color: #c0b5a5;
@@ -670,7 +754,7 @@
     border-bottom: 1px solid #2a2a2a;
     color: #ddd;
     font-family: Georgia, serif;
-    font-size: 11px;
+    font-size: 13px;
     padding: 0.15rem 0.2rem;
     min-width: 0;
   }
@@ -679,12 +763,12 @@
 
   .weekly-col-headers {
     display: flex;
-    gap: 0.75rem;
+    gap: 0.5rem;
     padding: 0 0.3rem;
     margin-bottom: 0.3rem;
   }
   .weekly-col-header-days {
-    width: 28px;
+    width: 24px;
     flex-shrink: 0;
     font-size: 9px;
     color: #777;
@@ -694,13 +778,13 @@
   }
   .weekly-col-header-details {
     flex: 1;
-    font-size: 9px;
+    font-size: 10px;
     color: #777;
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
   .weekly-col-header-done {
-    width: 20px;
+    width: 18px;
     flex-shrink: 0;
     font-size: 9px;
     color: #777;
@@ -713,6 +797,23 @@
     width: 16px;
     height: 16px;
     cursor: pointer;
+  }
+  .weekly-col-header-score {
+    width: 38px;
+    flex-shrink: 0;
+    font-size: 9px;
+    color: #777;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-align: center;
+  }
+  .weekly-day-score {
+    width: 38px;
+    flex-shrink: 0;
+    font-size: 11px;
+    color: #c0b5a5;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
   }
 
   .export-section {
@@ -736,6 +837,20 @@
     width: 80px;
     flex-shrink: 0;
   }
+  .export-tab-group { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+  .export-tab-btn {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    color: #999;
+    font-family: Georgia, serif;
+    font-size: 11px;
+    padding: 0.35rem 0.7rem;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .export-tab-btn:hover { border-color: #c0b5a5; color: #c0b5a5; }
+  .export-tab-btn.active { background: #c0b5a5; color: #1a1a1a; border-color: #c0b5a5; font-weight: bold; }
+  .export-category-disabled { opacity: 0.5; }
   .export-checkbox-group {
     display: flex;
     gap: 0.9rem;
@@ -1044,29 +1159,43 @@
     letter-spacing: 0.08em;
     margin: 0 0 0.5rem 0;
   }
-  .member-modal-ruler-track {
+  .member-modal-ruler-list {
     display: flex;
-    width: 100%;
-    height: 50px;
-    border-radius: 6px;
-    overflow: hidden;
-    border: 1px solid #2a2a2a;
+    flex-direction: column;
+    gap: 3px;
+    max-height: 260px;
+    overflow-y: auto;
   }
-  .member-modal-ruler-block {
-    background: #2f3b34;
-    border-right: 1px solid #000;
-    font-size: 9px;
-    color: #ddd;
+  .member-modal-ruler-row {
     display: flex;
     align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    padding: 0 2px;
+    justify-content: space-between;
+    gap: 0.75rem;
+    background: #2f3b34;
+    border-radius: 5px;
+    padding: 0.45rem 0.65rem;
   }
-  .member-modal-ruler-block:last-child { border-right: none; }
-  .member-modal-ruler-block.sleep-zone { background: #5a2323; }
+  .member-modal-ruler-row.sleep-zone { background: #5a2323; }
+  .member-modal-ruler-name {
+    font-size: 12px;
+    color: #ddd;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .member-modal-ruler-time {
+    font-size: 11px;
+    color: #aab;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .member-modal-not-shared {
+    font-size: 12px;
+    color: #777;
+    font-style: italic;
+  }
   .member-modal-text { font-size: 13px; color: #ccc; white-space: pre-wrap; }
   .member-modal-musts-row { font-size: 12px; color: #bbb; padding: 0.2rem 0; }
   .member-modal-loading { font-size: 12px; color: #777; }
@@ -1275,7 +1404,7 @@
   .todays-mission-input:focus { outline: 1px solid var(--rd-gold); }
 
   /* ---- The Ruler (hero element) ---- */
-  .ruler-track { border-color: var(--rd-edge); height: 110px; box-shadow: 0 0 30px rgba(0,0,0,0.6); }
+  .ruler-track { border-color: var(--rd-edge); height: 125px; box-shadow: 0 0 30px rgba(0,0,0,0.6); }
   .ruler-block {
     background: linear-gradient(180deg, #191313, #0e0a0a);
     border-right: 1px solid #000;
@@ -1311,43 +1440,65 @@
     letter-spacing: 0.04em;
     text-transform: uppercase;
   }
-  .ritual-row {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    padding: 0.5rem 0.3rem;
-    border-bottom: 1px solid #241717;
-    font-size: 14px;
-    color: var(--rd-text);
-    cursor: pointer;
-  }
-  .ritual-row:last-child { border-bottom: none; }
-  .ritual-row input[type="checkbox"] {
-    width: 18px; height: 18px;
-    accent-color: var(--rd-gold);
-    cursor: pointer;
-    flex-shrink: 0;
-  }
-  .ritual-row .ritual-text { flex: 1; }
-  .ritual-row.done .ritual-text { color: var(--rd-muted); text-decoration: line-through; }
-  .ritual-remove {
-    background: none; border: none; color: #6b5a5a;
-    font-size: 15px; cursor: pointer; padding: 0 0.2rem;
-  }
-  .ritual-remove:hover { color: var(--rd-red); background: none; }
-  .ritual-empty { font-size: 12px; color: var(--rd-muted); font-style: italic; padding: 0.4rem 0.3rem; }
-  .block-detail-add { display: flex; gap: 0.5rem; margin-top: 0.8rem; }
-  .block-detail-add input[type="text"] {
-    flex: 1;
-    background: #140f0f;
-    border: 1px solid var(--rd-edge);
+  .energy-btn {
+    width: 34px;
+    height: 34px;
+    padding: 0;
     border-radius: 6px;
-    color: var(--rd-text);
+    border: 1px solid var(--rd-edge);
+    background: var(--rd-field);
+    color: var(--rd-muted);
+    font-size: 14px;
+    font-family: Georgia, serif;
+    cursor: pointer;
+  }
+  .energy-btn:hover { border-color: var(--rd-gold); color: var(--rd-gold); }
+  .energy-btn.active { background: var(--rd-gold); color: #1c1305; border-color: var(--rd-gold); font-weight: bold; }
+  .block-detail-notes {
+    width: 100%;
+    min-height: 120px;
+    border-radius: 8px;
     font-family: Georgia, serif;
     font-size: 13px;
-    padding: 0.5rem 0.7rem;
+    padding: 0.7rem 0.8rem;
+    resize: vertical;
   }
-  .block-detail-add input[type="text"]:focus { outline: 1px solid var(--rd-gold); }
+  .block-detail-view-energy {
+    font-size: 13px;
+    color: var(--rd-gold);
+    margin-bottom: 0.5rem;
+  }
+  .block-detail-view-notes {
+    font-size: 13px;
+    color: var(--rd-text);
+    white-space: pre-wrap;
+  }
+  .block-detail-actions { display: flex; gap: 0.6rem; margin-top: 1rem; }
+  .block-detail-past {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--rd-edge);
+  }
+  .block-detail-past-label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--rd-gold);
+    margin-bottom: 0.6rem;
+  }
+  .block-detail-past-entry { padding: 0.5rem 0; border-bottom: 1px solid #241717; }
+  .block-detail-past-entry:last-child { border-bottom: none; }
+  .block-detail-past-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--rd-muted);
+    margin-bottom: 0.25rem;
+  }
+  .block-detail-past-date { color: var(--rd-gold); }
+  .block-detail-past-notes { font-size: 12px; color: var(--rd-text); white-space: pre-wrap; }
+  .block-detail-past-empty { font-size: 12px; color: var(--rd-muted); font-style: italic; }
 
   /* ---- Shared accents pulled into the new palette ---- */
   .section-label { color: var(--rd-gold); }
@@ -1387,6 +1538,15 @@
   .life-row .life-section { margin: 0; max-width: none; min-width: 0; }
   .life-col-accomplish { flex: 2 1 0; }
   .life-col-musts { flex: 1 1 0; }
+  .yearly-year-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+  .yearly-year-nav button { padding: 0.3rem 0.7rem; font-size: 12px; }
+  .yearly-year-label { font-size: 16px; font-weight: bold; color: var(--rd-gold); min-width: 3.5em; text-align: center; }
   .yearly-months-grid {
     display: flex;
     flex-direction: column;
@@ -1394,8 +1554,8 @@
   }
   .yearly-month {
     display: flex;
-    align-items: stretch;
-    gap: 0.6rem;
+    flex-direction: column;
+    gap: 0.4rem;
     background: var(--rd-panel-2);
     border: 1px solid var(--rd-edge);
     border-radius: 8px;
@@ -1405,6 +1565,12 @@
     border-color: var(--rd-gold);
     box-shadow: 0 0 0 1px var(--rd-gold), 0 0 18px rgba(201,162,75,0.18);
   }
+  .yearly-month.yearly-month-locked { opacity: 0.55; }
+  .yearly-month-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
   .yearly-month-num {
     flex: 0 0 26px;
     display: flex;
@@ -1413,6 +1579,24 @@
     font-size: 14px;
     font-weight: bold;
     color: var(--rd-gold);
+  }
+  .yearly-month-focus {
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #2a1a1a;
+    color: var(--rd-text);
+    font-family: Georgia, serif;
+    font-size: 13px;
+    font-weight: bold;
+    padding: 0.15rem 0.2rem;
+  }
+  .yearly-month-focus:focus { outline: none; border-bottom-color: var(--rd-gold); }
+  .yearly-month-locked-label {
+    font-size: 11px;
+    color: var(--rd-muted);
+    font-style: italic;
   }
   .yearly-weeks {
     display: flex;
@@ -1424,6 +1608,15 @@
     position: relative;
     flex: 1;
     min-width: 0;
+  }
+  .yearly-week-pulled-focus {
+    font-size: 10px;
+    color: var(--rd-gold);
+    margin-bottom: 0.2rem;
+    min-height: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .yearly-week-box {
     min-height: 50px;
@@ -1521,7 +1714,6 @@
   @media (max-width: 700px) {
     .tab-title { font-size: 32px; }
     .life-row { flex-direction: column; }
-    .yearly-month { flex-wrap: wrap; }
     .yearly-weeks { flex-wrap: wrap; }
     .yearly-week-box-wrap { flex: 1 1 45%; }
   }
@@ -1583,26 +1775,28 @@
   .block-mins, .entry-text, .entry-edited, .clan-meta, .clan-member-name,
   .clan-member-time, .clan-member-block, .clans-locked p,
   .journal-image-paste-hint, .journal-images-locked, .export-row-label,
-  .export-to, .weekly-col-header-days, .weekly-col-header-details,
-  .weekly-col-header-done, .weekly-focus-label,
+  .export-to, .weekly-col-header-days,
+  .weekly-col-header-done, .weekly-col-header-score, .weekly-focus-label,
   .must-score-label,
   .span-markers, .member-modal-text, .member-modal-musts-row,
   .auth-bar, .auth-bar .auth-status, .clans-msg, .export-checkbox-group,
-  .entry-history-ts, .must-add-row input, .ritual-empty {
+  .entry-history-ts, .must-add-row input {
     color: var(--rd-text) !important;
   }
+  .weekly-col-header-details,
   .section-label, .clock-item .clock-label, .clock-item .clock-value,
-  .cb-name, .progress-pct, .weekly-day-num, .must-rank, .clan-name,
+  .cb-name, .progress-pct, .weekly-day-num, .weekly-day-score, .must-rank, .clan-name,
   .entry-date, .yearly-month-num, .member-modal-header,
-  .member-modal-section h4, .block-detail-title {
+  .member-modal-section h4, .block-detail-title, .quick-energy-label {
     color: var(--rd-gold) !important;
   }
   .clock-item-main .clock-value, .header h1, .todays-mission-text { color: var(--rd-gold-bright) !important; }
 
   /* ---- Badges & leftover tan/green accents ---- */
   .entry-category { background: var(--rd-gold) !important; color: #1c1305 !important; }
-  .member-modal-ruler-block { background: linear-gradient(180deg,#191313,#0e0a0a) !important; color: var(--rd-text) !important; }
-  .member-modal-ruler-block.sleep-zone { background: linear-gradient(180deg,#3a1212,#200a0a) !important; }
+  .member-modal-ruler-row { background: linear-gradient(180deg,#191313,#0e0a0a) !important; }
+  .member-modal-ruler-name { color: var(--rd-text) !important; }
+  .member-modal-ruler-row.sleep-zone { background: linear-gradient(180deg,#3a1212,#200a0a) !important; }
   .weekly-day-row.is-today {
     background: rgba(176,24,24,0.16) !important;
     box-shadow: inset 0 0 0 1px var(--rd-gold) !important;
@@ -1642,12 +1836,19 @@
       <div class="weekly-box">
         <span class="section-label">Weekly Visualization</span>
         <div class="weekly-focus-row">
-          <span class="weekly-focus-label">Focus</span>
-          <input type="text" class="weekly-focus-input" id="weeklyFocusInput" placeholder="This week's focus...">
+          <div class="weekly-focus-field">
+            <span class="weekly-focus-label">Focus</span>
+            <input type="text" class="weekly-focus-input" id="weeklyFocusInput" placeholder="This week's focus...">
+          </div>
+          <div class="weekly-score-summary">
+            <span class="weekly-score-summary-label">Weekly Score</span>
+            <span class="weekly-score-summary-value" id="weeklyScoreSummaryValue">—/10</span>
+          </div>
         </div>
         <div class="weekly-col-headers">
           <span class="weekly-col-header-days">Days</span>
-          <span class="weekly-col-header-details">Details</span>
+          <span class="weekly-col-header-details">Missions</span>
+          <span class="weekly-col-header-score">Score</span>
           <span class="weekly-col-header-done">Done</span>
         </div>
         <div id="weeklyDaysList"></div>
@@ -1665,7 +1866,7 @@
           <span class="clock-value" id="utcClock">—</span>
         </div>
         <div class="clock-item clock-item-main">
-          <span class="clock-label">Daily Alignment</span>
+          <span class="clock-label">Ruler Alignment</span>
           <span class="clock-value" id="blockClock">—</span>
         </div>
         <div class="clock-item">
@@ -1702,12 +1903,16 @@
 </div>
 
 <div class="ruler-container">
+  <div class="ruler-track" id="rulerTrack"></div>
   <div class="span-markers">
     <span class="marker-start">Sunrise<span class="marker-sub">6:00 AM</span></span>
     <span class="marker-mid">Sunset<span class="marker-sub">≈ Block 5</span></span>
     <span class="marker-end">+24h</span>
   </div>
-  <div class="ruler-track" id="rulerTrack"></div>
+  <div class="section-share-row" id="rulerShareRow" style="display:none;">
+    <input type="checkbox" id="rulerShare">
+    <label for="rulerShare">Share with Clan</label>
+  </div>
 </div>
 
 <div class="current-block-info">
@@ -1715,18 +1920,51 @@
   <span class="cb-time" id="currentBlockTime">—</span>
 </div>
 
-<!-- Block Detail: hidden until a block is clicked. Shows that block's
-     own checklist of rituals/subtasks (e.g. a "GM" block seeds
-     GM to Self / GM to Body / GM to World). -->
+<div class="quick-energy-box" id="quickEnergyBox">
+  <span class="quick-energy-label">Energy Level</span>
+  <div class="quick-energy-btns" id="quickEnergyBtns">
+    <button type="button" class="energy-btn" data-energy="1">1</button>
+    <button type="button" class="energy-btn" data-energy="2">2</button>
+    <button type="button" class="energy-btn" data-energy="3">3</button>
+  </div>
+</div>
+
+<div class="energy-modal-overlay" id="energyModalOverlay" style="display:none;">
+  <div class="energy-modal">
+    <p class="energy-modal-question">What's your energy level right now?</p>
+    <div class="energy-modal-btns" id="energyModalBtns">
+      <button type="button" class="energy-btn" data-energy="1">1</button>
+      <button type="button" class="energy-btn" data-energy="2">2</button>
+      <button type="button" class="energy-btn" data-energy="3">3</button>
+    </div>
+    <button type="button" class="secondary energy-modal-cancel" id="energyModalCancel">Cancel</button>
+  </div>
+</div>
+
+<!-- Block Detail: hidden until a block is clicked. Lets you log an
+     energy level (1-3) and free-text notes for that specific block. -->
 <div class="block-detail" id="blockDetail" style="display:none;">
   <div class="block-detail-header">
-    <span class="block-detail-title" id="blockDetailTitle">Block</span>
+    <span class="block-detail-title" id="blockDetailTitle">Block Details</span>
     <button class="secondary" id="blockDetailClose">Close</button>
   </div>
-  <div class="block-detail-rituals" id="blockDetailRituals"></div>
-  <div class="block-detail-add">
-    <input type="text" id="blockRitualInput" placeholder="Add a ritual / subtask...">
-    <button id="blockRitualAddBtn">+ Add</button>
+  <div id="blockDetailEditor">
+    <textarea id="blockDetailNotes" class="block-detail-notes" placeholder="Notes for this block..."></textarea>
+  </div>
+
+  <div id="blockDetailView" style="display:none;">
+    <div class="block-detail-view-energy" id="blockDetailViewEnergy">Energy: —</div>
+    <div class="block-detail-view-notes" id="blockDetailViewNotes">No notes logged yet.</div>
+  </div>
+
+  <div class="block-detail-actions">
+    <button type="button" id="blockDetailSaveBtn">Save</button>
+    <button type="button" class="secondary" id="blockDetailEditBtn" style="display:none;">Edit</button>
+  </div>
+
+  <div class="block-detail-past">
+    <span class="block-detail-past-label">Past Entries</span>
+    <div id="blockDetailPastList"></div>
   </div>
 </div>
 
@@ -1741,6 +1979,10 @@
     <div class="life-section life-col-accomplish">
       <span class="section-label">What I Want To Accomplish This Year</span>
       <div class="accomplish-box" id="accomplishBox"></div>
+      <div class="section-share-row" id="accomplishShareRow" style="display:none;">
+        <input type="checkbox" id="accomplishShare">
+        <label for="accomplishShare">Share with Clan</label>
+      </div>
     </div>
 
     <div class="life-section life-col-musts">
@@ -1753,18 +1995,24 @@
     </div>
   </div>
 
-  <!-- Yearly Visualization: 12 months, each with 4 large week-boxes -->
+  <!-- Yearly Visualization: 12 months, each with a Monthly Focus header
+       and 4 week-boxes pulling real Focus/Score from the Weekly Archive.
+       Visible to everyone; free tier is read-only-ish (Monthly Focus and
+       week notes editable only for current/past months, future months
+       locked); paid tier has no locking, all 12 months editable. -->
   <div class="life-section">
     <span class="section-label">Yearly Visualization</span>
-    <div class="yearly-box" id="yearlyBoxUnlocked" style="display:none;">
+    <div class="yearly-box" id="yearlyBoxUnlocked">
+      <div class="yearly-year-nav">
+        <button type="button" class="secondary" id="yearlyPrevYear">‹</button>
+        <span class="yearly-year-label" id="yearlyYearLabel">—</span>
+        <button type="button" class="secondary" id="yearlyNextYear">›</button>
+      </div>
       <div id="yearlyMonthsList" class="yearly-months-grid"></div>
       <div class="section-share-row" id="yearlyShareRow">
         <input type="checkbox" id="yearlyShare">
         <label for="yearlyShare">Share with Clan</label>
       </div>
-    </div>
-    <div class="yearly-box yearly-locked" id="yearlyBoxLocked">
-      <p>📅 Yearly Visualization is a paid feature. <a id="yearlyUpgradeLink">Upgrade to unlock.</a></p>
     </div>
   </div>
 </div><!-- ============================ /TAB 2: LIFE ============================ -->
@@ -1814,18 +2062,19 @@
         </div>
 
         <div class="export-row">
-          <span class="export-row-label">Categories</span>
-          <div class="export-checkbox-group" id="exportCategoryGroup"></div>
+          <span class="export-row-label">Tabs</span>
+          <div class="export-tab-group" id="exportTabGroup">
+            <button type="button" class="export-tab-btn" data-tab="ruler">Ruler</button>
+            <button type="button" class="export-tab-btn" data-tab="life">Life</button>
+            <button type="button" class="export-tab-btn" data-tab="journal">Journal</button>
+            <button type="button" class="export-tab-btn" data-tab="clans">Clans</button>
+            <button type="button" class="export-tab-btn" data-tab="insights">Insights</button>
+          </div>
         </div>
 
         <div class="export-row">
-          <span class="export-row-label">Include</span>
-          <div class="export-checkbox-group">
-            <label><input type="checkbox" id="exportIncludeRuler" checked> Ruler</label>
-            <label><input type="checkbox" id="exportIncludeJournal" checked> Journal</label>
-            <label><input type="checkbox" id="exportIncludeMusts" checked> Musts Scores</label>
-            <label><input type="checkbox" id="exportIncludeWhiteboard" checked> Whiteboard</label>
-          </div>
+          <span class="export-row-label">Categories</span>
+          <div class="export-checkbox-group" id="exportCategoryGroup"></div>
         </div>
 
         <div class="export-controls">
@@ -1899,26 +2148,24 @@ var LAST_SNAPSHOT_DATE_KEY = 'csrAlignLastSnapshotDate';
 var WEEKLY_VIZ_KEY = 'csrAlignWeeklyViz';
 var YEARLY_VIZ_KEY = 'csrAlignYearlyViz';
 var SECTION_SHARE_KEY = 'csrAlignSectionShare';
+var DAILY_ARCHIVE_KEY = 'csrAlignDailyArchive';
+var WEEKLY_ARCHIVE_KEY = 'csrAlignWeeklyArchive';
+var WEEKLY_FOCUS_KEY = 'csrAlignWeeklyFocus';
+var MONTHLY_ARCHIVE_KEY = 'csrAlignMonthlyArchive';
+var YEARLY_DATA_KEY = 'csrAlignYearlyData';
 
-// ---- Local daily snapshot fallback ----
-// Browsers can't run code while closed, so this can't fire at an
-// exact moment. Instead, every time the app loads, it checks: "has
-// today's UTC date already been recorded as captured?" If not, it
-// archives whatever blocks were saved as belonging to the most
-// recent prior day, then marks today as the new checkpoint. This
-// runs for everyone, logged in or not -- for logged-in users it's a
-// safety net alongside the real server-side cron job; for everyone
-// else, it's the only mechanism.
+// ---- Legacy local snapshot key ----
+// Superseded by the unified Daily Archive below. Kept read-only, for
+// one-time migration of pre-existing history (migrateLegacySnapshots)
+// and as the last-resort fallback in captureLocalDailySnapshotIfNeeded
+// for days the app never got to update the archive live. Nothing
+// writes to this key anymore.
 function loadLocalSnapshots() {
   var saved = localStorage.getItem(LOCAL_SNAPSHOTS_KEY);
   if (saved) {
     try { return JSON.parse(saved); } catch(e) { return {}; }
   }
   return {};
-}
-
-function saveLocalSnapshots(snapshots) {
-  localStorage.setItem(LOCAL_SNAPSHOTS_KEY, JSON.stringify(snapshots));
 }
 
 function todayUTCDateString() {
@@ -1933,15 +2180,18 @@ function captureLocalDailySnapshotIfNeeded() {
 
   // If there was a previous day on record, and we haven't archived
   // it yet, archive whatever blocks were last saved as that day's
-  // final state.
+  // final state. This only ever captures blocks (score/mission/musts
+  // for a day we weren't live for are simply unknowable) — it's a
+  // last-resort fallback for days the app never got to update the
+  // Daily Archive live.
   if (lastDate) {
-    var snapshots = loadLocalSnapshots();
-    if (!snapshots[lastDate]) {
+    var archive = loadDailyArchive();
+    if (!archive[lastDate]) {
       var existingBlocks = localStorage.getItem(STORAGE_KEY);
       if (existingBlocks) {
         try {
-          snapshots[lastDate] = JSON.parse(existingBlocks);
-          saveLocalSnapshots(snapshots);
+          archive[lastDate] = { date: lastDate, blocks: JSON.parse(existingBlocks) };
+          saveDailyArchive(archive);
         } catch(e) {}
       }
     }
@@ -1950,15 +2200,169 @@ function captureLocalDailySnapshotIfNeeded() {
   localStorage.setItem(LAST_SNAPSHOT_DATE_KEY, today);
 }
 
+// ============================================================
+// Unified Daily / Weekly Archive — the single source of historical
+// data for anything date-ranged: CSV/PDF export and Block Detail's
+// Past Entries both read from here instead of each maintaining their
+// own date-matching logic. One record per calendar date captures
+// everything that happened that day (Ruler blocks incl. energy/notes,
+// Daily Score, Mission, Musts average, journal entry count); one
+// record per ISO week captures that week's Focus text and Score
+// average (computed from the week's real daily records, not the
+// recurring day-of-week template the Weekly Visualization panel uses
+// for quick entry).
+//
+// Remote sync limitation: the Supabase `daily_snapshots` table only
+// has a `blocks` column, so only blocks sync cross-device today —
+// score/mission/musts/focus are local-only until that table gets a
+// schema change this client code can't make on its own.
+// ============================================================
+
+function loadDailyArchive() {
+  var saved = localStorage.getItem(DAILY_ARCHIVE_KEY);
+  if (saved) {
+    try { return JSON.parse(saved); } catch(e) { return {}; }
+  }
+  return migrateLegacySnapshots();
+}
+
+function saveDailyArchive(archive) {
+  localStorage.setItem(DAILY_ARCHIVE_KEY, JSON.stringify(archive));
+}
+
+// One-time migration from the old blocks-only snapshot key, so
+// existing history isn't lost. Old records only ever had blocks —
+// score/mission/musts are simply absent for those dates.
+function migrateLegacySnapshots() {
+  var legacy = loadLocalSnapshots();
+  var archive = {};
+  Object.keys(legacy).forEach(function(date) {
+    archive[date] = { date: date, blocks: legacy[date] };
+  });
+  if (Object.keys(archive).length) saveDailyArchive(archive);
+  return archive;
+}
+
+function getDayRecord(dateStr) {
+  var archive = loadDailyArchive();
+  return archive[dateStr] || null;
+}
+
+function queryDailyRange(startDate, endDate) {
+  var archive = loadDailyArchive();
+  return Object.keys(archive)
+    .filter(function(d) { return dateInRange(d + 'T00:00:00Z', startDate, endDate); })
+    .sort()
+    .map(function(d) { return archive[d]; });
+}
+
+// Writes TODAY's full bundle into the archive. Called live (from
+// saveBlocks() and updateDailyScore()) so "today" is always current,
+// not just backfilled after the day ends.
+function recordToday() {
+  var today = todayUTCDateString();
+  var archive = loadDailyArchive();
+  var todayIdx = todayAsMondayFirstIndex();
+  archive[today] = {
+    date: today,
+    blocks: JSON.parse(JSON.stringify(blocks)),
+    dailyScore: computeDailyScore(),
+    missionText: weeklyVizDays[todayIdx] || '',
+    missionDone: !!weeklyMissionDone[todayIdx],
+    mustsAverage: averageMustsScore(),
+    journalEntryCount: loadEntries().filter(function(e) {
+      return (e.createdAt || '').slice(0, 10) === today;
+    }).length
+  };
+  saveDailyArchive(archive);
+}
+
+// ISO 8601 week key, e.g. "2026-W28" (Monday-start).
+function isoWeekKey(date) {
+  var d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  var dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  var weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return d.getUTCFullYear() + '-W' + (weekNo < 10 ? '0' : '') + weekNo;
+}
+
+function loadWeeklyArchive() {
+  var saved = localStorage.getItem(WEEKLY_ARCHIVE_KEY);
+  if (saved) {
+    try { return JSON.parse(saved); } catch(e) { return {}; }
+  }
+  return {};
+}
+
+function saveWeeklyArchive(archive) {
+  localStorage.setItem(WEEKLY_ARCHIVE_KEY, JSON.stringify(archive));
+}
+
+function getWeekRecord(weekKey) {
+  var archive = loadWeeklyArchive();
+  return archive[weekKey] || null;
+}
+
+// Recomputes and saves the CURRENT week's record. The score average
+// comes from this week's real Daily Archive records (Mon-Sun
+// containing "now"), not the recurring weeklyScores template — this
+// is the one place that number gets computed from now on.
+function recordCurrentWeek() {
+  var now = new Date();
+  var key = isoWeekKey(now);
+  var archive = loadWeeklyArchive();
+  var existing = archive[key] || {};
+
+  var monday = new Date(now);
+  var jsDay = monday.getDay();
+  monday.setDate(monday.getDate() - (jsDay === 0 ? 6 : jsDay - 1));
+  var dayScores = [];
+  for (var i = 0; i < 7; i++) {
+    var d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    var rec = getDayRecord(d.toISOString().slice(0, 10));
+    if (rec && typeof rec.dailyScore === 'number') dayScores.push(rec.dailyScore);
+  }
+  var avg = dayScores.length
+    ? Math.round((dayScores.reduce(function(a, b) { return a + b; }, 0) / dayScores.length) * 10) / 10
+    : null;
+
+  // Live sync overwrites focusText/scoreAverage every call (keystroke,
+  // score change), but must NOT touch focusHistory — that's only ever
+  // appended to by logWeeklyFocusEdit(), on blur.
+  archive[key] = { focusText: weeklyFocusText, scoreAverage: avg, focusHistory: existing.focusHistory || [] };
+  saveWeeklyArchive(archive);
+}
+
+// Logs the PREVIOUS value into this week's focusHistory, timestamped —
+// called on blur (when the Weekly Focus input loses focus) if the
+// text actually changed during that editing session. Keystroke-level
+// saving stays live via recordCurrentWeek(); history is per-edit, not
+// per-character, mirroring how Journal entry edits are logged.
+function logWeeklyFocusEdit(previousText) {
+  var key = isoWeekKey(new Date());
+  var archive = loadWeeklyArchive();
+  var rec = archive[key] || { focusText: weeklyFocusText, scoreAverage: null, focusHistory: [] };
+  if (!rec.focusHistory) rec.focusHistory = [];
+  rec.focusHistory.push({ text: previousText, editedAt: new Date().toISOString() });
+  archive[key] = rec;
+  saveWeeklyArchive(archive);
+}
+
+function syncDailyAndWeeklyArchive() {
+  recordToday();
+  recordCurrentWeek();
+}
+
 // Manually snapshot TODAY's current Ruler state right now, under
 // today's date — useful so the export has something to show
 // immediately, rather than waiting for tomorrow's automatic capture.
-// Saves locally always; also pushes to Supabase if logged in.
+// Saves locally always (full archive bundle); also pushes blocks to
+// Supabase if logged in.
 function snapshotTodayNow() {
   var today = todayUTCDateString();
-  var snapshots = loadLocalSnapshots();
-  snapshots[today] = JSON.parse(JSON.stringify(blocks));
-  saveLocalSnapshots(snapshots);
+  syncDailyAndWeeklyArchive();
 
   if (supabaseClient && currentUser) {
     supabaseClient.from('daily_snapshots')
@@ -1998,6 +2402,7 @@ function saveBlocks() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(blocks));
   // If logged in, push the update live so clan members see it instantly.
   if (typeof pushMyRulerToSupabase === 'function') pushMyRulerToSupabase();
+  if (typeof syncDailyAndWeeklyArchive === 'function') syncDailyAndWeeklyArchive();
 }
 
 var blocks = loadBlocks();
@@ -2062,6 +2467,14 @@ function renderRuler() {
     minsSpan.className = 'block-mins';
     minsSpan.textContent = Math.round(b.minutes) + ' min';
 
+    var energyBadge = document.createElement('div');
+    energyBadge.className = 'block-energy-badge';
+    if (typeof b.energy === 'number') {
+      energyBadge.textContent = 'EL: ' + b.energy;
+    } else {
+      energyBadge.style.display = 'none';
+    }
+
     var fillOverlay = document.createElement('div');
     fillOverlay.className = 'fill-overlay';
 
@@ -2082,6 +2495,7 @@ function renderRuler() {
     el.appendChild(fillOverlay);
     el.appendChild(nameSpan);
     el.appendChild(minsSpan);
+    el.appendChild(energyBadge);
     el.appendChild(sleepToggle);
 
     if (idx < blocks.length - 1) {
@@ -2098,7 +2512,7 @@ function renderRuler() {
     el.addEventListener('click', function() { openBlockDetail(idx); });
 
     rulerTrack.appendChild(el);
-    blockEls.push({ el: el, fill: fillOverlay, mins: minsSpan, startMin: startMin, endMin: endMin });
+    blockEls.push({ el: el, fill: fillOverlay, mins: minsSpan, energyBadge: energyBadge, startMin: startMin, endMin: endMin });
   });
 
   attachDragHandlers();
@@ -2211,7 +2625,51 @@ function updateCurrentBlockInfo() {
   var elapsedInBlock = sinceSix - be.startMin;
   document.getElementById('currentBlockName').textContent = b.name;
   document.getElementById('currentBlockTime').textContent = Math.round(elapsedInBlock) + ' / ' + Math.round(b.minutes) + ' min';
+  renderQuickEnergyBox();
 }
+
+// Updates a single ruler block's "EL: X" badge in place, without a
+// full renderRuler() — used by both energy-capture paths (the Quick
+// Energy Box and the Block Detail save modal) so neither disrupts
+// other in-progress UI state (an open detail panel, an editable
+// block name, etc.) the way a full re-render would.
+function updateBlockEnergyBadge(idx) {
+  var be = blockEls[idx];
+  if (!be || !be.energyBadge) return;
+  var block = blocks[idx];
+  if (typeof block.energy === 'number') {
+    be.energyBadge.textContent = 'EL: ' + block.energy;
+    be.energyBadge.style.display = '';
+  } else {
+    be.energyBadge.style.display = 'none';
+  }
+}
+
+// Quick Energy Box: always targets whichever block is live "current"
+// right now (same block current-block-info shows), so energy can be
+// logged in one click without opening the Block Detail panel.
+function renderQuickEnergyBox() {
+  var idx = findCurrentBlockIndex(getSinceSix());
+  var current = (idx !== -1 && blocks[idx]) ? blocks[idx].energy : null;
+  Array.prototype.forEach.call(document.getElementById('quickEnergyBtns').querySelectorAll('.energy-btn'), function(btn) {
+    var val = parseInt(btn.getAttribute('data-energy'), 10);
+    btn.classList.toggle('active', current === val);
+  });
+}
+
+Array.prototype.forEach.call(document.getElementById('quickEnergyBtns').querySelectorAll('.energy-btn'), function(btn) {
+  btn.addEventListener('click', function() {
+    var idx = findCurrentBlockIndex(getSinceSix());
+    if (idx === -1 || !blocks[idx]) return;
+    var val = parseInt(btn.getAttribute('data-energy'), 10);
+    blocks[idx].energy = (blocks[idx].energy === val) ? null : val;
+    stampBlock(idx);
+    saveBlocks();
+    updateBlockEnergyBadge(idx);
+    renderQuickEnergyBox();
+    if (selectedBlockIdx === idx) renderBlockDetail();
+  });
+});
 
 function findCurrentBlockIndex(sinceSix) {
   for (var i = 0; i < blockEls.length; i++) {
@@ -2378,9 +2836,30 @@ function computeDailyScore() {
   return Math.round(missionPoints + journalPoints + mustsPoints);
 }
 
+// Sourced from the unified Weekly Archive (real per-day records for
+// this ISO week), not a separate recomputation — one number, one
+// source, so this and anything else that reads "this week's score"
+// (Yearly Viz, Insights, once built) never disagree.
+function renderWeeklyScoreSummary() {
+  var el = document.getElementById('weeklyScoreSummaryValue');
+  if (!el) return;
+  var rec = getWeekRecord(isoWeekKey(new Date()));
+  var avg = rec ? rec.scoreAverage : null;
+  el.textContent = (avg === null || avg === undefined ? '—' : avg) + '/10';
+}
+
 function updateDailyScore() {
+  var score = computeDailyScore();
   var el = document.getElementById('dailyScoreValue');
-  if (el) el.textContent = computeDailyScore() + '/10';
+  if (el) el.textContent = score + '/10';
+
+  var todayIdx = todayAsMondayFirstIndex();
+  weeklyScores[todayIdx] = score;
+  saveWeeklyScores(weeklyScores);
+  var cell = document.getElementById('weeklyScoreValue' + todayIdx);
+  if (cell) cell.textContent = score + '/10';
+  syncDailyAndWeeklyArchive();
+  renderWeeklyScoreSummary();
 }
 
 function renderEntries() {
@@ -2613,16 +3092,18 @@ document.getElementById('journalImagesUpgradeLink').addEventListener('click', fu
 
 // Yearly Visualization is paid-only. Free users see a locked message
 // in its place instead of the real box.
+// Yearly Visualization is now visible to everyone (free tier sees
+// real pulled data, read-only-ish; paid tier gets full editing with
+// no future-month locking) — re-rendering here just refreshes which
+// months are locked whenever currentUserIsPaid changes. Guarded since
+// this can be called before the Yearly section's own script runs
+// (initial page load fires it early, via the auth flow below).
 function updateYearlyVizUIVisibility() {
-  var unlocked = !!(currentUser && currentUserIsPaid);
-  document.getElementById('yearlyBoxUnlocked').style.display = unlocked ? '' : 'none';
-  document.getElementById('yearlyBoxLocked').style.display = unlocked ? 'none' : '';
+  if (typeof yearlyMonthsList !== 'undefined' && yearlyMonthsList && typeof renderYearlyViz === 'function') {
+    renderYearlyViz();
+  }
 }
 updateYearlyVizUIVisibility();
-
-document.getElementById('yearlyUpgradeLink').addEventListener('click', function() {
-  window.alert('Yearly Visualization is a paid feature. Upgrade flow coming soon — for now, contact support to upgrade your account.');
-});
 
 journalImageInput.addEventListener('change', function() {
   if (!currentUser || !currentUserIsPaid) return;
@@ -3030,6 +3511,51 @@ function saveWeeklyMissionDone(days) {
 
 var weeklyMissionDone = loadWeeklyMissionDone();
 
+var WEEKLY_SCORES_KEY = 'csrAlignWeeklyScores';
+
+function loadWeeklyScores() {
+  var saved = localStorage.getItem(WEEKLY_SCORES_KEY);
+  if (saved) {
+    try {
+      var parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length === 7) {
+        return parsed.map(function(v) { return (typeof v === 'number') ? v : null; });
+      }
+    } catch(e) {}
+  }
+  return [null, null, null, null, null, null, null];
+}
+
+function saveWeeklyScores(scores) {
+  localStorage.setItem(WEEKLY_SCORES_KEY, JSON.stringify(scores));
+}
+
+var weeklyScores = loadWeeklyScores();
+
+// Weekly Focus text. Previously a UI-only field with no persistence
+// at all — now saved locally and recorded into the Weekly Archive on
+// every change, so it's real, queryable data (e.g. for Yearly Viz to
+// pull from later), not just a placeholder input.
+var weeklyFocusText = localStorage.getItem(WEEKLY_FOCUS_KEY) || '';
+var weeklyFocusValueAtFocus = weeklyFocusText;
+var weeklyFocusInputEl = document.getElementById('weeklyFocusInput');
+if (weeklyFocusInputEl) {
+  weeklyFocusInputEl.value = weeklyFocusText;
+  weeklyFocusInputEl.addEventListener('focus', function() {
+    weeklyFocusValueAtFocus = weeklyFocusText;
+  });
+  weeklyFocusInputEl.addEventListener('input', function() {
+    weeklyFocusText = weeklyFocusInputEl.value;
+    localStorage.setItem(WEEKLY_FOCUS_KEY, weeklyFocusText);
+    if (typeof recordCurrentWeek === 'function') recordCurrentWeek();
+  });
+  weeklyFocusInputEl.addEventListener('blur', function() {
+    if (weeklyFocusText !== weeklyFocusValueAtFocus && typeof logWeeklyFocusEdit === 'function') {
+      logWeeklyFocusEdit(weeklyFocusValueAtFocus);
+    }
+  });
+}
+
 // Renders the "Today's Mission" component, which mirrors the weekly
 // visualization slot for today. If the slot already has text, display
 // it as a read-only label. If it's empty, show an editable input that
@@ -3118,6 +3644,12 @@ function renderWeeklyViz() {
     row.appendChild(num);
     row.appendChild(input);
 
+    var scoreSpan = document.createElement('span');
+    scoreSpan.className = 'weekly-day-score';
+    scoreSpan.id = 'weeklyScoreValue' + i;
+    scoreSpan.textContent = (typeof weeklyScores[i] === 'number') ? (weeklyScores[i] + '/10') : '—';
+    row.appendChild(scoreSpan);
+
     var done = document.createElement('input');
     done.type = 'checkbox';
     done.className = 'weekly-day-done';
@@ -3141,91 +3673,311 @@ function renderWeeklyViz() {
   // on first load renderWeeklyViz() runs before the function below it,
   // but the startup call at the bottom of the script handles that case.
   if (typeof renderTodaysMission === 'function') renderTodaysMission();
+  renderWeeklyScoreSummary();
 }
 
 // ---- Yearly Visualization ----
-// Same idea as Weekly, scaled up: 12 recurring month-slots (January
-// = 1 ... December = 12), reused as a template every year rather than
-// tied to one specific calendar year. Reuses the exact same CSS
-// classes as Weekly's rows/inputs/headers since the structure is
-// identical, just a different count and a different "today" check.
+// Date-bound: one real calendar year at a time (year nav below), each
+// month's 4 week-boxes mapped to that month's actual ISO weeks
+// (Monday-start). Weekly Focus + Score are pulled read-only from the
+// Weekly Archive; each month also has an editable Monthly Focus
+// header, auto-summarized from its 4 weeks' Focus text unless
+// manually overridden — both track edit history the same way Journal
+// entries do (previous value + timestamp, logged on blur/change, not
+// per keystroke). Free tier can view and edit Monthly Focus + week
+// notes for the current/past months; future months are locked (no
+// data can exist yet). Paid tier has no locking at all, any month of
+// any year, for forward planning.
 var yearlyMonthsList = document.getElementById('yearlyMonthsList');
 var MONTH_NAMES = ['January','February','March','April','May','June',
                    'July','August','September','October','November','December'];
 
-// New model: 12 months, each an array of 4 week-strings.
-// [ ['w1','w2','w3','w4'], ...12 total ]
-// Migrates the old format transparently:
-//   - old was 12 plain strings (one per month) -> that text becomes week 1.
-function normalizeYearlyMonth(m) {
-  if (Array.isArray(m)) {
-    var weeks = m.slice(0, 4).map(function(w) { return typeof w === 'string' ? w : ''; });
-    while (weeks.length < 4) weeks.push('');
-    return weeks;
+function getMondaysInMonth(year, monthIdx) {
+  var result = [];
+  var probe = new Date(year, monthIdx, 1);
+  while (probe.getMonth() === monthIdx) {
+    if (probe.getDay() === 1) result.push(new Date(probe));
+    probe.setDate(probe.getDate() + 1);
   }
-  return [typeof m === 'string' ? m : '', '', '', ''];
+  return result;
 }
 
-function loadYearlyViz() {
-  var saved = localStorage.getItem(YEARLY_VIZ_KEY);
-  if (saved) {
-    try {
+function monthKeyFor(year, monthIdx) {
+  return year + '-' + (monthIdx + 1 < 10 ? '0' : '') + (monthIdx + 1);
+}
+
+function isMonthLocked(year, monthIdx) {
+  if (currentUser && currentUserIsPaid) return false;
+  var now = new Date();
+  if (year > now.getFullYear()) return true;
+  if (year === now.getFullYear() && monthIdx > now.getMonth()) return true;
+  return false;
+}
+
+function freshYearlyYearData() {
+  var months = [];
+  for (var m = 0; m < 12; m++) {
+    var weeks = [];
+    for (var w = 0; w < 4; w++) weeks.push({ text: '', history: [] });
+    months.push({ weeks: weeks });
+  }
+  return { months: months };
+}
+
+function normalizeYearlyYear(y) {
+  if (!y || !Array.isArray(y.months)) return freshYearlyYearData();
+  var months = [];
+  for (var m = 0; m < 12; m++) {
+    var srcMonth = y.months[m];
+    var srcWeeks = (srcMonth && Array.isArray(srcMonth.weeks)) ? srcMonth.weeks : [];
+    var weeks = [];
+    for (var w = 0; w < 4; w++) {
+      var sw = srcWeeks[w];
+      if (sw && typeof sw === 'object') {
+        weeks.push({
+          text: typeof sw.text === 'string' ? sw.text : '',
+          history: Array.isArray(sw.history) ? sw.history : []
+        });
+      } else {
+        weeks.push({ text: typeof sw === 'string' ? sw : '', history: [] });
+      }
+    }
+    months.push({ weeks: weeks });
+  }
+  return { months: months };
+}
+
+// One-time migration from the old flat, year-less 12x4 template —
+// there's no way to know which real year that data was meant for, so
+// it becomes THIS year's data.
+function migrateLegacyYearlyViz() {
+  var data = {};
+  try {
+    var saved = localStorage.getItem(YEARLY_VIZ_KEY);
+    if (saved) {
       var parsed = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length === 12) {
-        return parsed.map(normalizeYearlyMonth);
+        var thisYear = String(new Date().getFullYear());
+        var months = parsed.map(function(m) {
+          var srcWeeks = Array.isArray(m) ? m : [typeof m === 'string' ? m : ''];
+          var weeks = [];
+          for (var w = 0; w < 4; w++) {
+            weeks.push({ text: typeof srcWeeks[w] === 'string' ? srcWeeks[w] : '', history: [] });
+          }
+          return { weeks: weeks };
+        });
+        data[thisYear] = { months: months };
       }
-    } catch(e) {}
+    }
+  } catch(e) {}
+  if (Object.keys(data).length) localStorage.setItem(YEARLY_DATA_KEY, JSON.stringify(data));
+  return data;
+}
+
+function loadYearlyData() {
+  var saved = localStorage.getItem(YEARLY_DATA_KEY);
+  if (saved) {
+    try { return JSON.parse(saved); } catch(e) { return {}; }
   }
-  var fresh = [];
-  for (var i = 0; i < 12; i++) fresh.push(['', '', '', '']);
-  return fresh;
+  return migrateLegacyYearlyViz();
 }
 
-function saveYearlyViz(months) {
-  localStorage.setItem(YEARLY_VIZ_KEY, JSON.stringify(months));
-  pushSharedSection('yearly', months);
+function saveYearlyData(data) {
+  localStorage.setItem(YEARLY_DATA_KEY, JSON.stringify(data));
+  pushSharedSection('yearly', data);
 }
 
-var yearlyVizMonths = loadYearlyViz();
+function getYearData(year) {
+  var data = loadYearlyData();
+  if (!data[year]) {
+    data[year] = freshYearlyYearData();
+    saveYearlyData(data);
+  } else {
+    data[year] = normalizeYearlyYear(data[year]);
+  }
+  return data[year];
+}
+
+// Saves a week-box note's text live (every keystroke, so nothing is
+// lost) without touching its history — mirrors recordCurrentWeek()'s
+// split between live-sync and the blur-triggered log function below.
+function saveYearlyWeekNoteLive(year, monthIdx, weekIdx, text) {
+  var data = loadYearlyData();
+  if (!data[year]) data[year] = freshYearlyYearData();
+  data[year] = normalizeYearlyYear(data[year]);
+  data[year].months[monthIdx].weeks[weekIdx].text = text;
+  saveYearlyData(data);
+}
+
+function logYearlyWeekNoteEdit(year, monthIdx, weekIdx, previousText) {
+  var data = loadYearlyData();
+  if (!data[year]) data[year] = freshYearlyYearData();
+  data[year] = normalizeYearlyYear(data[year]);
+  data[year].months[monthIdx].weeks[weekIdx].history.push({ text: previousText, editedAt: new Date().toISOString() });
+  saveYearlyData(data);
+}
+
+// ---- Monthly Focus: auto-summarized from the month's 4 pulled
+// Weekly Focus texts, editable/overridable per month, with the same
+// edit-history pattern. ----
+function loadMonthlyArchive() {
+  var saved = localStorage.getItem(MONTHLY_ARCHIVE_KEY);
+  if (saved) {
+    try { return JSON.parse(saved); } catch(e) { return {}; }
+  }
+  return {};
+}
+
+function saveMonthlyArchive(archive) {
+  localStorage.setItem(MONTHLY_ARCHIVE_KEY, JSON.stringify(archive));
+}
+
+function getMonthRecord(monthKey) {
+  var archive = loadMonthlyArchive();
+  return archive[monthKey] || null;
+}
+
+function computeMonthlyAutoSummary(weekKeys) {
+  var archive = loadWeeklyArchive();
+  var texts = weekKeys
+    .filter(Boolean)
+    .map(function(wk) { return archive[wk] && archive[wk].focusText; })
+    .filter(function(t) { return t && t.trim(); });
+  return texts.join(' • ');
+}
+
+function getMonthlyFocusDisplay(monthKey, weekKeys) {
+  var rec = getMonthRecord(monthKey);
+  if (rec && rec.editedText != null && rec.editedText !== '') return rec.editedText;
+  return computeMonthlyAutoSummary(weekKeys);
+}
+
+function saveMonthlyFocusEdit(monthKey, previousDisplayed, newText) {
+  var archive = loadMonthlyArchive();
+  var rec = archive[monthKey] || { editedText: null, history: [] };
+  if (!rec.history) rec.history = [];
+  if (previousDisplayed !== newText) {
+    rec.history.push({ text: previousDisplayed, editedAt: new Date().toISOString() });
+  }
+  rec.editedText = newText;
+  archive[monthKey] = rec;
+  saveMonthlyArchive(archive);
+}
+
+// ---- Year navigation ----
+var yearlyCurrentViewYear = new Date().getFullYear();
+var yearlyYearLabelEl = document.getElementById('yearlyYearLabel');
+var yearlyPrevYearBtn = document.getElementById('yearlyPrevYear');
+var yearlyNextYearBtn = document.getElementById('yearlyNextYear');
+if (yearlyPrevYearBtn) {
+  yearlyPrevYearBtn.addEventListener('click', function() {
+    yearlyCurrentViewYear -= 1;
+    renderYearlyViz();
+  });
+}
+if (yearlyNextYearBtn) {
+  yearlyNextYearBtn.addEventListener('click', function() {
+    yearlyCurrentViewYear += 1;
+    renderYearlyViz();
+  });
+}
 
 function renderYearlyViz() {
   yearlyMonthsList.innerHTML = '';
-  var currentMonthIdx = new Date().getMonth(); // 0=Jan ... 11=Dec
+  if (yearlyYearLabelEl) yearlyYearLabelEl.textContent = String(yearlyCurrentViewYear);
+
+  var now = new Date();
+  var isCurrentYear = yearlyCurrentViewYear === now.getFullYear();
+  var currentMonthIdx = now.getMonth();
+  var yearData = getYearData(yearlyCurrentViewYear);
 
   for (var i = 0; i < 12; i++) {
+    var locked = isMonthLocked(yearlyCurrentViewYear, i);
+    var monthKey = monthKeyFor(yearlyCurrentViewYear, i);
+    var mondays = getMondaysInMonth(yearlyCurrentViewYear, i);
+    var weekKeys = [0, 1, 2, 3].map(function(w) { return mondays[w] ? isoWeekKey(mondays[w]) : null; });
+
     var monthBlock = document.createElement('div');
-    monthBlock.className = 'yearly-month' + (i === currentMonthIdx ? ' is-current' : '');
+    monthBlock.className = 'yearly-month'
+      + (isCurrentYear && i === currentMonthIdx ? ' is-current' : '')
+      + (locked ? ' yearly-month-locked' : '');
+
+    var header = document.createElement('div');
+    header.className = 'yearly-month-header';
 
     var num = document.createElement('div');
     num.className = 'yearly-month-num';
     num.textContent = String(i + 1);
-    monthBlock.appendChild(num);
+    header.appendChild(num);
+
+    if (locked) {
+      var lockedLabel = document.createElement('span');
+      lockedLabel.className = 'yearly-month-locked-label';
+      lockedLabel.textContent = '🔒 Upgrade to plan ahead';
+      header.appendChild(lockedLabel);
+      monthBlock.appendChild(header);
+      yearlyMonthsList.appendChild(monthBlock);
+      continue;
+    }
+
+    var focusInput = document.createElement('input');
+    focusInput.type = 'text';
+    focusInput.className = 'yearly-month-focus';
+    focusInput.placeholder = 'Monthly focus...';
+    focusInput.value = getMonthlyFocusDisplay(monthKey, weekKeys);
+    (function(mKey) {
+      var focusValueAtFocus = focusInput.value;
+      focusInput.addEventListener('focus', function() {
+        focusValueAtFocus = focusInput.value;
+      });
+      focusInput.addEventListener('blur', function() {
+        if (focusInput.value !== focusValueAtFocus) {
+          saveMonthlyFocusEdit(mKey, focusValueAtFocus, focusInput.value);
+        }
+      });
+    })(monthKey);
+    header.appendChild(focusInput);
+    monthBlock.appendChild(header);
 
     var weeksWrap = document.createElement('div');
     weeksWrap.className = 'yearly-weeks';
-
-    if (!Array.isArray(yearlyVizMonths[i])) yearlyVizMonths[i] = ['', '', '', ''];
 
     for (var w = 0; w < 4; w++) {
       var boxWrap = document.createElement('div');
       boxWrap.className = 'yearly-week-box-wrap';
 
+      var weekKey = weekKeys[w];
+      var weekRec = weekKey ? getWeekRecord(weekKey) : null;
+
+      var pulled = document.createElement('div');
+      pulled.className = 'yearly-week-pulled-focus';
+      pulled.textContent = (weekRec && weekRec.focusText) ? weekRec.focusText : '';
+      pulled.title = pulled.textContent;
+      boxWrap.appendChild(pulled);
+
       var box = document.createElement('textarea');
       box.className = 'yearly-week-box';
-      box.placeholder = 'Week ' + (w + 1);
-      box.value = yearlyVizMonths[i][w] || '';
-      (function(mi, wi, el) {
-        el.addEventListener('input', function() {
-          if (!Array.isArray(yearlyVizMonths[mi])) yearlyVizMonths[mi] = ['', '', '', ''];
-          yearlyVizMonths[mi][wi] = el.value;
-          saveYearlyViz(yearlyVizMonths);
+      box.placeholder = 'Week ' + (w + 1) + ' notes...';
+      box.value = yearData.months[i].weeks[w].text || '';
+      (function(yr, mi, wi, el) {
+        var valueAtFocus = el.value;
+        el.addEventListener('focus', function() {
+          valueAtFocus = el.value;
         });
-      })(i, w, box);
+        el.addEventListener('input', function() {
+          saveYearlyWeekNoteLive(yr, mi, wi, el.value);
+        });
+        el.addEventListener('blur', function() {
+          if (el.value !== valueAtFocus) {
+            logYearlyWeekNoteEdit(yr, mi, wi, valueAtFocus);
+          }
+        });
+      })(yearlyCurrentViewYear, i, w, box);
       boxWrap.appendChild(box);
 
       var score = document.createElement('span');
       score.className = 'yearly-week-score';
-      score.textContent = '—';
+      score.textContent = (weekRec && typeof weekRec.scoreAverage === 'number') ? (weekRec.scoreAverage + '/10') : '—';
       boxWrap.appendChild(score);
 
       weeksWrap.appendChild(boxWrap);
@@ -3257,6 +4009,7 @@ function loadAccomplish() {
 
 function saveAccomplish() {
   localStorage.setItem(ACCOMPLISH_KEY, JSON.stringify(accomplishGoals));
+  pushSharedSection('accomplish', accomplishGoals);
 }
 
 var accomplishGoals = loadAccomplish();
@@ -3847,7 +4600,7 @@ function pushMyRulerToSupabase() {
 // Whiteboard, Weekly, Yearly). Pushes the section's current data AND
 // its current share toggle state every time, so a toggle flip takes
 // effect immediately without needing the data to also change.
-var sectionShareState = { musts: false, whiteboard: false, weekly: false, yearly: false };
+var sectionShareState = { musts: false, whiteboard: false, weekly: false, yearly: false, ruler: false, accomplish: false };
 
 registerSyncPerformer('section', function(payload) {
   return supabaseClient.from('shared_sections').upsert(payload);
@@ -4262,35 +5015,50 @@ function loadMemberDetailContent(profile, body) {
     var memberBlocks = (rulerResult.data && rulerResult.data[0] && rulerResult.data[0].blocks) || [];
     var sections = {};
     (sectionsResult.data || []).forEach(function(row) { sections[row.section] = row; });
+    var rulerShared = !!(sections.ruler && sections.ruler.is_shared);
 
     body.innerHTML = '';
 
-    // Local time + current block — always shown, top of the modal.
+    // Local time — ALWAYS shown, no toggle, so leaders always know
+    // this member's timezone. Current block is gated on the Ruler
+    // share toggle, same as the Ruler section below — otherwise it'd
+    // leak block info through a back door even with Ruler hidden.
     var timeRow = document.createElement('div');
     timeRow.className = 'member-modal-time-row';
     var localInfo = getLocalTimeInfo(profile.timezone);
-    var currentBlock = findMemberCurrentBlock(memberBlocks, profile.timezone);
+    var currentBlock = rulerShared ? findMemberCurrentBlock(memberBlocks, profile.timezone) : null;
     timeRow.innerHTML =
       '<span><strong>Local time:</strong> ' + localInfo.text + '</span>' +
       '<span><strong>Current block:</strong> ' + (currentBlock ? escapeHtml(currentBlock.name) : '—') + '</span>';
     body.appendChild(timeRow);
 
-    // Whiteboard — ALWAYS shown by default, regardless of paid status
-    // or the member's own share toggle (per design: this is the one
-    // section meant to always be visible, since it's how clan-mates
-    // leave each other messages).
+    // Whiteboard — content display now respects the member's own
+    // share toggle (tackleShare). When off, leaders see "Whiteboard
+    // not shared" instead of the text. The write box is a separate
+    // concern from viewing — paid viewers can always leave a message
+    // regardless of the toggle, since that's how clan-mates reach
+    // someone even when their board is otherwise private.
     var whiteboardSection = document.createElement('div');
     whiteboardSection.className = 'member-modal-section';
     whiteboardSection.innerHTML = '<h4>Whiteboard</h4>';
+    var whiteboardShared = !!(sections.whiteboard && sections.whiteboard.is_shared);
     var whiteboardData = (sections.whiteboard && sections.whiteboard.data) || {};
-    var whiteboardP = document.createElement('p');
-    whiteboardP.className = 'member-modal-text';
-    whiteboardP.textContent = whiteboardData.text || '(nothing written yet)';
-    whiteboardSection.appendChild(whiteboardP);
+    if (whiteboardShared) {
+      var whiteboardP = document.createElement('p');
+      whiteboardP.className = 'member-modal-text';
+      whiteboardP.textContent = whiteboardData.text || '(nothing written yet)';
+      whiteboardSection.appendChild(whiteboardP);
+    } else {
+      var whiteboardHidden = document.createElement('p');
+      whiteboardHidden.className = 'member-modal-not-shared';
+      whiteboardHidden.textContent = 'Whiteboard not shared';
+      whiteboardSection.appendChild(whiteboardHidden);
+    }
 
     // Only PAID viewers can write a message onto someone else's
     // whiteboard. It's always appended as a new line, never
-    // overwriting what's already there.
+    // overwriting what's already there. Available regardless of the
+    // owner's share toggle — writing isn't the same as reading.
     if (currentUserIsPaid && profile.id !== currentUser.id) {
       var writeRow = document.createElement('div');
       writeRow.className = 'member-modal-write-row';
@@ -4304,7 +5072,9 @@ function loadMemberDetailContent(profile, body) {
         if (!msg) return;
         writeBtn.disabled = true;
         appendToMemberWhiteboard(profile, currentUser, msg, function(newText) {
-          whiteboardP.textContent = newText;
+          if (whiteboardShared) {
+            whiteboardSection.querySelector('.member-modal-text').textContent = newText;
+          }
           writeInput.value = '';
           writeBtn.disabled = false;
         });
@@ -4318,35 +5088,51 @@ function loadMemberDetailContent(profile, body) {
     }
     body.appendChild(whiteboardSection);
 
-    // Ruler — always shown
+    // Ruler — gated on the member's own Ruler share toggle. When off,
+    // leaders see "Ruler not shared" instead of block details. When
+    // on, rendered as a legible vertical list (name + start-end time
+    // per row) rather than the old cramped proportional timeline.
     var rulerSection = document.createElement('div');
     rulerSection.className = 'member-modal-section';
     rulerSection.innerHTML = '<h4>Ruler</h4>';
-    var track = document.createElement('div');
-    track.className = 'member-modal-ruler-track';
-    memberBlocks.forEach(function(b) {
-      var block = document.createElement('div');
-      block.className = 'member-modal-ruler-block' + (b.sleep ? ' sleep-zone' : '');
-      block.style.width = ((b.minutes / 1440) * 100) + '%';
-      block.textContent = b.name;
-      block.title = b.name + ' — ' + b.minutes + ' min';
-      track.appendChild(block);
-    });
-    rulerSection.appendChild(track);
+    if (rulerShared) {
+      var list = document.createElement('div');
+      list.className = 'member-modal-ruler-list';
+      annotateBlocksWithTimes(memberBlocks).forEach(function(b) {
+        var row = document.createElement('div');
+        row.className = 'member-modal-ruler-row' + (b.sleep ? ' sleep-zone' : '');
+        var nameSpan = document.createElement('span');
+        nameSpan.className = 'member-modal-ruler-name';
+        nameSpan.textContent = b.name;
+        var timeSpan = document.createElement('span');
+        timeSpan.className = 'member-modal-ruler-time';
+        timeSpan.textContent = b.startTime + ' – ' + b.endTime;
+        row.appendChild(nameSpan);
+        row.appendChild(timeSpan);
+        list.appendChild(row);
+      });
+      rulerSection.appendChild(list);
+    } else {
+      var rulerHidden = document.createElement('p');
+      rulerHidden.className = 'member-modal-not-shared';
+      rulerHidden.textContent = 'Ruler not shared';
+      rulerSection.appendChild(rulerHidden);
+    }
     body.appendChild(rulerSection);
 
-    // Everything else (Musts, Weekly, Yearly) is paid-viewer-only,
-    // and only shown if the member has individually shared it.
+    // Everything else (Musts, Weekly, Yearly, Accomplish) is
+    // paid-viewer-only, and only shown if the member has individually
+    // shared it.
     if (currentUserIsPaid) {
       appendSharedSectionIfAvailable(body, sections.musts, 'Musts & In-Between', function(data) {
-        var list = document.createElement('div');
+        var mustsList = document.createElement('div');
         (data || []).forEach(function(m) {
           var row = document.createElement('div');
           row.className = 'member-modal-musts-row';
           row.textContent = m.label + (m.score ? ' — ' + m.score + '/3' : '');
-          list.appendChild(row);
+          mustsList.appendChild(row);
         });
-        return list;
+        return mustsList;
       });
 
       appendSharedSectionIfAvailable(body, sections.weekly, 'Weekly Visualization', function(data) {
@@ -4355,6 +5141,10 @@ function loadMemberDetailContent(profile, body) {
 
       appendSharedSectionIfAvailable(body, sections.yearly, 'Yearly Visualization', function(data) {
         return buildYearlyReadout(data);
+      });
+
+      appendSharedSectionIfAvailable(body, sections.accomplish, 'What I Want To Accomplish This Year', function(data) {
+        return buildSevenRowReadout((data || []).slice(0, 3));
       });
     }
 
@@ -4395,12 +5185,19 @@ function buildSevenRowReadout(items) {
 // Yearly is now 12 months × 4 weeks. Renders one row per month that has
 // any filled weeks, joining the weeks. Tolerates the old flat-string
 // format (a month that's a plain string) so older shared data still shows.
-function buildYearlyReadout(months) {
+// yearlyData is now the full year-keyed structure ({ "2026": {months:
+// [{weeks: [{text, history}]}]} }) — shows the current year's months
+// that have any filled-in week text. Gracefully shows the empty state
+// for a clan-mate's stale pre-migration shared data too.
+function buildYearlyReadout(yearlyData) {
   var names = (typeof MONTH_NAMES !== 'undefined') ? MONTH_NAMES : [];
   var list = document.createElement('div');
-  (months || []).forEach(function(m, idx) {
-    var weeks = Array.isArray(m) ? m : [m];
-    var filled = weeks.filter(function(t) { return t; });
+  var year = new Date().getFullYear();
+  var yearRec = yearlyData && yearlyData[year];
+  var months = (yearRec && Array.isArray(yearRec.months)) ? yearRec.months : [];
+  months.forEach(function(m, idx) {
+    var weeks = (m && Array.isArray(m.weeks)) ? m.weeks : [];
+    var filled = weeks.map(function(w) { return w && w.text; }).filter(function(t) { return t; });
     if (!filled.length) return;
     var row = document.createElement('div');
     row.className = 'member-modal-musts-row';
@@ -4467,6 +5264,7 @@ var exportRangeSelect = document.getElementById('exportRangeSelect');
 var exportCustomDates = document.getElementById('exportCustomDates');
 var exportMsgEl = document.getElementById('exportMsg');
 var exportCategoryGroup = document.getElementById('exportCategoryGroup');
+var exportTabGroupEl = document.getElementById('exportTabGroup');
 
 exportRangeSelect.addEventListener('change', function() {
   exportCustomDates.style.display = (exportRangeSelect.value === 'custom') ? '' : 'none';
@@ -4477,24 +5275,105 @@ function showExportMsg(text, isError) {
   exportMsgEl.className = 'export-msg' + (isError ? ' error' : '');
 }
 
-// Category checkboxes are built from whatever categories actually
-// exist (defaults + any custom ones added), so this stays in sync
-// automatically as the user adds categories elsewhere in the app.
-function renderExportCategoryCheckboxes() {
-  exportCategoryGroup.innerHTML = '';
-  journalCategories.forEach(function(cat) {
-    var label = document.createElement('label');
-    var cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.checked = true;
-    cb.value = cat;
-    cb.className = 'export-category-cb';
-    label.appendChild(cb);
-    label.appendChild(document.createTextNode(' ' + cat));
-    exportCategoryGroup.appendChild(label);
+// ---- Tabs + dynamic Categories ----
+// Ruler/Life/Insights category lists are fixed; Journal's is dynamic
+// (built from journalCategories, same source as the app's own
+// category picker, so it stays in sync automatically). Clans has
+// nothing to export yet (it's shared/social data, not really "yours")
+// and Insights entries are shown disabled — "Coming Soon", no export
+// logic exists for that tab yet.
+var EXPORT_CATEGORY_DEFS = {
+  ruler: [
+    { id: 'blocks', label: 'Blocks' },
+    { id: 'energy', label: 'Energy Levels' },
+    { id: 'dailyScores', label: 'Daily Scores' },
+    { id: 'weeklySummaries', label: 'Weekly Summaries' },
+    { id: 'whiteboard', label: 'Whiteboard' }
+  ],
+  life: [
+    { id: 'musts', label: 'Musts & In-Between' },
+    { id: 'accomplish', label: 'Accomplish' },
+    { id: 'yearly', label: 'Yearly Visualization' }
+  ],
+  clans: [],
+  insights: [
+    { id: 'weeklyTrends', label: 'Weekly Trends' },
+    { id: 'monthlyTrends', label: 'Monthly Trends' }
+  ]
+};
+
+var exportSelectedTabs = { ruler: true, life: true, journal: true, clans: false, insights: false };
+// Remembers individual category checkbox states across re-renders
+// (e.g. switching tabs back and forth shouldn't reset your choices).
+var exportCategoryChecked = {};
+
+function renderExportTabButtons() {
+  Array.prototype.forEach.call(exportTabGroupEl.querySelectorAll('.export-tab-btn'), function(btn) {
+    btn.classList.toggle('active', !!exportSelectedTabs[btn.getAttribute('data-tab')]);
   });
 }
+
+Array.prototype.forEach.call(exportTabGroupEl.querySelectorAll('.export-tab-btn'), function(btn) {
+  btn.addEventListener('click', function() {
+    var tab = btn.getAttribute('data-tab');
+    exportSelectedTabs[tab] = !exportSelectedTabs[tab];
+    renderExportTabButtons();
+    renderExportCategoryCheckboxes();
+  });
+});
+
+function appendExportCategoryCheckbox(key, label, disabled) {
+  var wrap = document.createElement('label');
+  if (disabled) wrap.className = 'export-category-disabled';
+  var cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.className = 'export-category-cb';
+  cb.value = key;
+  cb.disabled = !!disabled;
+  cb.checked = disabled ? false : (exportCategoryChecked[key] !== false);
+  cb.addEventListener('change', function() {
+    exportCategoryChecked[key] = cb.checked;
+  });
+  wrap.appendChild(cb);
+  wrap.appendChild(document.createTextNode(' ' + label + (disabled ? ' (Coming Soon)' : '')));
+  exportCategoryGroup.appendChild(wrap);
+}
+
+// Rebuilds the Categories panel as the UNION of every selected tab's
+// category list, so picking multiple tabs shows all relevant options
+// at once (e.g. Ruler + Life shows Blocks/Energy/.../Musts/Accomplish/Yearly).
+function renderExportCategoryCheckboxes() {
+  exportCategoryGroup.innerHTML = '';
+  var anySelected = false;
+
+  if (exportSelectedTabs.journal) {
+    anySelected = true;
+    journalCategories.forEach(function(cat) {
+      appendExportCategoryCheckbox('journal:' + cat, cat, false);
+    });
+  }
+  ['ruler', 'life', 'clans', 'insights'].forEach(function(tab) {
+    if (!exportSelectedTabs[tab]) return;
+    anySelected = true;
+    (EXPORT_CATEGORY_DEFS[tab] || []).forEach(function(def) {
+      appendExportCategoryCheckbox(tab + ':' + def.id, def.label, tab === 'insights');
+    });
+  });
+
+  if (!anySelected) {
+    exportCategoryGroup.innerHTML = '<span class="export-row-label">Select a tab above to see its categories.</span>';
+  } else if (!exportCategoryGroup.children.length) {
+    exportCategoryGroup.innerHTML = '<span class="export-row-label">Nothing to configure for this selection.</span>';
+  }
+}
+
+renderExportTabButtons();
 renderExportCategoryCheckboxes();
+
+function isExportCategoryChecked(key) {
+  var cb = exportCategoryGroup.querySelector('.export-category-cb[value="' + key + '"]');
+  return cb ? cb.checked : false;
+}
 
 // Resolves every control in the export panel into one filter object.
 // The free-tier 30-day cap is enforced here, in the logic itself, not
@@ -4529,18 +5408,25 @@ function resolveExportFilters() {
     }
   }
 
-  var checkedCats = Array.prototype.slice.call(document.querySelectorAll('.export-category-cb:checked'))
-    .map(function(cb) { return cb.value; });
-  var allCatsChecked = checkedCats.length === journalCategories.length;
+  var checkedJournalCats = Array.prototype.slice.call(exportCategoryGroup.querySelectorAll('.export-category-cb'))
+    .filter(function(cb) { return cb.checked && cb.value.indexOf('journal:') === 0; })
+    .map(function(cb) { return cb.value.slice('journal:'.length); });
+  var allJournalCatsChecked = exportSelectedTabs.journal && checkedJournalCats.length === journalCategories.length;
 
   return {
     dateStart: start,
     dateEnd: end,
-    categories: allCatsChecked ? 'all' : checkedCats,
-    includeRuler: document.getElementById('exportIncludeRuler').checked,
-    includeJournal: document.getElementById('exportIncludeJournal').checked,
-    includeMusts: document.getElementById('exportIncludeMusts').checked,
-    includeWhiteboard: document.getElementById('exportIncludeWhiteboard').checked,
+    categories: allJournalCatsChecked ? 'all' : checkedJournalCats,
+    includeJournal: !!exportSelectedTabs.journal,
+    includeRuler: !!exportSelectedTabs.ruler,
+    includeRulerBlocks: exportSelectedTabs.ruler && isExportCategoryChecked('ruler:blocks'),
+    includeRulerEnergy: exportSelectedTabs.ruler && isExportCategoryChecked('ruler:energy'),
+    includeDailyScores: exportSelectedTabs.ruler && isExportCategoryChecked('ruler:dailyScores'),
+    includeWeeklySummaries: exportSelectedTabs.ruler && isExportCategoryChecked('ruler:weeklySummaries'),
+    includeWhiteboard: exportSelectedTabs.ruler && isExportCategoryChecked('ruler:whiteboard'),
+    includeMusts: exportSelectedTabs.life && isExportCategoryChecked('life:musts'),
+    includeAccomplish: exportSelectedTabs.life && isExportCategoryChecked('life:accomplish'),
+    includeYearly: exportSelectedTabs.life && isExportCategoryChecked('life:yearly'),
     wasClipped: wasClipped
   };
 }
@@ -4556,9 +5442,39 @@ function entryMatchesFilters(entry, filters) {
   return true;
 }
 
-// Gathers everything matching the filters: journal entries, daily
-// Ruler snapshots (local + server merged, server wins on conflict),
-// and current whiteboard text. Calls back with a single bundle object.
+// Given an ISO week key ("2026-W28"), returns that week's Monday as a
+// Date — used to range-filter the Weekly Archive by real calendar time.
+function isoWeekKeyToMonday(key) {
+  var m = /^(\d{4})-W(\d{2})$/.exec(key);
+  if (!m) return null;
+  var year = parseInt(m[1], 10), week = parseInt(m[2], 10);
+  var jan4 = new Date(Date.UTC(year, 0, 4));
+  var jan4Day = jan4.getUTCDay() || 7;
+  var monday = new Date(jan4);
+  monday.setUTCDate(jan4.getUTCDate() - jan4Day + 1 + (week - 1) * 7);
+  return monday;
+}
+
+function queryWeeklyRange(startDate, endDate) {
+  var archive = loadWeeklyArchive();
+  return Object.keys(archive)
+    .filter(function(key) {
+      var monday = isoWeekKeyToMonday(key);
+      return monday && dateInRange(monday.toISOString(), startDate, endDate);
+    })
+    .sort()
+    .map(function(key) {
+      var rec = archive[key];
+      return { weekKey: key, focusText: rec.focusText || '', scoreAverage: rec.scoreAverage };
+    });
+}
+
+// Gathers everything matching the filters into one bundle: journal
+// entries, Ruler blocks snapshots (local + server merged, only
+// fetched when Blocks/Energy Levels is actually selected — the
+// network round-trip is skipped otherwise), Daily Scores, Weekly
+// Summaries, Musts, Whiteboard, Accomplish, and Yearly Visualization —
+// all sourced from the unified Daily/Weekly Archive.
 function gatherExportData(filters, callback) {
   var allEntries = loadEntries();
 
@@ -4566,11 +5482,10 @@ function gatherExportData(filters, callback) {
     ? allEntries.filter(function(e) { return entryMatchesFilters(e, filters); })
     : [];
 
-  // Musts scores have no independent history of their own — the only
-  // historical record is whatever score got snapshotted into a journal
-  // entry at save time. Build a date -> score lookup from ALL entries
-  // (not just category-filtered ones), since a day's schedule/score
-  // isn't really "owned" by one journal category.
+  // Musts scores have no independent history predating the archive —
+  // the only record for those older days is whatever score got
+  // snapshotted into a journal entry at save time. Used as a fallback
+  // only for dates the Daily Archive doesn't cover.
   var scoreByDate = {};
   allEntries.forEach(function(e) {
     var d = (e.createdAt || '').slice(0, 10);
@@ -4590,21 +5505,36 @@ function gatherExportData(filters, callback) {
     } catch(e) {}
   }
 
-  if (!filters.includeRuler) {
-    callback({ entries: entries, snapshots: [], tackleText: tackleText, filters: filters });
+  var dailyRecords = (filters.includeMusts || filters.includeDailyScores)
+    ? queryDailyRange(filters.dateStart, filters.dateEnd)
+    : [];
+  var weeklyRecords = filters.includeWeeklySummaries
+    ? queryWeeklyRange(filters.dateStart, filters.dateEnd)
+    : [];
+  var accomplishText = filters.includeAccomplish ? accomplishGoals.filter(Boolean).join('\n\n') : '';
+  var yearlyCsvText = filters.includeYearly ? buildYearlyCsv(filters.dateStart, filters.dateEnd) : '';
+
+  var extras = {
+    entries: entries,
+    tackleText: tackleText,
+    dailyRecords: dailyRecords,
+    weeklyRecords: weeklyRecords,
+    accomplishText: accomplishText,
+    yearlyCsvText: yearlyCsvText,
+    scoreByDate: scoreByDate,
+    filters: filters
+  };
+
+  var needsBlocks = filters.includeRulerBlocks || filters.includeRulerEnergy;
+  if (!needsBlocks) {
+    callback(Object.assign({ snapshots: [] }, extras));
     return;
   }
 
-  var localSnaps = loadLocalSnapshots();
-  var localSnapList = Object.keys(localSnaps)
+  var dailyArchive = loadDailyArchive();
+  var localSnapList = Object.keys(dailyArchive)
     .filter(function(dateStr) { return dateInRange(dateStr + 'T00:00:00Z', filters.dateStart, filters.dateEnd); })
-    .map(function(dateStr) {
-      return {
-        date: dateStr,
-        blocks: localSnaps[dateStr],
-        mustsScore: filters.includeMusts && scoreByDate[dateStr] != null ? scoreByDate[dateStr] : null
-      };
-    });
+    .map(function(dateStr) { return { date: dateStr, blocks: dailyArchive[dateStr].blocks }; });
 
   if (supabaseClient && currentUser) {
     supabaseClient.from('daily_snapshots')
@@ -4620,25 +5550,19 @@ function gatherExportData(filters, callback) {
             'Export contains only locally-stored data — some days recorded on other devices may be missing.',
             true
           );
-          callback({ entries: entries, snapshots: localSnapList, tackleText: tackleText, filters: filters, serverFetchFailed: true });
+          callback(Object.assign({ snapshots: localSnapList, serverFetchFailed: true }, extras));
           return;
         }
         var serverSnaps = [];
         if (result.data) {
           serverSnaps = result.data
             .filter(function(row) { return dateInRange(row.snapshot_date + 'T00:00:00Z', filters.dateStart, filters.dateEnd); })
-            .map(function(row) {
-              return {
-                date: row.snapshot_date,
-                blocks: row.blocks,
-                mustsScore: filters.includeMusts && scoreByDate[row.snapshot_date] != null ? scoreByDate[row.snapshot_date] : null
-              };
-            });
+            .map(function(row) { return { date: row.snapshot_date, blocks: row.blocks }; });
         }
         var merged = {};
         localSnapList.forEach(function(s) { merged[s.date] = s; });
-        serverSnaps.forEach(function(s) { merged[s.date] = s; });
-        callback({ entries: entries, snapshots: Object.values(merged), tackleText: tackleText, filters: filters });
+        serverSnaps.forEach(function(s) { merged[s.date] = s; }); // server wins on blocks (freshest across devices)
+        callback(Object.assign({ snapshots: Object.values(merged) }, extras));
       })
       .catch(function(err) {
         // Network-level failure (offline, DNS, Supabase down).
@@ -4647,10 +5571,10 @@ function gatherExportData(filters, callback) {
           'Export contains only locally-stored data — some days recorded on other devices may be missing.',
           true
         );
-        callback({ entries: entries, snapshots: localSnapList, tackleText: tackleText, filters: filters, serverFetchFailed: true });
+        callback(Object.assign({ snapshots: localSnapList, serverFetchFailed: true }, extras));
       });
   } else {
-    callback({ entries: entries, snapshots: localSnapList, tackleText: tackleText, filters: filters });
+    callback(Object.assign({ snapshots: localSnapList }, extras));
   }
 }
 
@@ -4687,7 +5611,9 @@ function annotateBlocksWithTimes(blockList) {
       minutes: b.minutes,
       sleep: !!b.sleep,
       startTime: minutesSinceSixToClockTime(startMin),
-      endTime: minutesSinceSixToClockTime(endMin)
+      endTime: minutesSinceSixToClockTime(endMin),
+      energy: typeof b.energy === 'number' ? b.energy : null,
+      notes: b.notes || ''
     };
   });
 }
@@ -4701,12 +5627,14 @@ function wordCount(text) {
 // the Ruler, so it's pivot/filter-friendly in Excel rather than one
 // wide row of 48 columns per day) ----
 
-function buildRulerCsv(snapshots) {
+function buildRulerCsv(snapshots, includeEnergy) {
   var lines = [];
-  lines.push(['Date', 'Block Number', 'Block Name', 'Start Time', 'End Time', 'Minutes', 'Is Sleep'].join(','));
+  var headers = ['Date', 'Block Number', 'Block Name', 'Start Time', 'End Time', 'Minutes', 'Is Sleep'];
+  if (includeEnergy) headers.push('Energy Level', 'Notes');
+  lines.push(headers.join(','));
   snapshots.sort(function(a, b) { return a.date < b.date ? -1 : 1; }).forEach(function(s) {
     annotateBlocksWithTimes(s.blocks).forEach(function(b) {
-      lines.push([
+      var row = [
         csvEscape(s.date),
         csvEscape(b.blockNumber),
         csvEscape(b.name),
@@ -4714,8 +5642,70 @@ function buildRulerCsv(snapshots) {
         csvEscape(b.endTime),
         csvEscape(b.minutes),
         csvEscape(b.sleep ? 'Yes' : 'No')
-      ].join(','));
+      ];
+      if (includeEnergy) row.push(csvEscape(b.energy), csvEscape(b.notes));
+      lines.push(row.join(','));
     });
+  });
+  return lines.join('\n');
+}
+
+function buildDailyScoresCsv(dayRecords) {
+  var lines = [['Date', 'Daily Score'].join(',')];
+  dayRecords
+    .filter(function(r) { return typeof r.dailyScore === 'number'; })
+    .sort(function(a, b) { return a.date < b.date ? -1 : 1; })
+    .forEach(function(r) {
+      lines.push([csvEscape(r.date), csvEscape(r.dailyScore)].join(','));
+    });
+  return lines.join('\n');
+}
+
+function buildWeeklySummariesCsv(weekRecords) {
+  var lines = [['Week', 'Focus', 'Score'].join(',')];
+  weekRecords.forEach(function(r) {
+    lines.push([
+      csvEscape(r.weekKey),
+      csvEscape(r.focusText),
+      csvEscape(typeof r.scoreAverage === 'number' ? r.scoreAverage : '')
+    ].join(','));
+  });
+  return lines.join('\n');
+}
+
+// Exports every stored year's Monthly Focus + week notes + pulled
+// Weekly Focus/Score, clipped to years that fall within the date
+// range. Skips rows with nothing filled in at all, so an otherwise-
+// empty year doesn't produce 48 blank rows.
+function buildYearlyCsv(startDate, endDate) {
+  var data = loadYearlyData();
+  var lines = [['Year', 'Month', 'Monthly Focus', 'Week', 'Week Notes', 'Weekly Focus (pulled)', 'Weekly Score'].join(',')];
+  Object.keys(data).sort().forEach(function(yearStr) {
+    var year = parseInt(yearStr, 10);
+    if (year < startDate.getFullYear() || year > endDate.getFullYear()) return;
+    var yearData = normalizeYearlyYear(data[yearStr]);
+    for (var m = 0; m < 12; m++) {
+      var monthKey = monthKeyFor(year, m);
+      var mondays = getMondaysInMonth(year, m);
+      var weekKeys = [0, 1, 2, 3].map(function(w) { return mondays[w] ? isoWeekKey(mondays[w]) : null; });
+      var monthlyFocus = getMonthlyFocusDisplay(monthKey, weekKeys);
+      for (var w = 0; w < 4; w++) {
+        var weekKey = weekKeys[w];
+        var weekRec = weekKey ? getWeekRecord(weekKey) : null;
+        var noteText = yearData.months[m].weeks[w].text || '';
+        var pulledFocus = weekRec ? weekRec.focusText || '' : '';
+        if (!noteText && !monthlyFocus && !pulledFocus) continue;
+        lines.push([
+          csvEscape(year),
+          csvEscape(MONTH_NAMES[m]),
+          csvEscape(monthlyFocus),
+          csvEscape('Week ' + (w + 1)),
+          csvEscape(noteText),
+          csvEscape(pulledFocus),
+          csvEscape(weekRec && typeof weekRec.scoreAverage === 'number' ? weekRec.scoreAverage : '')
+        ].join(','));
+      }
+    }
   });
   return lines.join('\n');
 }
@@ -4737,15 +5727,21 @@ function buildJournalCsv(entries) {
   return lines.join('\n');
 }
 
-function buildMustsCsv(snapshots) {
-  var lines = [];
-  lines.push(['Date', 'Musts Avg Score'].join(','));
-  snapshots
-    .filter(function(s) { return s.mustsScore != null; })
-    .sort(function(a, b) { return a.date < b.date ? -1 : 1; })
-    .forEach(function(s) {
-      lines.push([csvEscape(s.date), csvEscape(s.mustsScore)].join(','));
-    });
+// dayRecords come from the unified Daily Archive (real per-day Musts
+// average); scoreByDate is the journal-entry-score proxy, used only
+// as a fallback for dates that predate the archive.
+function buildMustsCsv(dayRecords, scoreByDate, startDate, endDate) {
+  var byDate = {};
+  dayRecords.forEach(function(r) {
+    if (typeof r.mustsAverage === 'number') byDate[r.date] = r.mustsAverage;
+  });
+  Object.keys(scoreByDate || {}).forEach(function(d) {
+    if (!(d in byDate) && dateInRange(d + 'T00:00:00Z', startDate, endDate)) byDate[d] = scoreByDate[d];
+  });
+  var lines = [['Date', 'Musts Avg Score'].join(',')];
+  Object.keys(byDate).sort().forEach(function(d) {
+    lines.push([csvEscape(d), csvEscape(byDate[d])].join(','));
+  });
   return lines.join('\n');
 }
 
@@ -4779,16 +5775,30 @@ document.getElementById('exportCsvBtn').addEventListener('click', function() {
     var zip = new JSZip();
     var fileCount = 0;
 
-    if (filters.includeRuler && bundle.snapshots.length) {
-      zip.file('ruler-blocks.csv', buildRulerCsv(bundle.snapshots));
+    if ((filters.includeRulerBlocks || filters.includeRulerEnergy) && bundle.snapshots.length) {
+      zip.file('ruler-blocks.csv', buildRulerCsv(bundle.snapshots, filters.includeRulerEnergy));
       fileCount++;
     }
     if (filters.includeJournal && bundle.entries.length) {
       zip.file('journal-entries.csv', buildJournalCsv(bundle.entries));
       fileCount++;
     }
+    if (filters.includeDailyScores) {
+      var scoresCsv = buildDailyScoresCsv(bundle.dailyRecords);
+      if (scoresCsv.split('\n').length > 1) {
+        zip.file('daily-scores.csv', scoresCsv);
+        fileCount++;
+      }
+    }
+    if (filters.includeWeeklySummaries) {
+      var summariesCsv = buildWeeklySummariesCsv(bundle.weeklyRecords);
+      if (summariesCsv.split('\n').length > 1) {
+        zip.file('weekly-summaries.csv', summariesCsv);
+        fileCount++;
+      }
+    }
     if (filters.includeMusts) {
-      var mustsCsv = buildMustsCsv(bundle.snapshots);
+      var mustsCsv = buildMustsCsv(bundle.dailyRecords, bundle.scoreByDate, filters.dateStart, filters.dateEnd);
       if (mustsCsv.split('\n').length > 1) {
         zip.file('musts-scores.csv', mustsCsv);
         fileCount++;
@@ -4796,6 +5806,14 @@ document.getElementById('exportCsvBtn').addEventListener('click', function() {
     }
     if (filters.includeWhiteboard && bundle.tackleText) {
       zip.file('whiteboard.txt', bundle.tackleText);
+      fileCount++;
+    }
+    if (filters.includeAccomplish && bundle.accomplishText) {
+      zip.file('accomplish.txt', bundle.accomplishText);
+      fileCount++;
+    }
+    if (filters.includeYearly && bundle.yearlyCsvText && bundle.yearlyCsvText.split('\n').length > 1) {
+      zip.file('yearly-visualization.csv', bundle.yearlyCsvText);
       fileCount++;
     }
 
@@ -4942,9 +5960,17 @@ function renderPdfDocument(bundle, imagesByEntryId, onComplete) {
   doc.text('Summary', marginX, cursorY);
   cursorY += 10;
 
-  var scoredSnapshots = snapshots.filter(function(s) { return s.mustsScore != null; });
-  var avgScore = scoredSnapshots.length
-    ? Math.round((scoredSnapshots.reduce(function(a, s) { return a + s.mustsScore; }, 0) / scoredSnapshots.length) * 10) / 10
+  var dailyRecords = bundle.dailyRecords || [];
+  var mustsByDate = {};
+  dailyRecords.forEach(function(r) {
+    if (typeof r.mustsAverage === 'number') mustsByDate[r.date] = r.mustsAverage;
+  });
+  (bundle.scoreByDate ? Object.keys(bundle.scoreByDate) : []).forEach(function(d) {
+    if (!(d in mustsByDate)) mustsByDate[d] = bundle.scoreByDate[d];
+  });
+  var scoredDates = Object.keys(mustsByDate);
+  var avgScore = scoredDates.length
+    ? Math.round((scoredDates.reduce(function(a, d) { return a + mustsByDate[d]; }, 0) / scoredDates.length) * 10) / 10
     : null;
 
   var categoryCounts = {};
@@ -5022,13 +6048,13 @@ function renderPdfDocument(bundle, imagesByEntryId, onComplete) {
         }
       });
       y = doc.lastAutoTable.finalY + 14;
+    }
 
-      if (snap.mustsScore != null) {
-        doc.setFont('times', 'italic');
-        doc.setFontSize(10);
-        doc.text('Musts & In-Between average score: ' + snap.mustsScore + ' / 3', marginX, y);
-        y += 18;
-      }
+    if (mustsByDate[dateStr] != null) {
+      doc.setFont('times', 'italic');
+      doc.setFontSize(10);
+      doc.text('Musts & In-Between average score: ' + mustsByDate[dateStr] + ' / 3', marginX, y);
+      y += 18;
     }
 
     var dayEntries = entriesByDate[dateStr] || [];
@@ -5066,6 +6092,65 @@ function renderPdfDocument(bundle, imagesByEntryId, onComplete) {
     });
   });
 
+  // ---- Appendix: Daily Scores / Weekly Summaries / Accomplish ----
+  // Simple table/text pages rather than per-day narrative — these are
+  // score/summary data, not journal-style content. Yearly Visualization
+  // is CSV-only for now (its own export toggle comes later).
+  if (filters.includeDailyScores && (bundle.dailyRecords || []).length) {
+    doc.addPage();
+    var dsY = 50;
+    doc.setFont('times', 'bold');
+    doc.setFontSize(15);
+    doc.text('Daily Scores', marginX, dsY);
+    dsY += 16;
+    doc.autoTable({
+      startY: dsY,
+      margin: { left: marginX, right: marginX },
+      styles: { font: 'times', fontSize: 9 },
+      headStyles: { fillColor: [192, 181, 165], textColor: [30, 30, 30] },
+      head: [['Date', 'Daily Score']],
+      body: bundle.dailyRecords
+        .filter(function(r) { return typeof r.dailyScore === 'number'; })
+        .sort(function(a, b) { return a.date < b.date ? -1 : 1; })
+        .map(function(r) { return [r.date, r.dailyScore + ' / 10']; })
+    });
+  }
+
+  if (filters.includeWeeklySummaries && (bundle.weeklyRecords || []).length) {
+    doc.addPage();
+    var wsY = 50;
+    doc.setFont('times', 'bold');
+    doc.setFontSize(15);
+    doc.text('Weekly Summaries', marginX, wsY);
+    wsY += 16;
+    doc.autoTable({
+      startY: wsY,
+      margin: { left: marginX, right: marginX },
+      styles: { font: 'times', fontSize: 9 },
+      headStyles: { fillColor: [192, 181, 165], textColor: [30, 30, 30] },
+      head: [['Week', 'Focus', 'Score']],
+      body: bundle.weeklyRecords.map(function(r) {
+        return [r.weekKey, r.focusText || '—', typeof r.scoreAverage === 'number' ? (r.scoreAverage + ' / 10') : '—'];
+      })
+    });
+  }
+
+  if (filters.includeAccomplish && bundle.accomplishText) {
+    doc.addPage();
+    var acY = 50;
+    doc.setFont('times', 'bold');
+    doc.setFontSize(15);
+    doc.text('Accomplish This Year', marginX, acY);
+    acY += 20;
+    doc.setFont('times', 'normal');
+    doc.setFontSize(11);
+    doc.splitTextToSize(bundle.accomplishText, pageWidth - marginX * 2).forEach(function(line) {
+      if (acY > 760) { doc.addPage(); acY = 50; }
+      doc.text(line, marginX, acY);
+      acY += 14;
+    });
+  }
+
   doc.save('my-ruler-report-' + todayUTCDateString() + '.pdf');
   if (typeof onComplete === 'function') onComplete();
 }
@@ -5080,10 +6165,16 @@ var mustsShareCheckbox = document.getElementById('mustsShare');
 var weeklyShareRow = document.getElementById('weeklyShareRow');
 var weeklyShareCheckbox = document.getElementById('weeklyShare');
 var yearlyShareCheckbox = document.getElementById('yearlyShare');
+var rulerShareRow = document.getElementById('rulerShareRow');
+var rulerShareCheckbox = document.getElementById('rulerShare');
+var accomplishShareRow = document.getElementById('accomplishShareRow');
+var accomplishShareCheckbox = document.getElementById('accomplishShare');
 
 mustsShareCheckbox.checked = !!sectionShareState.musts;
 weeklyShareCheckbox.checked = !!sectionShareState.weekly;
 yearlyShareCheckbox.checked = !!sectionShareState.yearly;
+rulerShareCheckbox.checked = !!sectionShareState.ruler;
+accomplishShareCheckbox.checked = !!sectionShareState.accomplish;
 
 mustsShareCheckbox.addEventListener('change', function() {
   sectionShareState.musts = mustsShareCheckbox.checked;
@@ -5098,7 +6189,23 @@ weeklyShareCheckbox.addEventListener('change', function() {
 yearlyShareCheckbox.addEventListener('change', function() {
   sectionShareState.yearly = yearlyShareCheckbox.checked;
   saveSectionShareState();
-  pushSharedSection('yearly', yearlyVizMonths);
+  pushSharedSection('yearly', loadYearlyData());
+});
+// Ruler's actual block DATA still flows through the dedicated
+// shared_rulers table/live-sync path (pushMyRulerToSupabase) —
+// unchanged. This only pushes the is_shared flag itself, via the
+// same generic shared_sections mechanism the other toggles use, with
+// a placeholder payload (the modal ignores shared_sections.data for
+// 'ruler' and reads real blocks from shared_rulers once is_shared is true).
+rulerShareCheckbox.addEventListener('change', function() {
+  sectionShareState.ruler = rulerShareCheckbox.checked;
+  saveSectionShareState();
+  pushSharedSection('ruler', {});
+});
+accomplishShareCheckbox.addEventListener('change', function() {
+  sectionShareState.accomplish = accomplishShareCheckbox.checked;
+  saveSectionShareState();
+  pushSharedSection('accomplish', accomplishGoals);
 });
 
 // These share rows only make sense once logged in (sharing requires
@@ -5107,6 +6214,8 @@ function updateSectionShareRowsVisibility() {
   var loggedIn = !!currentUser;
   mustsShareRow.style.display = loggedIn ? '' : 'none';
   weeklyShareRow.style.display = loggedIn ? '' : 'none';
+  rulerShareRow.style.display = loggedIn ? '' : 'none';
+  accomplishShareRow.style.display = loggedIn ? '' : 'none';
 }
 updateSectionShareRowsVisibility();
 
@@ -5128,51 +6237,45 @@ updateSectionShareRowsVisibility();
 })();
 
 // ============================================================
-// Block Detail panel — click a Ruler block to open a checklist of
-// that block's rituals/subtasks. Rituals live on the block object
-// (blocks[idx].rituals = [{ text, done }]) so they persist through
-// the same saveBlocks() path as everything else.
+// Block Detail panel — click a Ruler block to log an energy level
+// (1-3) and free-text notes for that specific block. Both live on
+// the block object (blocks[idx].energy, blocks[idx].notes) so they
+// persist through the same saveBlocks() path as everything else.
 //
-// NOTE: because rituals ride inside the block object, they also flow
-// up to shared_rulers (they aren't displayed to clan-mates, just
-// stored). If rituals should stay strictly private, the next step is
-// to split them into their own localStorage key + sync channel.
+// NOTE: because these ride inside the block object, they also flow
+// up to shared_rulers (not displayed to clan-mates, just stored). If
+// they should stay strictly private, split them into their own
+// localStorage key + sync channel.
 // ============================================================
 var selectedBlockIdx = null;
 var blockDetailEl = document.getElementById('blockDetail');
 var blockDetailTitle = document.getElementById('blockDetailTitle');
-var blockDetailRituals = document.getElementById('blockDetailRituals');
+var blockDetailNotes = document.getElementById('blockDetailNotes');
+var blockDetailEditor = document.getElementById('blockDetailEditor');
+var blockDetailView = document.getElementById('blockDetailView');
+var blockDetailViewEnergy = document.getElementById('blockDetailViewEnergy');
+var blockDetailViewNotes = document.getElementById('blockDetailViewNotes');
+var blockDetailSaveBtn = document.getElementById('blockDetailSaveBtn');
+var blockDetailEditBtn = document.getElementById('blockDetailEditBtn');
+var blockDetailPastList = document.getElementById('blockDetailPastList');
 
-// Preset rituals keyed by a keyword in the block's name — demonstrates
-// the "block type" idea from the spec. A block named "GM" / "GM's
-// Ritual" seeds GM to Self / GM to Body / GM to World on first open.
-// Preset checklists keyed by a keyword in the block's name — the
-// "checklist for that specific block type" idea. First keyword that
-// appears in the (lowercased) block name wins, seeded once on first
-// open. Users can always add/remove afterwards.
-var RITUAL_PRESETS = {
-  'gm':       ['GM to Self', 'GM to Body', 'GM to World'],
-  'trad':     ['Check the plan', 'Mark key levels', 'Set risk / stop', 'Journal the session'],
-  'grind':    ['Define the one outcome', 'Kill distractions', 'Deep work block', 'Log what shipped'],
-  'sleep':    ['Screens off', 'Room cold & dark', 'Tomorrow set'],
-  'exercise': ['Warm up', 'Main lift / session', 'Stretch', 'Hydrate'],
-  'workout':  ['Warm up', 'Main lift / session', 'Stretch', 'Hydrate'],
-  'gym':      ['Warm up', 'Main lift / session', 'Stretch', 'Hydrate'],
-  'review':   ['Wins of the day', 'What slipped', 'Adjust tomorrow'],
-  'lunch':    ['Real food', 'Water', 'Step away from the screen'],
-  'meal':     ['Real food', 'Water', 'Step away from the screen']
-};
+// Nothing writes to the block until Save is clicked (which opens the
+// energy-confirm modal) — notes keystrokes only update this in-memory
+// draft. Once saved, the panel switches to a read-only view; Edit
+// re-opens the draft seeded from the block's current saved notes.
+// Energy itself isn't drafted here at all — it's captured directly
+// via the Quick Energy Box or the Save modal, both of which write
+// straight to blocks[idx].energy.
+var blockDetailEditing = false;
+var blockDetailDraftNotes = '';
 
-function seedPresetRitualsIfEmpty(block) {
-  if (block.rituals && block.rituals.length) return;
-  var name = (block.name || '').toLowerCase();
-  var seeded = null;
-  Object.keys(RITUAL_PRESETS).forEach(function(key) {
-    if (!seeded && name.indexOf(key) !== -1) seeded = RITUAL_PRESETS[key];
-  });
-  if (seeded) {
-    block.rituals = seeded.map(function(t) { return { text: t, done: false }; });
-  }
+function hasLoggedBlockEntry(block) {
+  return (typeof block.energy === 'number') || !!(block.notes && block.notes.trim());
+}
+
+function startBlockDetailEdit(block) {
+  blockDetailEditing = true;
+  blockDetailDraftNotes = block.notes || '';
 }
 
 function openBlockDetail(idx) {
@@ -5182,8 +6285,11 @@ function openBlockDetail(idx) {
   // to a different block — not on every click while editing the name.
   var shouldScroll = (blockDetailEl.style.display === 'none' || selectedBlockIdx !== idx);
   selectedBlockIdx = idx;
-  seedPresetRitualsIfEmpty(block);
-  if (!block.rituals) block.rituals = [];
+  if (hasLoggedBlockEntry(block)) {
+    blockDetailEditing = false;
+  } else {
+    startBlockDetailEdit(block);
+  }
   blockDetailEl.style.display = '';
   renderBlockDetail();
   if (shouldScroll) blockDetailEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -5194,79 +6300,153 @@ function closeBlockDetail() {
   blockDetailEl.style.display = 'none';
 }
 
+// Last N prior days (excluding today) with a logged entry for a block
+// with this exact name, sourced from the unified Daily Archive (the
+// same source CSV/PDF export reads from). Matches by name since
+// blocks have no other stable identity across days — a renamed block
+// loses continuity with its own past entries.
+function getPastBlockEntries(blockName, limit) {
+  var archive = loadDailyArchive();
+  var today = todayUTCDateString();
+  var dates = Object.keys(archive).filter(function(d) { return d !== today; }).sort().reverse();
+  var results = [];
+  for (var i = 0; i < dates.length && results.length < limit; i++) {
+    var dayBlocks = archive[dates[i]] && archive[dates[i]].blocks;
+    if (!Array.isArray(dayBlocks)) continue;
+    var match = null;
+    for (var j = 0; j < dayBlocks.length; j++) {
+      if (dayBlocks[j] && dayBlocks[j].name === blockName) { match = dayBlocks[j]; break; }
+    }
+    if (match && hasLoggedBlockEntry(match)) {
+      results.push({ date: dates[i], energy: match.energy, notes: match.notes || '' });
+    }
+  }
+  return results;
+}
+
+function renderPastBlockEntries(blockName) {
+  blockDetailPastList.innerHTML = '';
+  var entries = getPastBlockEntries(blockName, 3);
+  if (!entries.length) {
+    var empty = document.createElement('p');
+    empty.className = 'block-detail-past-empty';
+    empty.textContent = 'No past entries yet for this block.';
+    blockDetailPastList.appendChild(empty);
+    return;
+  }
+  entries.forEach(function(entry) {
+    var item = document.createElement('div');
+    item.className = 'block-detail-past-entry';
+
+    var row = document.createElement('div');
+    row.className = 'block-detail-past-row';
+    var dateSpan = document.createElement('span');
+    dateSpan.className = 'block-detail-past-date';
+    dateSpan.textContent = entry.date;
+    var energySpan = document.createElement('span');
+    energySpan.className = 'block-detail-past-energy';
+    energySpan.textContent = 'Energy: ' + (typeof entry.energy === 'number' ? entry.energy : '—');
+    row.appendChild(dateSpan);
+    row.appendChild(energySpan);
+    item.appendChild(row);
+
+    var notes = document.createElement('div');
+    notes.className = 'block-detail-past-notes';
+    notes.textContent = entry.notes || 'No notes.';
+    item.appendChild(notes);
+
+    blockDetailPastList.appendChild(item);
+  });
+}
+
 function renderBlockDetail() {
   if (selectedBlockIdx == null || !blocks[selectedBlockIdx]) { closeBlockDetail(); return; }
   var block = blocks[selectedBlockIdx];
-  blockDetailTitle.textContent = block.name + ' — Rituals';
-  blockDetailRituals.innerHTML = '';
+  blockDetailTitle.textContent = block.name + ' — Block Details';
 
-  (block.rituals || []).forEach(function(r, i) {
-    var row = document.createElement('label');
-    row.className = 'ritual-row' + (r.done ? ' done' : '');
+  if (blockDetailEditing) {
+    blockDetailEditor.style.display = '';
+    blockDetailView.style.display = 'none';
+    blockDetailSaveBtn.style.display = '';
+    blockDetailEditBtn.style.display = 'none';
 
-    var cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.checked = !!r.done;
-    cb.addEventListener('change', function() {
-      block.rituals[i].done = cb.checked;
-      stampBlock(selectedBlockIdx);
-      saveBlocks();
-      renderBlockDetail();
-    });
+    blockDetailNotes.value = blockDetailDraftNotes;
+  } else {
+    blockDetailEditor.style.display = 'none';
+    blockDetailView.style.display = '';
+    blockDetailSaveBtn.style.display = 'none';
+    blockDetailEditBtn.style.display = '';
 
-    var span = document.createElement('span');
-    span.className = 'ritual-text';
-    span.textContent = r.text;
-
-    var rm = document.createElement('button');
-    rm.className = 'ritual-remove';
-    rm.textContent = '✕';
-    rm.title = 'Remove';
-    rm.addEventListener('click', function(e) {
-      e.preventDefault();
-      block.rituals.splice(i, 1);
-      stampBlock(selectedBlockIdx);
-      saveBlocks();
-      renderBlockDetail();
-    });
-
-    row.appendChild(cb);
-    row.appendChild(span);
-    row.appendChild(rm);
-    blockDetailRituals.appendChild(row);
-  });
-
-  if (!(block.rituals || []).length) {
-    var empty = document.createElement('p');
-    empty.className = 'ritual-empty';
-    empty.textContent = 'No rituals yet for this block. Add one below.';
-    blockDetailRituals.appendChild(empty);
+    blockDetailViewEnergy.textContent = 'Energy: ' + (typeof block.energy === 'number' ? block.energy : '—');
+    blockDetailViewNotes.textContent = (block.notes && block.notes.trim()) ? block.notes : 'No notes logged yet.';
   }
+
+  renderPastBlockEntries(block.name);
 }
 
 document.getElementById('blockDetailClose').addEventListener('click', closeBlockDetail);
-(function() {
-  var input = document.getElementById('blockRitualInput');
-  function addRitual() {
-    if (selectedBlockIdx == null) return;
-    var val = input.value.trim();
-    if (!val) return;
+
+blockDetailNotes.addEventListener('input', function() {
+  if (selectedBlockIdx == null || !blockDetailEditing) return;
+  blockDetailDraftNotes = blockDetailNotes.value;
+});
+
+// Save doesn't write anything by itself — it opens the energy-confirm
+// modal, pre-highlighted on whatever energy the block already has
+// (which reflects the Quick Energy Box if that's how it was set).
+// The actual commit of notes + energy happens when a modal button is
+// clicked; see openEnergyModal() below.
+blockDetailSaveBtn.addEventListener('click', function() {
+  if (selectedBlockIdx == null) return;
+  var block = blocks[selectedBlockIdx];
+  openEnergyModal(typeof block.energy === 'number' ? block.energy : null);
+});
+
+blockDetailEditBtn.addEventListener('click', function() {
+  if (selectedBlockIdx == null) return;
+  startBlockDetailEdit(blocks[selectedBlockIdx]);
+  renderBlockDetail();
+});
+
+// ---- Save-time energy-confirm modal ----
+var energyModalOverlay = document.getElementById('energyModalOverlay');
+var energyModalBtns = document.getElementById('energyModalBtns');
+var energyModalCancel = document.getElementById('energyModalCancel');
+
+function openEnergyModal(preselected) {
+  Array.prototype.forEach.call(energyModalBtns.querySelectorAll('.energy-btn'), function(btn) {
+    var val = parseInt(btn.getAttribute('data-energy'), 10);
+    btn.classList.toggle('active', preselected === val);
+  });
+  energyModalOverlay.style.display = '';
+}
+
+function closeEnergyModal() {
+  energyModalOverlay.style.display = 'none';
+}
+
+energyModalCancel.addEventListener('click', closeEnergyModal);
+
+Array.prototype.forEach.call(energyModalBtns.querySelectorAll('.energy-btn'), function(btn) {
+  btn.addEventListener('click', function() {
+    if (selectedBlockIdx == null) { closeEnergyModal(); return; }
+    var val = parseInt(btn.getAttribute('data-energy'), 10);
     var block = blocks[selectedBlockIdx];
-    if (!block.rituals) block.rituals = [];
-    block.rituals.push({ text: val, done: false });
-    input.value = '';
+    block.notes = blockDetailDraftNotes;
+    block.energy = val;
     stampBlock(selectedBlockIdx);
     saveBlocks();
+    updateBlockEnergyBadge(selectedBlockIdx);
+    renderQuickEnergyBox();
+    closeEnergyModal();
+    blockDetailEditing = false;
     renderBlockDetail();
-  }
-  document.getElementById('blockRitualAddBtn').addEventListener('click', addRitual);
-  input.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') { e.preventDefault(); addRitual(); }
   });
-})();
+});
 
 renderRuler();
 captureLocalDailySnapshotIfNeeded();
+syncDailyAndWeeklyArchive();
 loadTodayDraft();
 renderEntries();
 renderMusts();
