@@ -1,7 +1,7 @@
 {
-  "name": "CSR Align Clock",
-  "short_name": "Align",
-  "description": "A 24-hour clock starting at sunrise",
+  "name": "Command Center",
+  "short_name": "Command",
+  "description": "Command Center for Dangerous Humans — track your time, your decisions, your day.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Your Ruler</title>
+<title>Command Center</title>
+<meta name="description" content="Command Center for Dangerous Humans — track your time, your decisions, your day.">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0a0808">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1992,7 +1993,7 @@
 <!-- Site banner: title + tagline, above the tab nav so it's shared
      across all four tabs rather than living inside the Ruler tab. -->
 <div class="header site-banner">
-  <h1>Your Ruler</h1>
+  <h1>Command Center</h1>
   <p class="tagline">For Dangerous Humans</p>
 </div>
 
@@ -2000,10 +2001,10 @@
      Journal + Clans reuse the existing sections, regrouped. ==== -->
 <nav class="tab-nav" id="tabNav">
   <button class="tab-btn active" data-tab="tab-ruler">Ruler</button>
-  <button class="tab-btn" data-tab="tab-life">Life</button>
-  <button class="tab-btn" data-tab="tab-journal">Journal</button>
-  <button class="tab-btn" data-tab="tab-clans">Clans</button>
-  <button class="tab-btn" data-tab="tab-insights">Insights</button>
+  <button class="tab-btn" data-tab="tab-life">Vision</button>
+  <button class="tab-btn" data-tab="tab-journal">Ledgers</button>
+  <button class="tab-btn" data-tab="tab-clans">Legions</button>
+  <button class="tab-btn" data-tab="tab-insights">Alpha</button>
 </nav>
 
 <!-- ============================ TAB 1: RULER ============================ -->
@@ -2033,7 +2034,7 @@
         <div id="weeklyDaysList"></div>
         <div class="section-share-row" id="weeklyShareRow" style="display:none;">
           <input type="checkbox" id="weeklyShare">
-          <label for="weeklyShare">Share with Clan</label>
+          <label for="weeklyShare">Share with Legion</label>
         </div>
       </div>
     </div>
@@ -2093,7 +2094,7 @@
   <span class="sleep-log-last" id="sleepLogLast"></span>
   <div class="section-share-row" id="rulerShareRow" style="display:none;">
     <input type="checkbox" id="rulerShare">
-    <label for="rulerShare">Share with Clan</label>
+    <label for="rulerShare">Share with Legion</label>
   </div>
 </div>
 
@@ -2153,7 +2154,7 @@
 
 <!-- ============================ TAB 2: LIFE ============================ -->
 <div class="tab-panel" id="tab-life">
-  <h2 class="tab-title">Life</h2>
+  <h2 class="tab-title">Vision</h2>
 
   <!-- Accomplish (2/3 width) + Musts & In-between (1/3 width), side by side -->
   <div class="life-row">
@@ -2162,7 +2163,7 @@
       <div class="accomplish-box" id="accomplishBox"></div>
       <div class="section-share-row" id="accomplishShareRow" style="display:none;">
         <input type="checkbox" id="accomplishShare">
-        <label for="accomplishShare">Share with Clan</label>
+        <label for="accomplishShare">Share with Legion</label>
       </div>
     </div>
 
@@ -2171,7 +2172,7 @@
       <div class="musts-box" id="mustsBox"></div>
       <div class="section-share-row" id="mustsShareRow" style="display:none;">
         <input type="checkbox" id="mustsShare">
-        <label for="mustsShare">Share with Clan</label>
+        <label for="mustsShare">Share with Legion</label>
       </div>
     </div>
   </div>
@@ -2192,7 +2193,7 @@
       <div id="yearlyMonthsList" class="yearly-months-grid"></div>
       <div class="section-share-row" id="yearlyShareRow">
         <input type="checkbox" id="yearlyShare">
-        <label for="yearlyShare">Share with Clan</label>
+        <label for="yearlyShare">Share with Legion</label>
       </div>
     </div>
   </div>
@@ -2200,7 +2201,7 @@
 
 <!-- ============================ TAB 3: JOURNAL ============================ -->
 <div class="tab-panel" id="tab-journal">
-  <h2 class="tab-title">Journal</h2>
+  <h2 class="tab-title">Ledgers</h2>
 
   <div class="journal-split">
     <!-- Left 2/3: the writing box + 3 controls (Add Image, Category, Save) -->
@@ -2246,10 +2247,10 @@
           <span class="export-row-label">Tabs</span>
           <div class="export-tab-group" id="exportTabGroup">
             <button type="button" class="export-tab-btn" data-tab="ruler">Ruler</button>
-            <button type="button" class="export-tab-btn" data-tab="life">Life</button>
-            <button type="button" class="export-tab-btn" data-tab="journal">Journal</button>
-            <button type="button" class="export-tab-btn" data-tab="clans">Clans</button>
-            <button type="button" class="export-tab-btn" data-tab="insights">Insights</button>
+            <button type="button" class="export-tab-btn" data-tab="life">Vision</button>
+            <button type="button" class="export-tab-btn" data-tab="journal">Ledgers</button>
+            <button type="button" class="export-tab-btn" data-tab="clans">Legions</button>
+            <button type="button" class="export-tab-btn" data-tab="insights">Alpha</button>
           </div>
         </div>
 
@@ -2281,11 +2282,11 @@
   <div class="clans-col">
     <div class="clans-section" id="clansSection" style="display:none;">
       <div class="clans-header-row">
-        <span class="section-label">Clans</span>
+        <span class="section-label">Legions</span>
         <div class="clans-actions">
           <input type="text" id="joinCodeInput" placeholder="Invite code">
           <button id="joinClanBtn" class="secondary">Join</button>
-          <button id="createClanBtn">+ Create Clan</button>
+          <button id="createClanBtn">+ Create Legion</button>
         </div>
       </div>
       <div class="clans-msg" id="clansMsg"></div>
@@ -2293,8 +2294,8 @@
     </div>
 
     <div class="clans-locked" id="clansLocked">
-      <span class="section-label">Clans</span>
-      <p>Sign in above to join or create a Clan and see your team's Rulers.</p>
+      <span class="section-label">Legions</span>
+      <p>Sign in above to join or create a Legion and see your team's Rulers.</p>
     </div>
   </div>
 </div><!-- /bottom-row -->
@@ -2302,7 +2303,7 @@
 
 <!-- ============================ TAB 5: INSIGHTS ============================ -->
 <div class="tab-panel" id="tab-insights">
-  <h2 class="tab-title">Insights</h2>
+  <h2 class="tab-title">Alpha</h2>
 
   <div class="insights-headline-card">
     <div class="insights-headline-metric">
@@ -3397,7 +3398,7 @@ function buildEntryElement(entry) {
     }
   });
   shareLabel.appendChild(shareCheckbox);
-  shareLabel.appendChild(document.createTextNode('Share with Clan'));
+  shareLabel.appendChild(document.createTextNode('Share with Legion'));
   bottomRow.appendChild(shareLabel);
 
   var editBtn = document.createElement('button');
@@ -4587,7 +4588,7 @@ function handleSyncFailure(queueKey, payload, performFn, errorMessage) {
   if (retryCount >= MAX_SYNC_RETRIES) {
     showToast(
       'This change has failed to save ' + retryCount + ' times and will stop retrying automatically. ' +
-      'Your data is safe on this device, but other people (e.g. clan-mates) won\'t see it until you fix your connection and reopen the app.',
+      'Your data is safe on this device, but other people (e.g. legion-mates) won\'t see it until you fix your connection and reopen the app.',
       'error'
     );
   } else {
@@ -4992,7 +4993,7 @@ function saveSectionShareState() {
 
 document.getElementById('createClanBtn').addEventListener('click', function() {
   if (!supabaseClient || !currentUser) return;
-  var name = window.prompt('Name this clan:');
+  var name = window.prompt('Name this Legion:');
   if (!name || !name.trim()) return;
 
   supabaseClient.from('clans')
@@ -5001,19 +5002,19 @@ document.getElementById('createClanBtn').addEventListener('click', function() {
     .then(function(result) {
       if (result.error) {
         if (result.error.message.indexOf('row-level security') !== -1 || result.error.code === '42501') {
-          showClansMsg('Creating clans is a paid feature. Upgrade to create your own.', true);
+          showClansMsg('Creating Legions is a paid feature. Upgrade to create your own.', true);
         } else {
-          showClansMsg('Could not create clan: ' + result.error.message, true);
+          showClansMsg('Could not create Legion: ' + result.error.message, true);
         }
         return;
       }
       var newClan = result.data && result.data[0];
       if (newClan) {
-        // Owner auto-joins their own clan
+        // Owner auto-joins their own Legion
         supabaseClient.from('clan_members')
           .insert({ clan_id: newClan.id, user_id: currentUser.id })
           .then(function() {
-            showClansMsg('Clan "' + newClan.name + '" created! Invite code: ' + newClan.invite_code);
+            showClansMsg('Legion "' + newClan.name + '" created! Invite code: ' + newClan.invite_code);
             loadAndRenderClans();
           });
       }
@@ -5028,7 +5029,7 @@ document.getElementById('joinClanBtn').addEventListener('click', function() {
   supabaseClient.rpc('find_clan_by_invite_code', { code: code })
     .then(function(result) {
       if (result.error || !result.data || !result.data.length) {
-        showClansMsg('No clan found with that code.', true);
+        showClansMsg('No Legion found with that code.', true);
         return;
       }
       var clan = result.data[0];
@@ -5037,9 +5038,9 @@ document.getElementById('joinClanBtn').addEventListener('click', function() {
         .then(function(insertResult) {
           if (insertResult.error) {
             if (insertResult.error.message.indexOf('Free tier') !== -1) {
-              showClansMsg('Free tier is limited to 2 clans. Upgrade to join more.', true);
+              showClansMsg('Free tier is limited to 2 Legions. Upgrade to join more.', true);
             } else if (insertResult.error.code === '23505') {
-              showClansMsg('You\'re already in that clan.', true);
+              showClansMsg('You\'re already in that Legion.', true);
             } else {
               showClansMsg('Could not join: ' + insertResult.error.message, true);
             }
@@ -5055,21 +5056,21 @@ document.getElementById('joinClanBtn').addEventListener('click', function() {
 function loadAndRenderClans() {
   if (!supabaseClient || !currentUser) return;
 
-  clansListEl.innerHTML = '<p style="font-size:12px;color:#666;">Loading your clans…</p>';
+  clansListEl.innerHTML = '<p style="font-size:12px;color:#666;">Loading your Legions…</p>';
 
   supabaseClient.from('clan_members')
     .select('clan_id')
     .eq('user_id', currentUser.id)
     .then(function(memberResult) {
       if (memberResult.error) {
-        clansListEl.innerHTML = '<p style="font-size:12px;color:#c77;">Could not load your clans — check your connection and try refreshing.</p>';
+        clansListEl.innerHTML = '<p style="font-size:12px;color:#c77;">Could not load your Legions — check your connection and try refreshing.</p>';
         return;
       }
       if (!memberResult.data) return;
       var clanIds = memberResult.data.map(function(r) { return r.clan_id; });
 
       if (!clanIds.length) {
-        clansListEl.innerHTML = '<p style="font-size:12px;color:#666;">You haven\'t joined a clan yet.</p>';
+        clansListEl.innerHTML = '<p style="font-size:12px;color:#666;">You haven\'t joined a Legion yet.</p>';
         return;
       }
 
@@ -5078,18 +5079,18 @@ function loadAndRenderClans() {
         .in('id', clanIds)
         .then(function(clansResult) {
           if (clansResult.error) {
-            clansListEl.innerHTML = '<p style="font-size:12px;color:#c77;">Could not load clan details — check your connection and try refreshing.</p>';
+            clansListEl.innerHTML = '<p style="font-size:12px;color:#c77;">Could not load Legion details — check your connection and try refreshing.</p>';
             return;
           }
           if (!clansResult.data) return;
           renderClansList(clansResult.data);
         })
         .catch(function() {
-          clansListEl.innerHTML = '<p style="font-size:12px;color:#c77;">Network error loading clans. Try refreshing.</p>';
+          clansListEl.innerHTML = '<p style="font-size:12px;color:#c77;">Network error loading Legions. Try refreshing.</p>';
         });
     })
     .catch(function() {
-      clansListEl.innerHTML = '<p style="font-size:12px;color:#c77;">Network error loading clans. Try refreshing.</p>';
+      clansListEl.innerHTML = '<p style="font-size:12px;color:#c77;">Network error loading Legions. Try refreshing.</p>';
     });
 }
 
@@ -5157,7 +5158,7 @@ function renderOneClanCard(clan) {
       var userIds = memResult.data.map(function(r) { return r.user_id; });
 
       supabaseClient.from('profiles')
-        .select('id, display_name, timezone')
+        .select('id, display_name, timezone, is_paid')
         .in('id', userIds)
         .then(function(profResult) {
           if (profResult.error || !profResult.data) return;
@@ -5170,7 +5171,7 @@ function renderOneClanCard(clan) {
               if (rulerResult.data) {
                 rulerResult.data.forEach(function(r) { rulerMap[r.user_id] = r.blocks; });
               }
-              renderClanMembers(membersWrap, profResult.data, rulerMap);
+              renderClanMembers(membersWrap, profResult.data, rulerMap, clan);
             });
         });
     });
@@ -5201,7 +5202,7 @@ function renderOneClanCardRefresh(clan, membersWrap) {
       var userIds = memResult.data.map(function(r) { return r.user_id; });
 
       supabaseClient.from('profiles')
-        .select('id, display_name, timezone')
+        .select('id, display_name, timezone, is_paid')
         .in('id', userIds)
         .then(function(profResult) {
           if (profResult.error || !profResult.data) return;
@@ -5213,7 +5214,7 @@ function renderOneClanCardRefresh(clan, membersWrap) {
               if (rulerResult.data) {
                 rulerResult.data.forEach(function(r) { rulerMap[r.user_id] = r.blocks; });
               }
-              renderClanMembers(membersWrap, profResult.data, rulerMap);
+              renderClanMembers(membersWrap, profResult.data, rulerMap, clan);
             });
         });
     });
@@ -5233,9 +5234,20 @@ function buildClanClockBox(label, value, isNight) {
   return box;
 }
 
-function renderClanMembers(container, profiles, rulerMap) {
+// Legion title hierarchy: the Legion's creator is always "Legion
+// Commander" (no username appended — there's only one Commander per
+// Legion, so it's unambiguous on its own); paid members are "Legion
+// Warlord [Username]"; everyone else is "Legion [Username]".
+function getLegionTitle(profile, clan) {
+  if (clan && clan.owner_id === profile.id) return 'Legion Commander';
+  if (profile.is_paid) return 'Legion Warlord ' + profile.display_name;
+  return 'Legion ' + profile.display_name;
+}
+
+function renderClanMembers(container, profiles, rulerMap, clan) {
   container.innerHTML = '';
   profiles.forEach(function(profile) {
+    var legionTitle = getLegionTitle(profile, clan);
     var memberDiv = document.createElement('div');
     memberDiv.className = 'clan-member';
     memberDiv.title = 'Click to view ' + profile.display_name + (profile.id === currentUser.id ? '' : "'s") + ' Ruler';
@@ -5245,7 +5257,7 @@ function renderClanMembers(container, profiles, rulerMap) {
 
     var nameSpan = document.createElement('span');
     nameSpan.className = 'clan-member-name';
-    nameSpan.textContent = profile.display_name + (profile.id === currentUser.id ? ' (you)' : '');
+    nameSpan.textContent = legionTitle + (profile.id === currentUser.id ? ' (you)' : '');
     row.appendChild(nameSpan);
 
     var localInfo = getLocalTimeInfo(profile.timezone);
@@ -5259,7 +5271,7 @@ function renderClanMembers(container, profiles, rulerMap) {
     container.appendChild(memberDiv);
 
     memberDiv.addEventListener('click', function() {
-      openMemberDetailModal(profile);
+      openMemberDetailModal(Object.assign({}, profile, { legionTitle: legionTitle }));
     });
   });
 }
@@ -5299,7 +5311,7 @@ function openMemberDetailModal(profile) {
   var header = document.createElement('div');
   header.className = 'member-modal-header';
   var title = document.createElement('span');
-  title.textContent = profile.display_name + (profile.id === currentUser.id ? ' (you)' : '');
+  title.textContent = (profile.legionTitle || profile.display_name) + (profile.id === currentUser.id ? ' (you)' : '');
   var closeBtn = document.createElement('button');
   closeBtn.className = 'secondary';
   closeBtn.textContent = 'Close';
@@ -5586,7 +5598,7 @@ function appendToMemberWhiteboard(targetProfile, fromUser, message, onComplete) 
     .eq('section', 'whiteboard')
     .then(function(result) {
       var existingText = (result.data && result.data[0] && result.data[0].data && result.data[0].data.text) || '';
-      var fromName = (fromUser.email || 'A clan-mate').split('@')[0];
+      var fromName = (fromUser.email || 'A legion-mate').split('@')[0];
       var newLine = '[' + fromName + ']: ' + message;
       var combinedText = existingText ? (existingText + '\n' + newLine) : newLine;
 
@@ -6067,7 +6079,7 @@ function buildYearlyCsv(startDate, endDate) {
 
 function buildJournalCsv(entries) {
   var lines = [];
-  lines.push(['Date', 'Category', 'Score', 'Edited', 'Shared with Clan', 'Word Count', 'Text'].join(','));
+  lines.push(['Date', 'Category', 'Score', 'Edited', 'Shared with Legion', 'Word Count', 'Text'].join(','));
   entries.forEach(function(e) {
     lines.push([
       csvEscape(e.date),
@@ -6294,7 +6306,7 @@ function renderPdfDocument(bundle, imagesByEntryId, onComplete) {
   // ---- Cover / summary page ----
   doc.setFont('times', 'bold');
   doc.setFontSize(24);
-  doc.text('Your Ruler', pageWidth / 2, cursorY, { align: 'center' });
+  doc.text('Command Center', pageWidth / 2, cursorY, { align: 'center' });
 
   doc.setFont('times', 'italic');
   doc.setFontSize(11);
