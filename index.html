@@ -278,16 +278,15 @@
     margin: 0 auto 1.5rem auto;
     display: flex;
     justify-content: space-between;
-    align-items: baseline;
+    align-items: center;
   }
   .current-block-info .cb-name { font-size: 16px; color: #c0b5a5; }
   .current-block-info .cb-time { font-size: 13px; color: #888; }
 
   .quick-energy-box {
     max-width: 1100px;
-    margin: 0.75rem auto 0 auto;
+    margin: 0;
     display: flex;
-    flex-direction: column;
     align-items: center;
     gap: 0.4rem;
   }
@@ -737,7 +736,7 @@
     box-shadow: inset 0 0 0 1px rgba(192,181,165,0.4);
   }
   .weekly-day-num {
-    width: 24px;
+    width: 32px;
     flex-shrink: 0;
     font-size: 11px;
     color: #c0b5a5;
@@ -765,7 +764,7 @@
     margin-bottom: 0.3rem;
   }
   .weekly-col-header-days {
-    width: 24px;
+    width: 32px;
     flex-shrink: 0;
     font-size: 9px;
     color: #777;
@@ -795,6 +794,7 @@
     height: 16px;
     cursor: pointer;
   }
+  .weekly-day-done:disabled { cursor: not-allowed; opacity: 0.4; }
   .weekly-col-header-score {
     width: 38px;
     flex-shrink: 0;
@@ -2099,16 +2099,15 @@
 
 <div class="current-block-info">
   <span class="cb-name" id="currentBlockName">—</span>
-  <span class="cb-time" id="currentBlockTime">—</span>
-</div>
-
-<div class="quick-energy-box" id="quickEnergyBox">
-  <span class="quick-energy-label">Energy Level</span>
-  <div class="quick-energy-btns" id="quickEnergyBtns">
-    <button type="button" class="energy-btn" data-energy="1">1</button>
-    <button type="button" class="energy-btn" data-energy="2">2</button>
-    <button type="button" class="energy-btn" data-energy="3">3</button>
+  <div class="quick-energy-box" id="quickEnergyBox">
+    <span class="quick-energy-label">Energy Level</span>
+    <div class="quick-energy-btns" id="quickEnergyBtns">
+      <button type="button" class="energy-btn" data-energy="1">1</button>
+      <button type="button" class="energy-btn" data-energy="2">2</button>
+      <button type="button" class="energy-btn" data-energy="3">3</button>
+    </div>
   </div>
+  <span class="cb-time" id="currentBlockTime">—</span>
 </div>
 
 <div class="energy-modal-overlay" id="energyModalOverlay" style="display:none;">
@@ -2396,7 +2395,6 @@ var MUSTS_KEY = 'csrAlignMusts';
 var TACKLE_KEY = 'csrAlignTackle';
 var LOCAL_SNAPSHOTS_KEY = 'csrAlignDailySnapshots';
 var LAST_SNAPSHOT_DATE_KEY = 'csrAlignLastSnapshotDate';
-var WEEKLY_VIZ_KEY = 'csrAlignWeeklyViz';
 var YEARLY_VIZ_KEY = 'csrAlignYearlyViz';
 var SECTION_SHARE_KEY = 'csrAlignSectionShare';
 var DAILY_ARCHIVE_KEY = 'csrAlignDailyArchive';
@@ -2513,13 +2511,17 @@ function queryDailyRange(startDate, endDate) {
 function recordToday() {
   var today = todayUTCDateString();
   var archive = loadDailyArchive();
-  var todayIdx = todayAsMondayFirstIndex();
+  var existing = archive[today] || {};
   archive[today] = {
     date: today,
     blocks: JSON.parse(JSON.stringify(blocks)),
     dailyScore: computeDailyScore(),
-    missionText: weeklyVizDays[todayIdx] || '',
-    missionDone: !!weeklyMissionDone[todayIdx],
+    // Mission fields are now written directly by saveMissionForDate()
+    // (the rolling-window panel and Today's Mission both call it), so
+    // this just preserves whatever's already there instead of
+    // resyncing from a separate recurring template.
+    missionText: existing.missionText || '',
+    missionDone: !!existing.missionDone,
     mustsAverage: averageMustsScore(),
     journalEntryCount: loadEntries().filter(function(e) {
       return (e.createdAt || '').slice(0, 10) === today;
@@ -2557,8 +2559,9 @@ function getWeekRecord(weekKey) {
 
 // Recomputes and saves the CURRENT week's record. The score average
 // comes from this week's real Daily Archive records (Mon-Sun
-// containing "now"), not the recurring weeklyScores template — this
-// is the one place that number gets computed from now on.
+// containing "now") — the ISO-week number Insights/Yearly Viz read,
+// distinct from the Weekly Visualization panel's own rolling-window
+// summary (renderWeeklyScoreSummary), which averages a different span.
 function recordCurrentWeek() {
   var now = new Date();
   var key = isoWeekKey(now);
@@ -3169,7 +3172,11 @@ function averageMustsScore() {
   return Math.round((sum / scored.length) * 10) / 10;
 }
 
-// ---- Daily Score: Mission (0/2) + Journal (0/2) + Musts avg (0-6) = 0-10 ----
+// ---- Daily Score: Mission (0-3) + Journal (0/2) + Musts avg (0-2) + Energy avg (0-3) = 0-10 ----
+// Mission is weighted highest (3) as the day's main focus; Musts is
+// light day-to-day upkeep (2); Energy Level — previously NOT counted
+// at all, despite being a prominent daily interaction — now
+// contributes up to 3.
 function hasJournalEntryToday() {
   var todayStr = new Date().toDateString();
   return loadEntries().some(function(e) {
@@ -3177,37 +3184,51 @@ function hasJournalEntryToday() {
   });
 }
 
-function computeDailyScore() {
-  var todayIdx = todayAsMondayFirstIndex();
-  var missionText = (weeklyVizDays[todayIdx] || '').trim();
-  var missionPoints = (missionText && weeklyMissionDone[todayIdx]) ? 2 : 0;
+function computeDailyScoreBreakdown() {
+  var rec = getDayRecord(todayUTCDateString());
+  var missionText = ((rec && rec.missionText) || '').trim();
+  var missionPoints = (missionText && rec && rec.missionDone) ? 3 : 0;
   var journalPoints = hasJournalEntryToday() ? 2 : 0;
   var avgMusts = averageMustsScore(); // null, or 1-3
-  var mustsPoints = avgMusts === null ? 0 : (avgMusts - 1) * 3; // 1-3 -> 0-6
-  return Math.round(missionPoints + journalPoints + mustsPoints);
+  var mustsPoints = avgMusts === null ? 0 : Math.round((avgMusts - 1) * 1 * 10) / 10; // 1-3 -> 0-2
+  var avgEnergy = computeDayAvgEnergy(blocks); // null, or 1-3
+  var energyPoints = avgEnergy === null ? 0 : Math.round((avgEnergy - 1) * 1.5 * 10) / 10; // 1-3 -> 0-3
+  var total = Math.round(missionPoints + journalPoints + mustsPoints + energyPoints);
+  return { mission: missionPoints, journal: journalPoints, musts: mustsPoints, energy: energyPoints, total: total };
 }
 
-// Sourced from the unified Weekly Archive (real per-day records for
-// this ISO week), not a separate recomputation — one number, one
-// source, so this and anything else that reads "this week's score"
-// (Yearly Viz, Insights, once built) never disagree.
+function computeDailyScore() {
+  return computeDailyScoreBreakdown().total;
+}
+
+// Averages the rolling window's history + today (the days that can
+// actually have a score) — matches what the rows below it show,
+// rather than the ISO calendar week. The ISO-week average still lives
+// in WeeklyArchive/getWeekRecord() for Insights and Yearly Viz, which
+// deliberately stay Mon-Sun; this summary is local-display-only.
 function renderWeeklyScoreSummary() {
   var el = document.getElementById('weeklyScoreSummaryValue');
   if (!el) return;
-  var rec = getWeekRecord(isoWeekKey(new Date()));
-  var avg = rec ? rec.scoreAverage : null;
-  el.textContent = (avg === null || avg === undefined ? '—' : avg) + '/10';
+  var today = todayUTCDateString();
+  var scores = getRollingWindowDates()
+    .filter(function(d) { return d <= today; })
+    .map(function(d) { var rec = getDayRecord(d); return (rec && typeof rec.dailyScore === 'number') ? rec.dailyScore : null; })
+    .filter(function(s) { return s !== null; });
+  var avg = scores.length ? Math.round((scores.reduce(function(a, b) { return a + b; }, 0) / scores.length) * 10) / 10 : null;
+  el.textContent = (avg === null ? '—' : avg) + '/10';
 }
 
 function updateDailyScore() {
-  var score = computeDailyScore();
+  var breakdown = computeDailyScoreBreakdown();
+  var score = breakdown.total;
   var el = document.getElementById('dailyScoreValue');
-  if (el) el.textContent = score + '/10';
+  if (el) {
+    el.textContent = score + '/10';
+    el.title = 'Mission ' + breakdown.mission + '/3 · Journal ' + breakdown.journal + '/2 · Musts ' + breakdown.musts + '/2 · Energy ' + breakdown.energy + '/3';
+  }
 
-  var todayIdx = todayAsMondayFirstIndex();
-  weeklyScores[todayIdx] = score;
-  saveWeeklyScores(weeklyScores);
-  var cell = document.getElementById('weeklyScoreValue' + todayIdx);
+  var today = todayUTCDateString();
+  var cell = document.getElementById('weeklyScoreValue-' + today);
   if (cell) cell.textContent = score + '/10';
   syncDailyAndWeeklyArchive();
   renderWeeklyScoreSummary();
@@ -3819,69 +3840,57 @@ tackleArea.addEventListener('input', saveTackle);
 tackleShare.addEventListener('change', saveTackle);
 
 // ---- Weekly Visualization ----
-// 7 recurring day-slots (Monday = 1 ... Sunday = 7), not tied to any
-// specific calendar week — a reusable weekly template, same one every
-// week, that the person fills in with whatever they want each slot to
-// mean for them.
+// Rolling 7-day window: 3 completed days of history + today + 3 blank
+// days ahead for planning, all keyed by real calendar date against
+// the SAME DailyArchive Insights/Export/Yearly already read — not a
+// separate recurring Monday-first template anymore. Each day rollover
+// the window shifts: the oldest day drops off, a genuinely blank new
+// day appears on the right (it has no archive record yet).
 var weeklyDaysList = document.getElementById('weeklyDaysList');
+var WEEKDAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-function loadWeeklyViz() {
-  var saved = localStorage.getItem(WEEKLY_VIZ_KEY);
-  if (saved) {
-    try {
-      var parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length === 7) return parsed;
-    } catch(e) {}
+function weekdayAbbrForDate(dateStr) {
+  return WEEKDAY_ABBR[new Date(dateStr + 'T00:00:00Z').getUTCDay()];
+}
+
+function getRollingWindowDates() {
+  var today = new Date(todayUTCDateString() + 'T00:00:00Z');
+  var dates = [];
+  for (var offset = -3; offset <= 3; offset++) {
+    var d = new Date(today.getTime());
+    d.setUTCDate(d.getUTCDate() + offset);
+    dates.push(d.toISOString().slice(0, 10));
   }
-  return ['', '', '', '', '', '', ''];
+  return dates;
 }
 
-function saveWeeklyViz(days) {
-  localStorage.setItem(WEEKLY_VIZ_KEY, JSON.stringify(days));
-  pushSharedSection('weekly', days);
+// Writes Mission text/Done for an ARBITRARY date (including future
+// dates, for planning ahead) directly into the Daily Archive, creating
+// a minimal record if none exists yet for that date.
+function saveMissionForDate(dateStr, text, done) {
+  var archive = loadDailyArchive();
+  var rec = archive[dateStr] || { date: dateStr };
+  rec.missionText = text;
+  rec.missionDone = !!done;
+  archive[dateStr] = rec;
+  saveDailyArchive(archive);
+  pushSharedSection('weekly', buildRollingWindowSnapshot());
 }
 
-var weeklyVizDays = loadWeeklyViz();
-
-var WEEKLY_MISSION_DONE_KEY = 'csrAlignWeeklyMissionDone';
-
-function loadWeeklyMissionDone() {
-  var saved = localStorage.getItem(WEEKLY_MISSION_DONE_KEY);
-  if (saved) {
-    try {
-      var parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length === 7) return parsed.map(Boolean);
-    } catch(e) {}
-  }
-  return [false, false, false, false, false, false, false];
+function buildRollingWindowSnapshot() {
+  var today = todayUTCDateString();
+  return getRollingWindowDates().map(function(date) {
+    var rec = getDayRecord(date);
+    return {
+      date: date,
+      weekday: weekdayAbbrForDate(date),
+      missionText: (rec && rec.missionText) || '',
+      missionDone: !!(rec && rec.missionDone),
+      dailyScore: (rec && typeof rec.dailyScore === 'number') ? rec.dailyScore : null,
+      isToday: date === today
+    };
+  });
 }
-
-function saveWeeklyMissionDone(days) {
-  localStorage.setItem(WEEKLY_MISSION_DONE_KEY, JSON.stringify(days));
-}
-
-var weeklyMissionDone = loadWeeklyMissionDone();
-
-var WEEKLY_SCORES_KEY = 'csrAlignWeeklyScores';
-
-function loadWeeklyScores() {
-  var saved = localStorage.getItem(WEEKLY_SCORES_KEY);
-  if (saved) {
-    try {
-      var parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length === 7) {
-        return parsed.map(function(v) { return (typeof v === 'number') ? v : null; });
-      }
-    } catch(e) {}
-  }
-  return [null, null, null, null, null, null, null];
-}
-
-function saveWeeklyScores(scores) {
-  localStorage.setItem(WEEKLY_SCORES_KEY, JSON.stringify(scores));
-}
-
-var weeklyScores = loadWeeklyScores();
 
 // Weekly Focus text. Previously a UI-only field with no persistence
 // at all — now saved locally and recorded into the Weekly Archive on
@@ -3907,14 +3916,16 @@ if (weeklyFocusInputEl) {
   });
 }
 
-// Renders the "Today's Mission" component, which mirrors the weekly
-// visualization slot for today. If the slot already has text, display
-// it as a read-only label. If it's empty, show an editable input that
-// writes back into weeklyVizDays and re-renders the weekly viz too,
-// so both components always reflect the same underlying data.
+// Renders the "Today's Mission" component, which mirrors the rolling
+// window's row for today (via the same Daily Archive record). If
+// today already has mission text, display it as a read-only label.
+// If it's empty, show an editable input that writes back through
+// saveMissionForDate() and re-renders the weekly viz too, so both
+// components always reflect the same underlying data.
 function renderTodaysMission() {
-  var idx = todayAsMondayFirstIndex();
-  var text = weeklyVizDays[idx] || '';
+  var today = todayUTCDateString();
+  var rec = getDayRecord(today);
+  var text = (rec && rec.missionText) || '';
   var textEl = document.getElementById('todaysMissionText');
   var inputEl = document.getElementById('todaysMissionInput');
   if (!textEl || !inputEl) return;
@@ -3932,8 +3943,8 @@ function renderTodaysMission() {
     var fresh = inputEl.cloneNode(true);
     inputEl.parentNode.replaceChild(fresh, inputEl);
     fresh.addEventListener('input', function() {
-      weeklyVizDays[idx] = fresh.value;
-      saveWeeklyViz(weeklyVizDays);
+      var currentRec = getDayRecord(today);
+      saveMissionForDate(today, fresh.value, currentRec && currentRec.missionDone);
       updateDailyScore();
     });
     fresh.addEventListener('blur', function() {
@@ -3943,80 +3954,78 @@ function renderTodaysMission() {
   updateDailyScore();
 }
 
-// JS Date.getDay() returns 0=Sunday...6=Saturday. We want Monday=1
-// ... Sunday=7, so this converts between the two.
-function todayAsMondayFirstIndex() {
-  var jsDay = new Date().getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
-  return jsDay === 0 ? 6 : jsDay - 1; // 0=Mon ... 6=Sun
-}
-
 // Detects the calendar day rolling over while the app is left open
-// (no reload, no user interaction). Without this, the Weekly
-// Visualization's "today" highlight, Today's Mission, and the Daily
-// Score all stay frozen on whatever day was "today" at last render,
-// since none of them are otherwise on a timer.
-var lastKnownDayIdx = todayAsMondayFirstIndex();
+// (no reload, no user interaction). Without this, the rolling
+// window's "today" highlight, Today's Mission, and the Daily Score
+// all stay frozen on whatever day was "today" at last render, since
+// none of them are otherwise on a timer.
+var lastKnownDateStr = todayUTCDateString();
 function checkDayRollover() {
-  var idx = todayAsMondayFirstIndex();
-  if (idx !== lastKnownDayIdx) {
-    lastKnownDayIdx = idx;
+  var dateStr = todayUTCDateString();
+  if (dateStr !== lastKnownDateStr) {
+    lastKnownDateStr = dateStr;
     renderWeeklyViz(); // cascades to renderTodaysMission() -> updateDailyScore()
   }
 }
 
 function renderWeeklyViz() {
   weeklyDaysList.innerHTML = '';
-  var todayIdx = todayAsMondayFirstIndex();
+  var today = todayUTCDateString();
 
-  for (var i = 0; i < 7; i++) {
+  getRollingWindowDates().forEach(function(date) {
+    var rec = getDayRecord(date);
+    var isToday = date === today;
+    var isFuture = date > today;
+
     var row = document.createElement('div');
-    row.className = 'weekly-day-row' + (i === todayIdx ? ' is-today' : '');
+    row.className = 'weekly-day-row' + (isToday ? ' is-today' : '');
 
     var num = document.createElement('span');
     num.className = 'weekly-day-num';
-    num.textContent = String(i + 1);
+    num.textContent = weekdayAbbrForDate(date);
+    num.title = date;
+    row.appendChild(num);
 
     var input = document.createElement('input');
     input.type = 'text';
     input.className = 'weekly-day-input';
-    input.placeholder = '...';
-    input.value = weeklyVizDays[i] || '';
-    input.name = 'weekly-day-' + i;
-    input.id = 'weeklyDayInput' + i;
+    input.placeholder = isFuture ? 'Plan ahead...' : '...';
+    input.value = (rec && rec.missionText) || '';
+    input.name = 'weekly-day-' + date;
+    input.id = 'weeklyDayInput-' + date;
     input.setAttribute('autocomplete', 'off');
-    (function(idx) {
+    (function(dateStr, isTodayRow) {
       input.addEventListener('input', function() {
-        weeklyVizDays[idx] = input.value;
-        saveWeeklyViz(weeklyVizDays);
-        if (idx === todayIdx) renderTodaysMission();
+        var currentRec = getDayRecord(dateStr);
+        saveMissionForDate(dateStr, input.value, currentRec && currentRec.missionDone);
+        if (isTodayRow) renderTodaysMission();
       });
-    })(i);
-
-    row.appendChild(num);
+    })(date, isToday);
     row.appendChild(input);
 
     var scoreSpan = document.createElement('span');
     scoreSpan.className = 'weekly-day-score';
-    scoreSpan.id = 'weeklyScoreValue' + i;
-    scoreSpan.textContent = (typeof weeklyScores[i] === 'number') ? (weeklyScores[i] + '/10') : '—';
+    scoreSpan.id = 'weeklyScoreValue-' + date;
+    scoreSpan.textContent = (rec && typeof rec.dailyScore === 'number') ? (rec.dailyScore + '/10') : '—';
     row.appendChild(scoreSpan);
 
     var done = document.createElement('input');
     done.type = 'checkbox';
     done.className = 'weekly-day-done';
-    done.checked = !!weeklyMissionDone[i];
-    done.title = 'Mark mission complete';
-    (function(idx, checkbox) {
+    done.checked = !!(rec && rec.missionDone);
+    done.disabled = isFuture;
+    done.title = isFuture ? "Can't mark a future day complete yet" : 'Mark mission complete';
+    (function(dateStr, isTodayRow, checkbox) {
       checkbox.addEventListener('change', function() {
-        weeklyMissionDone[idx] = checkbox.checked;
-        saveWeeklyMissionDone(weeklyMissionDone);
-        updateDailyScore();
+        var currentRec = getDayRecord(dateStr);
+        saveMissionForDate(dateStr, (currentRec && currentRec.missionText) || '', checkbox.checked);
+        if (isTodayRow) updateDailyScore();
       });
-    })(i, done);
+    })(date, isToday, done);
     row.appendChild(done);
 
     weeklyDaysList.appendChild(row);
-  }
+  });
 
   // Keep Today's Mission in sync whenever the weekly viz re-renders
   // (covers remote data pulls, page load, and any other trigger).
@@ -5454,7 +5463,7 @@ function loadMemberDetailContent(profile, body) {
       });
 
       appendSharedSectionIfAvailable(body, sections.weekly, 'Weekly Visualization', function(data) {
-        return buildSevenRowReadout(data);
+        return buildRollingWeekReadout(data);
       });
 
       appendSharedSectionIfAvailable(body, sections.yearly, 'Yearly Visualization', function(data) {
@@ -5492,6 +5501,34 @@ function buildSevenRowReadout(items) {
     var row = document.createElement('div');
     row.className = 'member-modal-musts-row';
     row.textContent = (idx + 1) + '. ' + text;
+    list.appendChild(row);
+  });
+  if (!list.children.length) {
+    list.innerHTML = '<span class="member-modal-loading">Nothing filled in yet.</span>';
+  }
+  return list;
+}
+
+// Renders the rolling-window Weekly Visualization snapshot pushed by
+// buildRollingWindowSnapshot(). Tolerates the old recurring-template
+// format (a plain array of strings) for data shared before the
+// rolling-window switch, so stale-but-still-shared data doesn't just
+// vanish from a clanmate's view.
+function buildRollingWeekReadout(items) {
+  var list = document.createElement('div');
+  (items || []).forEach(function(day) {
+    if (!day) return;
+    if (typeof day === 'string') {
+      var legacyRow = document.createElement('div');
+      legacyRow.className = 'member-modal-musts-row';
+      legacyRow.textContent = day;
+      list.appendChild(legacyRow);
+      return;
+    }
+    if (!day.missionText) return;
+    var row = document.createElement('div');
+    row.className = 'member-modal-musts-row';
+    row.textContent = day.weekday + ' (' + day.date + ')' + (day.isToday ? ' — Today' : '') + ': ' + day.missionText + (day.missionDone ? ' ✓' : '');
     list.appendChild(row);
   });
   if (!list.children.length) {
@@ -6502,7 +6539,7 @@ mustsShareCheckbox.addEventListener('change', function() {
 weeklyShareCheckbox.addEventListener('change', function() {
   sectionShareState.weekly = weeklyShareCheckbox.checked;
   saveSectionShareState();
-  pushSharedSection('weekly', weeklyVizDays);
+  pushSharedSection('weekly', buildRollingWindowSnapshot());
 });
 yearlyShareCheckbox.addEventListener('change', function() {
   sectionShareState.yearly = yearlyShareCheckbox.checked;
