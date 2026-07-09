@@ -1,0 +1,67 @@
+# Builds and deploys Command Center to GitHub Pages.
+#
+# The only reason this exists instead of Pages serving `main` directly
+# (which is how this repo deployed before) is secret injection: the
+# Sentry DSN must never be committed to the repo, so it's substituted
+# into a placeholder at build time from a GitHub Actions secret and
+# only the BUILD OUTPUT (never the source) contains the real value.
+#
+# ONE-TIME MANUAL STEP required for this to take effect: in the repo's
+# Settings > Pages, change "Build and deployment > Source" from
+# "Deploy from a branch" to "GitHub Actions". Until that's flipped,
+# Pages keeps serving straight from `main` and this workflow's output
+# is built but not published.
+#
+# Optional: add a SENTRY_DSN secret in Settings > Secrets and
+# variables > Actions. If it's not set, the build just leaves the
+# placeholder in place — index.html's guarded init already no-ops on
+# that, so the site still deploys and works fine without it.
+
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build site with secrets injected
+        env:
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+        run: |
+          mkdir -p _site
+          rsync -a --exclude='.git' --exclude='.github' --exclude='_site' ./ _site/
+          if [ -n "${SENTRY_DSN}" ]; then
+            sed -i "s#__SENTRY_DSN__#${SENTRY_DSN}#g" _site/index.html
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

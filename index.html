@@ -4,6 +4,27 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Your Ruler</title>
+<!--
+  Content-Security-Policy — a meta-tag CSP, not an HTTP header, so it
+  can't set X-Frame-Options/X-Content-Type-Options/HSTS at all (those
+  need Cloudflare or another proxy in front of GitHub Pages, which
+  cannot inject response headers on its own). frame-ancestors 'none'
+  below is the CSP-native, meta-tag-compatible equivalent of
+  X-Frame-Options: DENY, so clickjacking protection still applies.
+
+  'unsafe-inline' on script-src and style-src is a known, deliberate
+  trade-off: this entire app is one inline <script>/<style> block with
+  no build step, so a nonce/hash-based CSP isn't achievable without a
+  much larger refactor (splitting into external .js/.css files). This
+  CSP still does real work — it blocks arbitrary external script/
+  connect/frame origins, which is most of what a static-site XSS
+  payload would try to reach.
+
+  connect-src whitelists this project's own Supabase URL by exact
+  origin (both https and wss, since Clan live-updates use realtime
+  websockets) rather than a wildcard.
+-->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://browser.sentry-cdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://dctsxztgwwgbedeyqpee.supabase.co wss://dctsxztgwwgbedeyqpee.supabase.co https://*.ingest.sentry.io https://*.sentry.io; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none';">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0a0808">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -13,6 +34,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<!-- Sentry Browser SDK — init is guarded in the main script against
+     an unreplaced DSN placeholder, so local dev (where no build step
+     runs) never breaks or spams a fake project. -->
+<script src="https://browser.sentry-cdn.com/7.120.3/bundle.min.js" crossorigin="anonymous"></script>
 <style>
   * { box-sizing: border-box; }
   body {
@@ -3131,9 +3156,102 @@ categorySelect.addEventListener('change', function() {
   }
 });
 
+// ============================================================
+// Crypto Helper — client-side encryption (Web Crypto API, AES-256-GCM
+// + PBKDF2, no external library). NOT YET WIRED IN to journal save/
+// load — the missing piece is key management, a product decision
+// rather than a crypto one: where does the key come from, and what's
+// the recovery story if it's lost? Journal entry TEXT never reaches
+// Supabase today regardless (only journal *images* and the whiteboard
+// sync there — see ENTRIES_KEY, which is localStorage-only), so this
+// is about protecting data at rest in the browser, not in transit.
+//
+// The data model already has a place for this: journal entries carry
+// an `encrypted` flag (see loadEntries() below) that's always false
+// until a key-management approach is chosen. Once it is,
+// saveEntries()/loadEntries() would call encryptText()/decryptText()
+// on the `text` field only — date/category/score/shareWithClan stay
+// in the clear, since list rendering, filtering, and CSV/PDF export
+// all need those without decrypting every entry up front.
+// ============================================================
+var CRYPTO_PBKDF2_ITERATIONS = 210000; // OWASP 2023 minimum for PBKDF2-SHA256
+
+function generateSalt() {
+  return crypto.getRandomValues(new Uint8Array(16));
+}
+
+function bytesToBase64(bytes) {
+  var binary = '';
+  for (var i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
+function base64ToBytes(base64) {
+  var binary = atob(base64);
+  var bytes = new Uint8Array(binary.length);
+  for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+// Derives an AES-256-GCM CryptoKey from a passphrase + salt. Same
+// passphrase + salt always derives the same key — the salt isn't
+// secret, it just needs to travel with the ciphertext (or be stored
+// alongside it) so decryption can reproduce the same key later.
+function deriveKeyFromPassphrase(passphrase, saltBytes) {
+  return crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(passphrase),
+    { name: 'PBKDF2' },
+    false,
+    ['deriveKey']
+  ).then(function(baseKey) {
+    return crypto.subtle.deriveKey(
+      { name: 'PBKDF2', salt: saltBytes, iterations: CRYPTO_PBKDF2_ITERATIONS, hash: 'SHA-256' },
+      baseKey,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt', 'decrypt']
+    );
+  });
+}
+
+// Encrypts a plaintext string with a CryptoKey (from
+// deriveKeyFromPassphrase). Returns a plain object safe to
+// JSON.stringify and store — iv and ciphertext are both base64. A
+// fresh random IV is generated per call, since AES-GCM must never
+// reuse an IV with the same key.
+function encryptText(plaintext, cryptoKey) {
+  var iv = crypto.getRandomValues(new Uint8Array(12));
+  return crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv: iv },
+    cryptoKey,
+    new TextEncoder().encode(plaintext)
+  ).then(function(ciphertextBuffer) {
+    return {
+      iv: bytesToBase64(iv),
+      ciphertext: bytesToBase64(new Uint8Array(ciphertextBuffer))
+    };
+  });
+}
+
+// Decrypts the { iv, ciphertext } shape encryptText() produces, with
+// the same CryptoKey. Rejects (promise) if the key is wrong or the
+// data was tampered with — AES-GCM is authenticated, so a failed
+// decrypt correctly means "don't trust this data" rather than
+// silently returning garbage.
+function decryptText(encrypted, cryptoKey) {
+  return crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: base64ToBytes(encrypted.iv) },
+    cryptoKey,
+    base64ToBytes(encrypted.ciphertext)
+  ).then(function(plaintextBuffer) {
+    return new TextDecoder().decode(plaintextBuffer);
+  });
+}
+
 // ---- Journal entries ----
 // Entry shape: { id, date, createdAt, text, category, score, shareWithClan,
-//                edited, history: [{ text, editedAt }] }
+//                edited, history: [{ text, editedAt }], encrypted }
 function loadEntries() {
   var saved = localStorage.getItem(ENTRIES_KEY);
   if (saved) {
@@ -3153,7 +3271,10 @@ function loadEntries() {
           shareWithClan: !!e.shareWithClan,
           edited: !!e.edited,
           history: Array.isArray(e.history) ? e.history : [],
-          imagePaths: Array.isArray(e.imagePaths) ? e.imagePaths : []
+          imagePaths: Array.isArray(e.imagePaths) ? e.imagePaths : [],
+          // Always false today — see the Crypto Helper block above
+          // for why this isn't wired in yet.
+          encrypted: !!e.encrypted
         };
       });
     } catch(e) { return []; }
@@ -4393,15 +4514,52 @@ function renderAccomplish() {
 }
 
 // ============================================================
+// Sentry — error monitoring. DSN is injected at deploy time by the
+// GitHub Actions workflow (see .github/workflows/deploy.yml); the
+// placeholder below is what ships when that hasn't run (local file,
+// or Pages still serving straight from a branch instead of the
+// Action's build output). A DSN is a client-side identifier, not a
+// secret — this guard exists to avoid initializing against a
+// literal, invalid placeholder string, not to hide anything.
+// ============================================================
+var SENTRY_DSN = '__SENTRY_DSN__';
+if (window.Sentry && SENTRY_DSN && SENTRY_DSN.indexOf('__SENTRY_DSN__') === -1) {
+  window.Sentry.init({
+    dsn: SENTRY_DSN,
+    tracesSampleRate: 0.1,
+    // No replay/session recording — this app handles personal daily
+    // data (journal text, mission notes); error reports should carry
+    // stack traces, not screen contents.
+  });
+}
+
+// ============================================================
 // Supabase auth — magic link login (additive only, never blocks
 // the Ruler/Journal/Tackle for logged-out visitors)
 // ============================================================
 var SUPABASE_URL = 'https://dctsxztgwwgbedeyqpee.supabase.co';
 var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRjdHN4enRnd3dnYmVkZXlxcGVlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5NjY2NDAsImV4cCI6MjA5NzU0MjY0MH0.XW2hP-u530HuN0TBxL6OiufPfswNi0i0Q8fgtOeNWG8';
+// SUPABASE_ANON_KEY is a publishable client identifier, not a
+// secret — Supabase is explicit that this key is safe to ship in
+// frontend code. The actual access control is Row Level Security
+// (see supabase/migrations/0001_rls_policies.sql), enforced by
+// Postgres regardless of what the client sends. Never put the
+// service_role key here or anywhere in this file — it bypasses RLS
+// entirely and this app has no server for it to live on safely.
 
 var supabaseClient = null;
 if (window.supabase) {
-  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: {
+      // Explicit rather than relying on SDK defaults, so this is
+      // auditable at a glance: sessions persist across reloads and
+      // the refresh token is rotated automatically before the access
+      // token (JWT) expires, without the user re-authenticating.
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true
+    }
+  });
 }
 
 // ============================================================
