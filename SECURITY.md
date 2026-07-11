@@ -28,9 +28,41 @@ decision, and what still needs a manual step outside this codebase
   `style-src` include `'unsafe-inline'` as a known, deliberate
   trade-off — the whole app is one inline `<script>`/`<style>` block
   with no build step, so nonce/hash-based CSP isn't achievable
-  without a much larger refactor. `connect-src` is scoped to this
-  project's exact Supabase origin (https + wss) plus Sentry, not a
-  wildcard.
+  without a much larger refactor. `connect-src` is scoped to exact
+  origins only (Supabase https+wss, Sentry, `api.telegram.org` for
+  the GM/GN feature below) — never a wildcard.
+- **Telegram GM/GN broadcast** — each user enters their *own* bot
+  token + chat IDs + message templates in a local settings modal;
+  all of it lives in `localStorage` only, keyed to that device, never
+  synced to Supabase or committed anywhere. This is a deliberate,
+  necessary exception to "no secrets in the client": there is no
+  server for a bot token to live on safely (same constraint as
+  `service_role` — see below), so the only honest options were "each
+  user's own token, local to their own device" or "don't build this
+  feature." The token only ever leaves the device in a direct request
+  to `api.telegram.org`; this app has no backend that could see or
+  log it even if it wanted to.
+- **TradingView webhook integration** — `supabase/functions/tradingview-webhook`
+  + `supabase/migrations/0002_trade_alerts.sql`. This is the first
+  piece of this project with an actual server, which changes the
+  `service_role` story from "there's nowhere safe to put it" to
+  "here is specifically where it belongs" — the Edge Function is the
+  one place a webhook receiver could exist at all (TradingView needs
+  something always-on and publicly reachable to POST to; a static
+  site can't receive inbound requests), and only Supabase runs it, so
+  the key is never exposed to a browser. Two tables: `webhook_secrets`
+  (strictly own-row-only, no Legion sharing at all — unlike
+  `profiles`, which teammates can read, this must never leak or
+  anyone could forge trade alerts against your ledger) and
+  `trade_alerts` (client can read/update its own rows via normal RLS;
+  INSERT is deliberately not permitted to the client at all — only
+  the Edge Function, via `service_role`, can create rows, since a
+  webhook POST has no "logged in user" for RLS to check against).
+  The client-side secret is stored the same way as the Telegram
+  token — localStorage only — but is *also* pushed to
+  `webhook_secrets` (through the normal RLS-protected client), since
+  the Edge Function needs a copy server-side to validate incoming
+  requests against.
 - **Session handling** — `persistSession`/`autoRefreshToken`/
   `detectSessionInUrl` are now explicit in `createClient()` (were
   previously relying on SDK defaults, which happen to be the same

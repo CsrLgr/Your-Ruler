@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Your Ruler</title>
+<title>Command Center</title>
+<meta name="description" content="Command Center for Dangerous Humans — track your time, your decisions, your day.">
 <!--
   Content-Security-Policy — a meta-tag CSP, not an HTTP header, so it
   can't set X-Frame-Options/X-Content-Type-Options/HSTS at all (those
@@ -21,15 +22,20 @@
   payload would try to reach.
 
   connect-src whitelists this project's own Supabase URL by exact
-  origin (both https and wss, since Clan live-updates use realtime
+  origin (both https and wss, since Legion live-updates use realtime
   websockets) rather than a wildcard.
 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://browser.sentry-cdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://dctsxztgwwgbedeyqpee.supabase.co wss://dctsxztgwwgbedeyqpee.supabase.co https://*.ingest.sentry.io https://*.sentry.io; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://browser.sentry-cdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://dctsxztgwwgbedeyqpee.supabase.co wss://dctsxztgwwgbedeyqpee.supabase.co https://*.ingest.sentry.io https://*.sentry.io https://api.telegram.org; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none';">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0a0808">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Single typeface throughout, per direct request: Space Grotesk —
+     geometric, modern-tech, with real character in its letterforms
+     rather than reading as a neutral/corporate default. Weights top
+     out at 700 (no black/900 cut exists for this family), so headings
+     use 700 rather than a heavier synthetic-bold fake. -->
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -45,13 +51,53 @@
     background: #0d0d0d;
     min-height: 100vh;
     font-family: Georgia, serif;
-    color: #eee;
+    color: var(--rd-text);
     padding: 1rem 1rem 2rem 1rem;
   }
   .page-wrap {
     position: relative;
     max-width: 1100px;
     margin: 0 auto;
+  }
+
+  /* Sunrise — today's real astronomical sunrise time for the user's
+     location (computed locally, no external API — offline-friendly
+     like the rest of the app). Narrow, single-line, stacked above
+     the Weekly Visualization box in the same column — not a
+     multi-day forecast anymore, just today's reading. */
+  .sunrise-forecast-card {
+    width: 290px;
+    box-sizing: border-box;
+    background: var(--rd-panel);
+    border: 1px solid var(--rd-edge);
+    border-radius: 8px;
+    padding: 0.5rem 0.85rem;
+    margin-bottom: 0.6rem;
+  }
+  .sunrise-forecast-title {
+    display: block;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--rd-gold);
+    margin-bottom: 0.3rem;
+  }
+  /* Three compact stacked rows rather than the old wide side-by-side
+     columns — narrow enough to match the Weekly Visualization box's
+     width below it. */
+  .sunrise-forecast-row-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.6rem;
+    padding: 0.15rem 0;
+    font-size: 11px;
+  }
+  .sunrise-forecast-day { color: var(--rd-muted); }
+  .sunrise-forecast-value { color: var(--rd-text); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 13px; white-space: nowrap; }
+  .sunrise-forecast-loading, .sunrise-forecast-error { font-size: 10px; color: var(--rd-muted); }
+  .sunrise-forecast-enable {
+    font-size: 10px;
+    padding: 0.35rem 0.6rem;
   }
 
   /* Thin auth bar above everything else. Logged-out: email + password
@@ -73,21 +119,21 @@
     background: #1a1a1a;
     border: 1px solid #333;
     border-radius: 6px;
-    color: #eee;
+    color: var(--rd-text);
     font-family: Georgia, serif;
     font-size: 12px;
     padding: 0.4rem 0.6rem;
     width: 140px;
   }
   .auth-bar input[type="email"]:focus,
-  .auth-bar input[type="password"]:focus { outline: 1px solid #c0b5a5; }
+  .auth-bar input[type="password"]:focus { outline: 1px solid #C5A46E; }
   .auth-bar button {
     padding: 0.4rem 0.7rem;
     font-size: 11px;
     white-space: nowrap;
   }
   .auth-bar .auth-status {
-    color: #c0b5a5;
+    color: #C5A46E;
   }
   .auth-bar .auth-msg {
     color: #7a9b7a;
@@ -104,11 +150,11 @@
     justify-content: space-between;
     align-self: stretch;
   }
-  .header h1 { font-size: 28px; margin: 0; color: #eee; }
+  .header h1 { font-size: 28px; margin: 0; color: var(--rd-text); }
   .header p { font-size: 14px; color: #999; margin-top: 0.4rem; }
   .header .tagline {
     font-size: 11px;
-    color: #c0b5a5;
+    color: #C5A46E;
     letter-spacing: 0.15em;
     text-transform: uppercase;
     margin-top: 0.15rem;
@@ -134,7 +180,7 @@
   }
   .clock-item .clock-value {
     font-size: 13px;
-    color: #c0b5a5;
+    color: #C5A46E;
     font-variant-numeric: tabular-nums;
     margin-top: 0.1rem;
   }
@@ -142,7 +188,7 @@
   .section-label {
     font-size: 12px;
     letter-spacing: 0.1em;
-    color: #c0b5a5;
+    color: #C5A46E;
     text-transform: uppercase;
     margin-bottom: 0.5rem;
   }
@@ -158,6 +204,47 @@
   .ruler-container {
     max-width: 1100px;
     margin: 2rem auto 1.5rem auto;
+  }
+
+  /* Time Crawler band — a fixed-12x120min "now" marker riding above
+     the (user-resizable) Ruler blocks, independent of their actual
+     widths, same as the Ruler Alignment clock it displays. Brightness
+     shifts per block to trace the day's arc — dim gold at dawn, peak
+     gold at midday, near-black gold at the dead of night — staying in
+     the single gold accent family rather than cycling hue. */
+  .crawler-row {
+    position: relative;
+    width: 100%;
+    margin-bottom: 10px;
+  }
+  .crawler-track {
+    position: relative;
+    width: 100%;
+    height: 26px;
+    background: #0a0707;
+    border: 1px solid #2a2020;
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  .crawler-band {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 8.3334%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.03em;
+    color: #f2e0b8;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.85);
+    border-radius: 4px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    transition: left 0.6s linear, background 0.8s ease;
   }
 
   /* Sunrise / Sunset / 24h span markers below the track */
@@ -213,7 +300,7 @@
   }
   .ruler-block:last-child { border-right: none; }
   .ruler-block.sleep-zone { background: #5a2323; }
-  .ruler-block.current { box-shadow: inset 0 0 0 2px #c0b5a5; }
+  .ruler-block.current { box-shadow: inset 0 0 0 2px #C5A46E; }
 
   .ruler-block .block-name {
     font-size: 12px;
@@ -233,7 +320,7 @@
     color: #aab;
     margin-top: 2px;
   }
-  .ruler-block.sleep-zone .block-mins { color: #c99; }
+  .ruler-block.sleep-zone .block-mins { color: #9a8a6a; }
 
   .ruler-block .fill-overlay {
     position: absolute;
@@ -266,7 +353,7 @@
     border-radius: 2px;
   }
   .resize-handle:hover::after,
-  .resize-handle.dragging::after { background: #c0b5a5; }
+  .resize-handle.dragging::after { background: #C5A46E; }
 
   /* Do-not-disturb icon toggle, top-right corner of each block */
   .sleep-toggle {
@@ -293,10 +380,10 @@
     transform: rotate(45deg);
     transform-origin: center;
   }
-  .sleep-toggle:hover { border-color: #c0b5a5; }
-  .sleep-toggle:hover::after { background: #c0b5a5; }
-  .ruler-block.sleep-zone .sleep-toggle { border-color: #e8b4b4; background: rgba(0,0,0,0.45); }
-  .ruler-block.sleep-zone .sleep-toggle::after { background: #e8b4b4; }
+  .sleep-toggle:hover { border-color: #C5A46E; }
+  .sleep-toggle:hover::after { background: #C5A46E; }
+  .ruler-block.sleep-zone .sleep-toggle { border-color: #D9BD8A; background: rgba(0,0,0,0.45); }
+  .ruler-block.sleep-zone .sleep-toggle::after { background: #D9BD8A; }
 
   .current-block-info {
     max-width: 1100px;
@@ -305,7 +392,7 @@
     justify-content: space-between;
     align-items: center;
   }
-  .current-block-info .cb-name { font-size: 16px; color: #c0b5a5; }
+  .current-block-info .cb-name { font-size: 16px; color: #C5A46E; }
   .current-block-info .cb-time { font-size: 13px; color: #888; }
 
   .quick-energy-box {
@@ -322,9 +409,6 @@
     color: var(--rd-gold);
   }
   .quick-energy-btns { display: flex; gap: 0.4rem; }
-
-  .sleep-log-btn-inline { padding: 0.3rem 0.65rem; font-size: 11px; white-space: nowrap; flex-shrink: 0; }
-  .sleep-log-last { display: block; text-align: center; font-size: 10px; color: var(--rd-muted); margin-top: 4px; }
 
   .energy-modal-overlay {
     position: fixed;
@@ -352,6 +436,92 @@
   }
   .energy-modal-btns { display: flex; justify-content: center; gap: 0.6rem; margin-bottom: 1rem; }
   .energy-modal-cancel { width: 100%; }
+
+  /* ---- GM/GN — centered between Daily Score and Today's Mission ---- */
+  .gmgn-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    margin: 0.75rem 0;
+  }
+  .gmgn-btn {
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.06em;
+    padding: 0.6rem 1.3rem;
+    border: 1px solid var(--rd-edge);
+  }
+  .gmgn-btn-gm {
+    background: linear-gradient(180deg, var(--rd-gold-bright), var(--rd-gold) 65%, #8a6a1a);
+    color: #1a1206;
+  }
+  .gmgn-btn-gn {
+    background: var(--rd-black);
+    border: 1px solid var(--rd-gold);
+    color: var(--rd-gold);
+  }
+  .gmgn-settings-btn {
+    background: transparent;
+    border: 1px solid var(--rd-edge);
+    color: var(--rd-muted);
+    font-size: 14px;
+    padding: 0.5rem 0.65rem;
+  }
+  .gmgn-settings-btn:hover { color: var(--rd-gold); border-color: var(--rd-gold); }
+
+  /* ---- Telegram settings modal ---- */
+  .telegram-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 1rem;
+  }
+  .telegram-modal {
+    background: var(--rd-panel);
+    border: 1px solid var(--rd-edge);
+    border-radius: 10px;
+    width: 100%;
+    max-width: 420px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 1.25rem;
+  }
+  .telegram-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+  .telegram-modal-note {
+    font-size: 11px;
+    color: var(--rd-muted);
+    margin: 0 0 1rem 0;
+  }
+  .telegram-field-label {
+    display: block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--rd-gold);
+    margin: 0.85rem 0 0.35rem 0;
+  }
+  .telegram-modal input, .telegram-modal textarea {
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 13px;
+    padding: 0.55rem 0.7rem;
+  }
+  .telegram-modal-actions {
+    display: flex;
+    gap: 0.6rem;
+    margin-top: 1.1rem;
+  }
+  .telegram-modal-actions button { flex: 1; }
 
   .block-energy-badge {
     position: absolute;
@@ -404,13 +574,13 @@
     background: #1a1a1a;
     border: 1px solid #333;
     border-radius: 6px;
-    color: #c0b5a5;
+    color: #C5A46E;
     font-family: Georgia, serif;
     font-size: 11px;
     padding: 0.3rem 0.5rem;
     cursor: pointer;
   }
-  .category-select:focus { outline: 1px solid #c0b5a5; }
+  .category-select:focus { outline: 1px solid #C5A46E; }
 
   .journal-images-row {
     display: flex;
@@ -443,7 +613,7 @@
     top: 0;
     right: 0;
     background: rgba(0,0,0,0.6);
-    color: #eee;
+    color: var(--rd-text);
     font-size: 9px;
     width: 16px;
     height: 16px;
@@ -453,14 +623,14 @@
   }
   .journal-image-add-btn {
     font-size: 11px;
-    color: #c0b5a5;
+    color: #C5A46E;
     border: 1px dashed #444;
     border-radius: 6px;
     padding: 0.4rem 0.7rem;
     cursor: pointer;
     white-space: nowrap;
   }
-  .journal-image-add-btn:hover { border-color: #c0b5a5; }
+  .journal-image-add-btn:hover { border-color: #C5A46E; }
   .journal-image-paste-hint {
     font-size: 10px;
     color: #666;
@@ -472,7 +642,7 @@
     margin-top: 0.5rem;
   }
   .journal-images-locked a {
-    color: #c0b5a5;
+    color: #C5A46E;
     cursor: pointer;
     text-decoration: underline;
   }
@@ -497,13 +667,13 @@
     background: #1a1a1a;
     border: 1px solid #333;
     border-radius: 8px;
-    color: #eee;
+    color: var(--rd-text);
     font-family: Georgia, serif;
     font-size: 13px;
     padding: 0.75rem;
     resize: vertical;
   }
-  textarea:focus { outline: 1px solid #c0b5a5; }
+  textarea:focus { outline: 1px solid #C5A46E; }
   #workArea { min-height: 220px; }
 
   .btn-row { display: flex; gap: 0.6rem; margin-top: 0.75rem; }
@@ -511,7 +681,7 @@
     padding: 0.55rem 1rem;
     border: none;
     border-radius: 6px;
-    background: #c0b5a5;
+    background: #C5A46E;
     color: #1a1a1a;
     font-weight: bold;
     font-size: 12px;
@@ -579,20 +749,20 @@
     font-family: Georgia, serif;
     cursor: pointer;
   }
-  .must-score-btn:hover { border-color: #c0b5a5; color: #c0b5a5; }
-  .must-score-btn.active { background: #c0b5a5; color: #1a1a1a; border-color: #c0b5a5; font-weight: bold; }
+  .must-score-btn:hover { border-color: #C5A46E; color: #C5A46E; }
+  .must-score-btn.active { background: #C5A46E; color: #1a1a1a; border-color: #C5A46E; font-weight: bold; }
   .must-add-row { display: flex; gap: 0.4rem; margin-top: 0.5rem; }
   .must-add-row input[type="text"] {
     flex: 1;
     background: #1a1a1a;
     border: 1px solid #333;
     border-radius: 6px;
-    color: #eee;
+    color: var(--rd-text);
     font-family: Georgia, serif;
     font-size: 12px;
     padding: 0.45rem 0.6rem;
   }
-  .must-add-row input[type="text"]:focus { outline: 1px solid #c0b5a5; }
+  .must-add-row input[type="text"]:focus { outline: 1px solid #C5A46E; }
   .must-add-row button { padding: 0.45rem 0.8rem; }
   .must-remove {
     background: none;
@@ -603,7 +773,7 @@
     padding: 0 0.2rem;
     flex: 0;
   }
-  .must-remove:hover { color: #c77; background: none; }
+  .must-remove:hover { color: #B33A52; background: none; }
 
   .header-row {
     display: flex;
@@ -627,7 +797,7 @@
     border: 1px solid #3a3327;
     border-radius: 8px;
     padding: 1rem;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.45), 0 0 0 1px rgba(201,162,75,0.15);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.45), 0 0 0 1px rgba(212,175,55,0.15);
   }
   .tackle-box .section-label { font-size: 13px; margin-bottom: 0.6rem; letter-spacing: 0.08em; }
   .tackle-box textarea {
@@ -645,7 +815,7 @@
     color: #888;
   }
   .tackle-share-row input[type="checkbox"] {
-    accent-color: #c0b5a5;
+    accent-color: #C5A46E;
     cursor: pointer;
   }
 
@@ -658,7 +828,7 @@
     color: #888;
   }
   .section-share-row input[type="checkbox"] {
-    accent-color: #c0b5a5;
+    accent-color: #C5A46E;
     cursor: pointer;
   }
 
@@ -675,7 +845,7 @@
     padding: 0.5rem;
   }
   .yearly-locked a {
-    color: #c0b5a5;
+    color: #C5A46E;
     cursor: pointer;
     text-decoration: underline;
   }
@@ -738,7 +908,7 @@
     line-height: 1;
     margin-top: 0.2rem;
     color: var(--rd-gold-bright);
-    text-shadow: 0 0 12px rgba(176,24,24,0.5);
+    text-shadow: 0 0 12px rgba(197,164,110,0.5);
   }
 
   .yearly-box {
@@ -764,7 +934,7 @@
     width: 32px;
     flex-shrink: 0;
     font-size: 11px;
-    color: #c0b5a5;
+    color: #C5A46E;
     font-weight: bold;
     text-align: center;
   }
@@ -779,7 +949,7 @@
     padding: 0.15rem 0.2rem;
     min-width: 0;
   }
-  .weekly-day-input:focus { outline: none; border-bottom-color: #c0b5a5; }
+  .weekly-day-input:focus { outline: none; border-bottom-color: #C5A46E; }
   .weekly-day-done { accent-color: var(--rd-gold); }
 
   .weekly-col-headers {
@@ -833,7 +1003,7 @@
     width: 38px;
     flex-shrink: 0;
     font-size: 11px;
-    color: #c0b5a5;
+    color: #C5A46E;
     font-variant-numeric: tabular-nums;
     text-align: center;
   }
@@ -870,8 +1040,8 @@
     border-radius: 6px;
     cursor: pointer;
   }
-  .export-tab-btn:hover { border-color: #c0b5a5; color: #c0b5a5; }
-  .export-tab-btn.active { background: #c0b5a5; color: #1a1a1a; border-color: #c0b5a5; font-weight: bold; }
+  .export-tab-btn:hover { border-color: #C5A46E; color: #C5A46E; }
+  .export-tab-btn.active { background: #C5A46E; color: #1a1a1a; border-color: #C5A46E; font-weight: bold; }
   .export-category-disabled { opacity: 0.5; }
   .export-checkbox-group {
     display: flex;
@@ -887,7 +1057,7 @@
     cursor: pointer;
     white-space: nowrap;
   }
-  .export-checkbox-group input[type="checkbox"] { accent-color: #c0b5a5; cursor: pointer; }
+  .export-checkbox-group input[type="checkbox"] { accent-color: #C5A46E; cursor: pointer; }
   .export-controls {
     display: flex;
     align-items: center;
@@ -900,19 +1070,19 @@
     background: #1a1a1a;
     border: 1px solid #333;
     border-radius: 6px;
-    color: #eee;
+    color: var(--rd-text);
     font-family: Georgia, serif;
     font-size: 12px;
     padding: 0.45rem 0.6rem;
   }
   .export-controls select:focus,
-  .export-controls input[type="date"]:focus { outline: 1px solid #c0b5a5; }
+  .export-controls input[type="date"]:focus { outline: 1px solid #C5A46E; }
   .export-row select,
   .export-row input[type="date"] {
     background: #1a1a1a;
     border: 1px solid #333;
     border-radius: 6px;
-    color: #eee;
+    color: var(--rd-text);
     font-family: Georgia, serif;
     font-size: 12px;
     padding: 0.45rem 0.6rem;
@@ -924,7 +1094,7 @@
     margin-top: 0.6rem;
     min-height: 1em;
   }
-  .export-msg.error { color: #c77; }
+  .export-msg.error { color: #B33A52; }
 
   .bottom-row {
     max-width: 1100px;
@@ -954,11 +1124,11 @@
     gap: 0.4rem;
     margin-bottom: 0.4rem;
   }
-  .entry-date { font-size: 11px; color: #c0b5a5; }
+  .entry-date { font-size: 11px; color: #C5A46E; }
   .entry-category {
     font-size: 10px;
     color: #1a1a1a;
-    background: #c0b5a5;
+    background: #C5A46E;
     border-radius: 4px;
     padding: 0.1rem 0.4rem;
     text-transform: uppercase;
@@ -990,7 +1160,7 @@
     font-size: 10px;
     color: #888;
   }
-  .entry-share-toggle input[type="checkbox"] { accent-color: #c0b5a5; cursor: pointer; }
+  .entry-share-toggle input[type="checkbox"] { accent-color: #C5A46E; cursor: pointer; }
   .entry-edit-btn {
     background: none;
     border: 1px solid #444;
@@ -1001,7 +1171,7 @@
     border-radius: 4px;
     font-family: Georgia, serif;
   }
-  .entry-edit-btn:hover { border-color: #c0b5a5; color: #c0b5a5; }
+  .entry-edit-btn:hover { border-color: #C5A46E; color: #C5A46E; }
   .entry-delete-btn {
     background: none;
     border: 1px solid #444;
@@ -1012,7 +1182,7 @@
     border-radius: 4px;
     font-family: Georgia, serif;
   }
-  .entry-delete-btn:hover { border-color: #c77; color: #c77; }
+  .entry-delete-btn:hover { border-color: #B33A52; color: #B33A52; }
   .entry-edit-form {
     margin-top: 0.6rem;
     padding-top: 0.6rem;
@@ -1025,13 +1195,13 @@
     background: #1a1a1a;
     border: 1px solid #333;
     border-radius: 6px;
-    color: #eee;
+    color: var(--rd-text);
     font-family: Georgia, serif;
     font-size: 12px;
     padding: 0.6rem;
     resize: vertical;
   }
-  .entry-edit-textarea:focus { outline: 1px solid #c0b5a5; }
+  .entry-edit-textarea:focus { outline: 1px solid #C5A46E; }
   .entry-edit-form .btn-row { margin-top: 0.5rem; }
   .entry-history {
     margin-top: 0.6rem;
@@ -1072,13 +1242,13 @@
     background: #1a1a1a;
     border: 1px solid #333;
     border-radius: 6px;
-    color: #eee;
+    color: var(--rd-text);
     font-family: Georgia, serif;
     font-size: 12px;
     padding: 0.45rem 0.6rem;
     width: 130px;
   }
-  .clans-actions input[type="text"]:focus { outline: 1px solid #c0b5a5; }
+  .clans-actions input[type="text"]:focus { outline: 1px solid #C5A46E; }
   .clans-actions button { padding: 0.45rem 0.8rem; font-size: 11px; white-space: nowrap; }
 
   .clans-msg {
@@ -1087,7 +1257,7 @@
     margin-bottom: 0.75rem;
     min-height: 1em;
   }
-  .clans-msg.error { color: #c77; }
+  .clans-msg.error { color: #B33A52; }
 
   .clan-card {
     background: #161616;
@@ -1104,7 +1274,7 @@
     flex-wrap: wrap;
     gap: 0.5rem;
   }
-  .clan-card-header .clan-name { font-size: 16px; color: #c0b5a5; }
+  .clan-card-header .clan-name { font-size: 16px; color: #C5A46E; }
   .clan-card-header .clan-meta { font-size: 11px; color: #777; }
   .clan-card-header .clan-leave {
     background: none;
@@ -1113,7 +1283,7 @@
     font-size: 10px;
     padding: 0.3rem 0.6rem;
   }
-  .clan-card-header .clan-leave:hover { border-color: #c77; color: #c77; }
+  .clan-card-header .clan-leave:hover { border-color: #B33A52; color: #B33A52; }
 
   .clan-member {
     margin-bottom: 0.5rem;
@@ -1178,12 +1348,12 @@
     align-items: center;
     margin-bottom: 1rem;
     font-size: 16px;
-    color: #c0b5a5;
+    color: #C5A46E;
   }
   .member-modal-section { margin-bottom: 1.25rem; }
   .member-modal-section h4 {
     font-size: 11px;
-    color: #c0b5a5;
+    color: #C5A46E;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     margin: 0 0 0.5rem 0;
@@ -1233,13 +1403,13 @@
     justify-content: space-between;
     gap: 1rem;
     font-size: 12px;
-    color: #ccc;
+    color: var(--rd-text);
     background: #1a1a1a;
     border-radius: 6px;
     padding: 0.6rem 0.75rem;
     margin-bottom: 1.25rem;
   }
-  .member-modal-time-row strong { color: #c0b5a5; }
+  .member-modal-time-row strong { color: #C5A46E; }
   .member-modal-write-row {
     display: flex;
     gap: 0.5rem;
@@ -1250,12 +1420,12 @@
     background: #1a1a1a;
     border: 1px solid #333;
     border-radius: 6px;
-    color: #eee;
+    color: var(--rd-text);
     font-family: Georgia, serif;
     font-size: 12px;
     padding: 0.5rem 0.6rem;
   }
-  .member-modal-write-row input[type="text"]:focus { outline: 1px solid #c0b5a5; }
+  .member-modal-write-row input[type="text"]:focus { outline: 1px solid #C5A46E; }
 
   .clans-locked {
     background: #161616;
@@ -1291,8 +1461,6 @@
     --rd-black: #060505;
     --rd-panel: #120e0e;
     --rd-panel-2: #1a1413;
-    --rd-red: #b01818;
-    --rd-red-deep: #6e0f0f;
     --rd-gold: #c9a24b;
     --rd-gold-bright: #e6c25c;
     --rd-text: #e8e2da;
@@ -1301,8 +1469,13 @@
   }
 
   body {
+    /* Ultra-low-opacity carbon-fiber weave (two diagonal hairline
+       repeats) under a faint sapphire ambient glow, over obsidian —
+       felt more than seen, never competes with content. */
     background:
-      radial-gradient(1100px 520px at 50% -8%, rgba(176,24,24,0.12), transparent 60%),
+      repeating-linear-gradient(45deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 6px),
+      repeating-linear-gradient(-45deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 6px),
+      radial-gradient(1100px 520px at 50% -8%, rgba(197,164,110,0.08), transparent 60%),
       var(--rd-black);
     color: var(--rd-text);
   }
@@ -1310,58 +1483,85 @@
   /* ---- Tab navigation ---- */
   .tab-nav {
     max-width: 1100px;
-    margin: 0 auto 0.5rem auto;
+    margin: 0 auto 0.75rem auto;
     display: flex;
-    gap: 0.5rem;
+    gap: 0.6rem;
     justify-content: center;
     padding-bottom: 0.2rem;
+    flex-wrap: wrap;
   }
+  /* Weighty but not oversized — noticeably bigger than the original
+     12px/tight-padding version, short of the "physical control" scale
+     from the previous pass. */
   .tab-btn {
     background: transparent;
     border: 1px solid transparent;
     color: var(--rd-muted);
-    font-family: Georgia, serif;
-    font-size: 12px;
-    font-weight: bold;
-    letter-spacing: 0.18em;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    padding: 0.6rem 1.4rem;
+    padding: 0.75rem 1.6rem;
     border-radius: 6px 6px 0 0;
     cursor: pointer;
   }
-  .tab-btn:hover { color: var(--rd-gold); background: rgba(176,24,24,0.08); }
+  .tab-btn:hover { color: var(--rd-gold); background: rgba(197,164,110,0.08); }
   .site-banner { max-width: 1100px; margin: 0 auto 0.75rem auto; }
   .tab-btn.active {
     color: var(--rd-gold-bright);
-    border-color: var(--rd-edge);
+    border-color: var(--rd-gold-bright);
     border-bottom-color: transparent;
-    background: linear-gradient(180deg, rgba(176,24,24,0.18), transparent);
-    box-shadow: inset 0 2px 0 0 var(--rd-gold);
+    background: linear-gradient(180deg, rgba(197,164,110,0.22), transparent);
+    box-shadow: inset 0 2px 0 0 var(--rd-gold-bright), 0 0 20px rgba(197,164,110,0.55);
   }
   .tab-panel { display: none; }
   .tab-panel.active { display: block; }
 
-  /* ---- Title + tagline ---- */
+  /* ---- Title + tagline: ~25% larger than the original 30px, not
+     the earlier full-dominance scale — weighty, not oversized. ---- */
   .header h1 {
     color: var(--rd-gold-bright);
     text-transform: uppercase;
-    letter-spacing: 0.06em;
-    font-size: 30px;
-    text-shadow: 0 0 18px rgba(176,24,24,0.55);
+    letter-spacing: 0.05em;
+    font-size: 38px;
+    line-height: 1.1;
+    text-shadow: 0 0 16px rgba(197,164,110,0.5);
   }
   .header .tagline { color: var(--rd-gold); }
   .header p { color: var(--rd-muted); }
 
-  /* ---- Clocks — Local Time is the big centrepiece ---- */
-  .clocks-row { align-items: flex-end; gap: 2.2rem; margin-top: 0.9rem; }
+  /* ---- Clocks — Ruler Alignment is the big centrepiece, UTC and
+     Local Time flank it symmetrically (left/right). Equal min-width
+     on the two side items keeps the center clock visually centered
+     even though "HH:MM UTC" and "HH:MM AM/PM" aren't the same length. ---- */
+  .clocks-row { align-items: flex-end; gap: 2.2rem; margin-top: 0.9rem; justify-content: center; }
+  .clock-item:not(.clock-item-main) { min-width: 90px; }
   .clock-item .clock-label { color: var(--rd-muted); }
-  .clock-item .clock-value { color: var(--rd-gold); font-size: 14px; }
+  .clock-item .clock-value { color: var(--rd-gold); font-size: 28px; }
   .clock-item-main .clock-label { color: var(--rd-gold); font-size: 10px; }
   .clock-item-main .clock-value {
     font-size: 38px;
     line-height: 1;
     color: var(--rd-gold-bright);
-    text-shadow: 0 0 16px rgba(176,24,24,0.5);
+    text-shadow: 0 0 16px rgba(197,164,110,0.5);
+  }
+  .ruler-alignment-formula {
+    display: block;
+    margin-top: 4px;
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+    color: var(--rd-muted);
+  }
+  .ruler-alignment-formula .formula-op {
+    display: inline-block;
+    font-size: 16px;
+    font-weight: 700 !important;
+    line-height: 1;
+    vertical-align: middle;
+    margin: 0 1px;
+    color: var(--rd-gold);
   }
 
   /* ---- Daily Score — sits centered under the Block clock, same
@@ -1382,7 +1582,7 @@
     line-height: 1;
     margin-top: 0.2rem;
     color: var(--rd-gold-bright);
-    text-shadow: 0 0 22px rgba(176,24,24,0.65);
+    text-shadow: 0 0 22px rgba(197,164,110,0.65);
   }
 
   /* ---- Today's Mission — full-width banner directly above the
@@ -1390,9 +1590,10 @@
   .todays-mission {
     text-align: center;
     padding: 0.9rem 1rem;
-    border: 1px solid var(--rd-edge);
-    border-radius: 8px;
-    background: linear-gradient(180deg, rgba(176,24,24,0.06), transparent);
+    border: 1px solid var(--rd-gold-bright);
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(197,164,110,0.18), transparent);
+    box-shadow: 0 0 26px rgba(197,164,110,0.55);
   }
   .todays-mission-header-row {
     display: flex;
@@ -1433,17 +1634,27 @@
   .todays-mission-input:focus { outline: 1px solid var(--rd-gold); }
 
   /* ---- The Ruler (hero element) ---- */
-  .ruler-track { border-color: var(--rd-edge); height: 125px; box-shadow: 0 0 30px rgba(0,0,0,0.6); }
+  .ruler-track {
+    border-color: var(--rd-gold);
+    height: 125px;
+    box-shadow: 0 0 30px rgba(0,0,0,0.6), 0 0 14px rgba(197,164,110,0.25);
+  }
   .ruler-block {
-    background: linear-gradient(180deg, #191313, #0e0a0a);
+    background: linear-gradient(180deg, #1A160D, #0A0906);
     border-right: 1px solid #000;
     cursor: pointer;
   }
   .ruler-block .block-name { color: var(--rd-text); }
   .ruler-block .block-mins { color: var(--rd-muted); }
-  .ruler-block.sleep-zone { background: linear-gradient(180deg, #3a1212, #200a0a); }
-  .ruler-block.current { box-shadow: inset 0 0 0 2px var(--rd-gold), 0 0 22px rgba(201,162,75,0.25); }
-  .ruler-block .fill-overlay { background: rgba(176,24,24,0.28); }
+  /* Sleep blocks distinguished by being darker/more desaturated
+     within the same gold-black family, not by switching to a
+     different (reddish) hue entirely. */
+  .ruler-block.sleep-zone { background: linear-gradient(180deg, #14120B, #08070A); }
+  .ruler-block.current {
+    border-radius: 6px !important;
+    box-shadow: inset 0 0 0 2px var(--rd-gold-bright), 0 0 28px rgba(197,164,110,0.6) !important;
+  }
+  .ruler-block .fill-overlay { background: rgba(197,164,110,0.28); }
   .progress-pct { color: var(--rd-gold); }
   .span-markers .marker-start, .span-markers .marker-mid, .span-markers .marker-end { color: var(--rd-muted); }
 
@@ -1542,6 +1753,17 @@
   .current-block-info .cb-name { color: var(--rd-gold); }
 
   /* ---- Big per-tab titles (Life / Journal) ---- */
+  .ledgers-header-row {
+    max-width: 1100px;
+    margin: 0 auto 1.5rem auto;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .ledgers-header-row .tab-title { margin: 0; }
+  .ledgers-tradingview-btn { font-size: 12px; padding: 0.5rem 0.9rem; white-space: nowrap; }
   .tab-title {
     max-width: 1100px;
     margin: 0 auto 1.5rem auto;
@@ -1550,32 +1772,54 @@
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--rd-gold-bright);
-    text-shadow: 0 0 22px rgba(176,24,24,0.55);
+    text-shadow: 0 0 22px rgba(197,164,110,0.55);
     border-bottom: 1px solid var(--rd-edge);
     padding-bottom: 0.6rem;
   }
 
   /* ---- LIFE tab ---- */
   .life-section { max-width: 1100px; margin: 0 auto 2rem auto; }
-  .life-row {
+
+  /* ---- Block Detail (2/3) + Musts & In-between (1/3), Ruler tab ---- */
+  .ruler-detail-row {
+    max-width: 1100px;
+    margin: 1.25rem auto 0 auto;
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+  }
+  .ruler-detail-row .block-detail { margin: 0; max-width: none; min-width: 0; flex: 2 1 0; }
+  .ruler-col-musts { flex: 1 1 0; min-width: 0; }
+
+  /* ---- Accomplish This Year / This Month, split evenly, Vision tab ---- */
+  .accomplish-row {
     max-width: 1100px;
     margin: 0 auto 2rem auto;
     display: flex;
     gap: 1.5rem;
     align-items: flex-start;
   }
-  .life-row .life-section { margin: 0; max-width: none; min-width: 0; }
-  .life-col-accomplish { flex: 2 1 0; }
-  .life-col-musts { flex: 1 1 0; }
+  .accomplish-row .accomplish-col { margin: 0; max-width: none; min-width: 0; flex: 1 1 0; }
+  .accomplish-row .section-label { font-size: 16px !important; }
+
   .yearly-year-nav {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 0.75rem;
     margin-bottom: 0.75rem;
+    margin-left: 12%;
   }
   .yearly-year-nav button { padding: 0.3rem 0.7rem; font-size: 12px; }
   .yearly-year-label { font-size: 16px; font-weight: bold; color: var(--rd-gold); min-width: 3.5em; text-align: center; }
+  .yearly-focus-display {
+    text-align: center;
+    font-size: 14px;
+    font-style: italic;
+    color: var(--rd-gold-bright);
+    margin: -0.25rem 0 0.9rem 0;
+    min-height: 1.2em;
+  }
   .yearly-months-grid {
     display: flex;
     flex-direction: column;
@@ -1592,9 +1836,8 @@
   }
   .yearly-month.is-current {
     border-color: var(--rd-gold);
-    box-shadow: 0 0 0 1px var(--rd-gold), 0 0 18px rgba(201,162,75,0.18);
+    box-shadow: 0 0 0 1px var(--rd-gold), 0 0 18px rgba(212,175,55,0.18);
   }
-  .yearly-month.yearly-month-locked { opacity: 0.55; }
   .yearly-month-header {
     display: flex;
     align-items: center;
@@ -1622,11 +1865,6 @@
     padding: 0.15rem 0.2rem;
   }
   .yearly-month-focus:focus { outline: none; border-bottom-color: var(--rd-gold); }
-  .yearly-month-locked-label {
-    font-size: 11px;
-    color: var(--rd-muted);
-    font-style: italic;
-  }
   .yearly-weeks {
     display: flex;
     flex: 1;
@@ -1660,6 +1898,13 @@
     width: 100%;
   }
   .yearly-week-box:focus { outline: 1px solid var(--rd-gold); }
+  /* Future week — readonly, dimmed, cursor signals it's not editable
+     rather than just silently rejecting keystrokes. */
+  .yearly-week-box-locked {
+    opacity: 0.5;
+    cursor: not-allowed;
+    font-style: italic;
+  }
   .yearly-week-score {
     position: absolute;
     right: 6px;
@@ -1681,7 +1926,7 @@
     min-height: 60px;
     background: var(--rd-panel);
     border: 1px solid var(--rd-edge);
-    border-left: 3px solid var(--rd-red);
+    border-left: 3px solid var(--rd-gold);
     border-radius: 8px;
     color: var(--rd-text);
     font-family: Georgia, serif;
@@ -1690,6 +1935,24 @@
     resize: vertical;
   }
   .accomplish-line:focus { outline: 1px solid var(--rd-gold); border-left-color: var(--rd-gold); }
+
+  /* ---- Yearly Focus / Monthly Focus — a single-line companion to the
+     accomplish box above, same visual family (gold-edge card, left
+     accent bar) just sized for one line instead of a 4-line list.
+     No visible label — the placeholder text names the field. ---- */
+  .theme-line {
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--rd-panel);
+    border: 1px solid var(--rd-edge);
+    border-left: 3px solid var(--rd-gold);
+    border-radius: 8px;
+    color: var(--rd-text);
+    font-family: Georgia, serif;
+    font-size: 16px;
+    padding: 0.55rem 0.9rem;
+  }
+  .theme-line:focus { outline: 1px solid var(--rd-gold); border-left-color: var(--rd-gold); }
 
   /* ---- INSIGHTS tab ----
      Energy uses one ordinal gold ramp (dark->light = low->high energy),
@@ -1724,7 +1987,7 @@
     font-size: 32px;
     line-height: 1.1;
     color: var(--rd-gold-bright);
-    text-shadow: 0 0 12px rgba(176,24,24,0.4);
+    text-shadow: 0 0 12px rgba(197,164,110,0.4);
   }
   .insights-metric-value-small { font-size: 18px; text-shadow: none; }
 
@@ -1864,6 +2127,7 @@
     padding: 0.6rem 0.75rem;
     resize: vertical;
   }
+  .insights-weekly-summary-input[readonly] { opacity: 0.75; cursor: default; resize: none; }
 
   /* ---- JOURNAL tab ---- */
   .journal-split {
@@ -1908,7 +2172,7 @@
     flex-shrink: 0;
   }
   .must-item.dragging {
-    background: rgba(176,24,24,0.16);
+    background: rgba(197,164,110,0.16);
     box-shadow: inset 0 0 0 1px var(--rd-edge);
     border-radius: 6px;
     opacity: 0.97;
@@ -1916,7 +2180,8 @@
 
   @media (max-width: 700px) {
     .tab-title { font-size: 32px; }
-    .life-row { flex-direction: column; }
+    .ruler-detail-row { flex-direction: column; }
+    .accomplish-row { flex-direction: column; }
     .yearly-weeks { flex-wrap: wrap; }
     .yearly-week-box-wrap { flex: 1 1 45%; }
   }
@@ -1927,37 +2192,114 @@
      of gray, and bold masculine type (Anton for titles/headings,
      Oswald for everything else).
      ============================================================ */
+  /* ---- Command Center foundation v3: matte gold is now the PRIMARY
+     accent, applied broadly (borders, glows, live states, labels) —
+     the previous "gold is sniper-rare" rationing is lifted. Burgundy
+     is reserved strictly for alerts (error states, destructive-action
+     hovers — mapped onto the app's existing #B33A52/error-toast color
+     family, which was already exactly that semantic category).
+     Sapphire is retired from this palette; the carbon-fiber texture
+     on body stays untouched per direct request. ---- */
   :root {
-    --rd-muted: #b8934a;   /* was gray — now dim gold */
-    --rd-text:  #ecdcb8;   /* warm gold-cream for body text */
-    --rd-panel: #160f0f;
-    --rd-panel-2: #1f1413;
-    --rd-field: #140d0d;   /* input/textarea fill */
+    --rd-black: #0A0A0A;         /* deep black — base ground */
+    --rd-panel: #121212;         /* near-black panel fallback (glass cards layer rgba over this) */
+    --rd-panel-2: #1A1A1A;       /* lighter panel — hover / secondary */
+    /* Red retired from the accent system entirely — every "this is
+       live/current/active" spot that used to warm-crimson now reads
+       as a brighter, more intense gold glow instead, so the whole
+       app stays one color family with hierarchy carried by glow
+       intensity, not hue. #B33A52 (destructive/error states, e.g.
+       .entry-delete-btn, .clans-msg.error) is untouched — that's a
+       semantic danger color, not a decorative accent, and was never
+       wired to these variables to begin with. */
+    --rd-gold: #C5A46E;          /* matte gold — PRIMARY accent, used broadly */
+    --rd-gold-bright: #D9BD8A;   /* lighter matte gold for hover/glow, still matte not shiny */
+    --rd-accent: #C5A46E;        /* alias — anything still reading --rd-accent now gets gold too */
+    --rd-text: #EDE0C0;          /* pale warm gold body text — no more white anywhere in the palette */
+    --rd-muted: #8C7B5E;         /* muted warm gold-gray — secondary text, kept in the gold family */
+    --rd-edge: rgba(197,164,110,0.45);  /* sharp, visible matte-gold card edge */
+    --rd-field: rgba(15,17,20,0.7);     /* dark glass input fill */
   }
 
   /* ---- Typography ---- */
+  /* !important: many older class-based rules (.entry-edit-textarea,
+     .category-select, .accomplish-line, etc.) set Georgia at higher
+     specificity than these bare-element selectors — without it they'd
+     keep winning and the body face would stay half-Georgia. */
   body, input, textarea, select, button {
-    font-family: 'Oswald', 'Segoe UI', system-ui, sans-serif;
+    font-family: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif !important;
+    font-weight: 500;
   }
   h1, h2, h3, h4,
   .tab-title, .header h1, .todays-mission-text,
   .clan-name, .member-modal-header, .block-detail-title {
-    font-family: 'Anton', 'Oswald', sans-serif;
-    font-weight: 400;
-    letter-spacing: 0.03em;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    text-transform: uppercase;
   }
-  .section-label, .tab-btn { font-family: 'Oswald', sans-serif; font-weight: 600; }
+  .section-label {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .tab-btn {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
   body { letter-spacing: 0.01em; }
 
-  /* ---- Repaint every gray panel/box to red-black ---- */
+  /* ---- Glassmorphic panels: heavy blur over black, with a sharp,
+     clearly-visible matte-gold edge (border-width/style forced so
+     this guarantees a border even on components that didn't declare
+     one of their own), PLUS a matching gold glow — the same "tie
+     everything together" language as the red accent, just gold and
+     universal instead of red and reserved for active elements only.
+     background-color (not background) so this layers on top of each
+     component's own background-image (gradients, etc.) rather than
+     replacing it. ---- */
   .musts-box, .export-section, .entry-item, .clans-section, .clan-card,
   .clans-locked, .member-modal, .weekly-box, .tackle-box, .yearly-box,
   .member-modal-time-row, .clan-member, .entry-edit-form, .entry-history,
-  .yearly-month, .accomplish-line, .block-detail {
-    background: var(--rd-panel) !important;
+  .yearly-month, .accomplish-line, .theme-line, .block-detail,
+  .insights-card, .insights-headline-card, .sunrise-forecast-card,
+  .telegram-modal, .energy-modal {
+    background-color: rgba(15,17,20,0.55) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border-width: 1px !important;
+    border-style: solid !important;
     border-color: var(--rd-edge) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 8px 32px -16px rgba(0,0,0,0.7), 0 0 18px rgba(197,164,110,0.22) !important;
   }
-  .clan-member:hover { background: var(--rd-panel-2) !important; }
+  .clan-member:hover { background-color: rgba(22,24,28,0.65) !important; }
+
+  /* ---- Smaller "block/row/segment" elements: rounded corners + a
+     lighter gold glow, but no blur/background change — these already
+     carry their own meaningful color (a ruler timeline segment, a
+     data row), so a glass-blur treatment would look like a rendering
+     glitch rather than cohesion. Same visual family, scaled to fit. ---- */
+  .ruler-block, .weekly-day-row, .must-item, .category-select, .crawler-track {
+    border-radius: 6px !important;
+    box-shadow: 0 0 10px rgba(197,164,110,0.18) !important;
+  }
+
+  /* ---- Tighter spacing: the main structural rhythm, not every
+     individual margin/padding in the file — the highest-leverage
+     containers that set overall page density. ---- */
+  .ruler-container { margin: 1.4rem auto 1.1rem auto !important; }
+  .header-row { gap: 0.75rem !important; }
+  .crawler-row { margin: 4px 0 12px 0 !important; }
+  .insights-headline-card, .insights-breakdown-grid { margin-bottom: 1rem !important; }
+  .insights-card { padding: 0.75rem 0.9rem !important; }
+  .musts-box, .weekly-box, .tackle-box, .yearly-box, .export-section,
+  .clans-section, .member-modal, .clan-card {
+    padding: 0.85rem 1rem !important;
+  }
   .must-item { border-bottom-color: #2a1a1a !important; }
   .journal-image-thumb, .entry-image-thumbs img { border-color: var(--rd-edge) !important; }
 
@@ -1986,12 +2328,19 @@
   .entry-history-ts, .must-add-row input {
     color: var(--rd-text) !important;
   }
-  .weekly-col-header-details,
-  .section-label, .clock-item .clock-label, .clock-item .clock-value,
-  .cb-name, .progress-pct, .weekly-day-num, .weekly-day-score, .must-rank, .clan-name,
-  .entry-date, .yearly-month-num, .member-modal-header,
-  .member-modal-section h4, .block-detail-title, .quick-energy-label {
+  /* Gold is the primary accent now, applied broadly — every label/
+     header wears it, giving it real, pervasive presence throughout.
+     Values stay platinum-text rather than also going gold, purely so
+     label vs. value keeps a legible hierarchy — not a restraint on
+     gold itself. */
+  .weekly-col-header-details, .section-label, .clock-item .clock-label,
+  .cb-name, .quick-energy-label, .member-modal-header, .block-detail-title,
+  .member-modal-section h4 {
     color: var(--rd-gold) !important;
+  }
+  .clock-item .clock-value, .progress-pct, .weekly-day-num, .weekly-day-score,
+  .must-rank, .clan-name, .entry-date, .yearly-month-num {
+    color: var(--rd-text) !important;
   }
   .clock-item-main .clock-value, .header h1, .todays-mission-text { color: var(--rd-gold-bright) !important; }
 
@@ -1999,13 +2348,73 @@
   .entry-category { background: var(--rd-gold) !important; color: #1c1305 !important; }
   .member-modal-ruler-row { background: linear-gradient(180deg,#191313,#0e0a0a) !important; }
   .member-modal-ruler-name { color: var(--rd-text) !important; }
-  .member-modal-ruler-row.sleep-zone { background: linear-gradient(180deg,#3a1212,#200a0a) !important; }
+  .member-modal-ruler-row.sleep-zone { background: linear-gradient(180deg,#14120B,#08070A) !important; }
+  /* Today's row — same red-glow "this is live/active" language as
+     Today's Mission, the active Ruler block, the Ruler track border,
+     and the active nav tab. Whichever row it lands on as the rolling
+     window shifts day to day, it should read as the same signal. */
   .weekly-day-row.is-today {
-    background: rgba(176,24,24,0.16) !important;
-    box-shadow: inset 0 0 0 1px var(--rd-gold) !important;
+    border-radius: 6px !important;
+    background: rgba(197,164,110,0.22) !important;
+    box-shadow: inset 0 0 0 1px var(--rd-gold-bright), 0 0 20px rgba(197,164,110,0.55) !important;
   }
   .must-score-btn.active { background: var(--rd-gold) !important; color: #1c1305 !important; border-color: var(--rd-gold) !important; }
   .must-score-btn { background: var(--rd-field) !important; border-color: var(--rd-edge) !important; color: var(--rd-muted) !important; }
+
+  /* ============================================================
+     COMMAND CENTER FOUNDATION — loaded LAST, wins the cascade over
+     the theme sweep above and every component rule before it. This
+     is the thematic skeleton: palette, sharp edges, command-caps
+     typography. Deliberately broad strokes — spacing/border-weight/
+     per-component polish is a later refine-and-sharpen pass, not
+     this one.
+     ============================================================ */
+  /* Sharp-edges sweep reversed per direct request — rounded corners
+     are now the app-wide default again. Every element's own
+     originally-declared border-radius (from before that phase) is
+     simply no longer being zeroed out. */
+
+  /* ---- Command-caps: buttons read as directives, not friendly
+     prompts. Headers/labels already went uppercase above. ---- */
+  button {
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+  }
+
+  /* ---- Indigo as a genuine supporting color: secondary/utility
+     buttons (Close, Cancel, Leave, etc.) get a distinct identity
+     from primary gold actions and red/alert actions, instead of
+     reading as a third shade of the same near-black. ---- */
+  /* Secondary buttons (New Account, Send Magic Link, etc.) were
+     riding the old steel-navy --rd-indigo pair from a since-abandoned
+     direction — reading as an off-palette blue against everything
+     else's gold/black. Unified onto the same black-with-gold-edge
+     treatment as the rest of the app: distinct from primary gold-
+     filled buttons (no fill), but no longer a different hue family. */
+  button.secondary {
+    background: var(--rd-black) !important;
+    border: 1px solid var(--rd-edge) !important;
+    color: var(--rd-gold) !important;
+  }
+  button.secondary:hover { background: var(--rd-panel-2) !important; border-color: var(--rd-gold) !important; }
+
+  /* ---- Total typographic unification: one face, one weight,
+     command-caps everywhere — no more headings/labels/body text
+     pulling in different weights or casing. Wildcard + !important
+     since there is no other !important rule on these two properties
+     anywhere above, so this wins outright regardless of the
+     selector specificity it's fighting; no need to chase down every
+     individual rule that set its own font-weight/text-transform. */
+  * {
+    font-family: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+  }
+  ::placeholder {
+    font-family: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif !important;
+    text-transform: uppercase !important;
+  }
 </style>
 </head>
 <body>
@@ -2017,18 +2426,18 @@
 <!-- Site banner: title + tagline, above the tab nav so it's shared
      across all four tabs rather than living inside the Ruler tab. -->
 <div class="header site-banner">
-  <h1>Your Ruler</h1>
+  <h1>Command Center</h1>
   <p class="tagline">For Dangerous Humans</p>
 </div>
 
 <!-- ==== 3-tab navigation. Tab 1 (Ruler) is fully built out below;
      Journal + Clans reuse the existing sections, regrouped. ==== -->
 <nav class="tab-nav" id="tabNav">
+  <button class="tab-btn" data-tab="tab-insights">Alpha</button>
+  <button class="tab-btn" data-tab="tab-life">Vision</button>
   <button class="tab-btn active" data-tab="tab-ruler">Ruler</button>
-  <button class="tab-btn" data-tab="tab-life">Life</button>
-  <button class="tab-btn" data-tab="tab-journal">Journal</button>
-  <button class="tab-btn" data-tab="tab-clans">Clans</button>
-  <button class="tab-btn" data-tab="tab-insights">Insights</button>
+  <button class="tab-btn" data-tab="tab-journal">Ledgers</button>
+  <button class="tab-btn" data-tab="tab-clans">Legions</button>
 </nav>
 
 <!-- ============================ TAB 1: RULER ============================ -->
@@ -2037,6 +2446,10 @@
 <div class="page-wrap">
   <div class="header-row">
     <div class="weekly-wrap">
+      <div class="sunrise-forecast-card" id="sunriseForecastCard">
+        <span class="sunrise-forecast-title">Sunrise Forecast</span>
+        <div id="sunriseForecastBody">Loading…</div>
+      </div>
       <div class="weekly-box">
         <span class="section-label">Weekly Visualization</span>
         <div class="weekly-focus-row">
@@ -2058,7 +2471,7 @@
         <div id="weeklyDaysList"></div>
         <div class="section-share-row" id="weeklyShareRow" style="display:none;">
           <input type="checkbox" id="weeklyShare">
-          <label for="weeklyShare">Share with Clan</label>
+          <label for="weeklyShare">Share with Legion</label>
         </div>
       </div>
     </div>
@@ -2072,6 +2485,7 @@
         <div class="clock-item clock-item-main">
           <span class="clock-label">Ruler Alignment</span>
           <span class="clock-value" id="blockClock">—</span>
+          <span class="ruler-alignment-formula">12 <span class="formula-op">×</span> 120 = 1440m</span>
         </div>
         <div class="clock-item">
           <span class="clock-label">Local Time</span>
@@ -2082,6 +2496,17 @@
         <span class="daily-score-label">Daily Score</span>
         <span class="daily-score-value" id="dailyScoreValue">0/10</span>
       </div>
+
+      <!-- GM/GN: dispatch a customized message to the user's own
+           configured Telegram bot/chats, nothing else. Bot token +
+           chat IDs + message templates live in localStorage only —
+           never sent anywhere but api.telegram.org. -->
+      <div class="gmgn-row">
+        <button type="button" class="gmgn-btn gmgn-btn-gm" id="logAwakeBtn" title="Good Morning — sends your GM message to Telegram">GM</button>
+        <button type="button" class="gmgn-settings-btn" id="telegramSettingsBtn" title="Telegram settings">⚙</button>
+        <button type="button" class="gmgn-btn gmgn-btn-gn" id="logSleepBtn" title="Good Night — sends your GN message to Telegram">GN</button>
+      </div>
+
       <div id="todaysMission" class="todays-mission">
         <div class="todays-mission-header-row">
           <span class="todays-mission-label">Today's Mission</span>
@@ -2107,18 +2532,20 @@
 </div>
 
 <div class="ruler-container">
+  <div class="crawler-row">
+    <div class="crawler-track" id="crawlerTrack">
+      <div class="crawler-band" id="crawlerBand">0:00</div>
+    </div>
+  </div>
   <div class="ruler-track" id="rulerTrack"></div>
   <div class="span-markers">
     <span class="marker-start">Sunrise<span class="marker-sub">6:00 AM</span></span>
-    <button type="button" class="secondary sleep-log-btn-inline" id="logAwakeBtn">☀️ Awake</button>
     <span class="marker-mid">Sunset<span class="marker-sub">≈ Block 5</span></span>
-    <button type="button" class="secondary sleep-log-btn-inline" id="logSleepBtn">🌙 Sleep</button>
     <span class="marker-end">+24h</span>
   </div>
-  <span class="sleep-log-last" id="sleepLogLast"></span>
   <div class="section-share-row" id="rulerShareRow" style="display:none;">
     <input type="checkbox" id="rulerShare">
-    <label for="rulerShare">Share with Clan</label>
+    <label for="rulerShare">Share with Legion</label>
   </div>
 </div>
 
@@ -2147,30 +2574,100 @@
   </div>
 </div>
 
-<!-- Block Detail: hidden until a block is clicked. Lets you log an
-     energy level (1-3) and free-text notes for that specific block. -->
-<div class="block-detail" id="blockDetail" style="display:none;">
-  <div class="block-detail-header">
-    <span class="block-detail-title" id="blockDetailTitle">Block Details</span>
-    <button class="secondary" id="blockDetailClose">Close</button>
+<!-- Telegram settings: bot token + chat IDs + GM/GN message
+     templates, all localStorage-only, never synced to Supabase or
+     anywhere but api.telegram.org when a message is actually sent. -->
+<div class="telegram-modal-overlay" id="telegramModalOverlay" style="display:none;">
+  <div class="telegram-modal">
+    <div class="telegram-modal-header">
+      <span class="section-label">Telegram Settings</span>
+      <button type="button" class="secondary" id="telegramModalClose">Close</button>
+    </div>
+    <p class="telegram-modal-note">Stored only on this device. Sent only to your own bot's messages API — never to any server this app runs.</p>
+
+    <label class="telegram-field-label" for="telegramBotToken">Bot Token</label>
+    <input type="password" id="telegramBotToken" placeholder="123456789:AAExampleTokenFromBotFather" autocomplete="off">
+
+    <label class="telegram-field-label" for="telegramChatIds">Chat / Group IDs (one per line)</label>
+    <textarea id="telegramChatIds" placeholder="-1001234567890&#10;987654321" rows="3"></textarea>
+
+    <label class="telegram-field-label" for="telegramGmMessage">GM Message</label>
+    <textarea id="telegramGmMessage" placeholder="Good morning! Starting the day strong. ☀️" rows="2"></textarea>
+
+    <label class="telegram-field-label" for="telegramGnMessage">GN Message</label>
+    <textarea id="telegramGnMessage" placeholder="Good night. Wrapping up for today. 🌙" rows="2"></textarea>
+
+    <div class="telegram-modal-actions">
+      <button type="button" id="telegramSaveBtn">Save</button>
+      <button type="button" class="secondary" id="telegramTestBtn">Send Test Message</button>
+    </div>
   </div>
-  <div id="blockDetailEditor">
-    <textarea id="blockDetailNotes" class="block-detail-notes" placeholder="Notes for this block..."></textarea>
+</div>
+
+<!-- TradingView webhook settings: shows the user's own webhook URL
+     (needs the Edge Function deployed — see
+     supabase/functions/tradingview-webhook — this modal can't deploy
+     it, only configure the secret and display the URL to paste into
+     TradingView), a shared secret, and a reachability test. -->
+<div class="telegram-modal-overlay" id="tradingviewModalOverlay" style="display:none;">
+  <div class="telegram-modal">
+    <div class="telegram-modal-header">
+      <span class="section-label">TradingView Webhook</span>
+      <button type="button" class="secondary" id="tradingviewModalClose">Close</button>
+    </div>
+    <p class="telegram-modal-note">Requires signing in (the webhook URL is tied to your account) and the Edge Function deployed separately — this only configures the secret and shows the URL, it doesn't deploy anything.</p>
+
+    <label class="telegram-field-label" for="tradingviewWebhookUrl">Your Webhook URL</label>
+    <input type="text" id="tradingviewWebhookUrl" readonly placeholder="Sign in to see your webhook URL">
+
+    <label class="telegram-field-label" for="tradingviewSecret">Webhook Secret</label>
+    <input type="password" id="tradingviewSecret" placeholder="Paste this same value into your TradingView alert JSON" autocomplete="off">
+    <button type="button" class="secondary" id="tradingviewGenerateBtn">Generate Random Secret</button>
+
+    <div class="telegram-modal-actions">
+      <button type="button" id="tradingviewSaveBtn">Save</button>
+      <button type="button" class="secondary" id="tradingviewTestBtn">Test Connectivity</button>
+    </div>
+  </div>
+</div>
+
+<!-- Block Detail (2/3 width) + Musts & In-between (1/3 width), side
+     by side. Block Detail is hidden until a block is clicked; when
+     hidden, Musts naturally expands to fill the row rather than
+     leaving dead space. -->
+<div class="ruler-detail-row">
+  <div class="block-detail" id="blockDetail" style="display:none;">
+    <div class="block-detail-header">
+      <span class="block-detail-title" id="blockDetailTitle">Block Details</span>
+      <button class="secondary" id="blockDetailClose">Close</button>
+    </div>
+    <div id="blockDetailEditor">
+      <textarea id="blockDetailNotes" class="block-detail-notes" placeholder="Notes for this block..."></textarea>
+    </div>
+
+    <div id="blockDetailView" style="display:none;">
+      <div class="block-detail-view-energy" id="blockDetailViewEnergy">Energy: —</div>
+      <div class="block-detail-view-notes" id="blockDetailViewNotes">No notes logged yet.</div>
+    </div>
+
+    <div class="block-detail-actions">
+      <button type="button" id="blockDetailSaveBtn">Save</button>
+      <button type="button" class="secondary" id="blockDetailEditBtn" style="display:none;">Edit</button>
+    </div>
+
+    <div class="block-detail-past">
+      <span class="block-detail-past-label">Past Entries</span>
+      <div id="blockDetailPastList"></div>
+    </div>
   </div>
 
-  <div id="blockDetailView" style="display:none;">
-    <div class="block-detail-view-energy" id="blockDetailViewEnergy">Energy: —</div>
-    <div class="block-detail-view-notes" id="blockDetailViewNotes">No notes logged yet.</div>
-  </div>
-
-  <div class="block-detail-actions">
-    <button type="button" id="blockDetailSaveBtn">Save</button>
-    <button type="button" class="secondary" id="blockDetailEditBtn" style="display:none;">Edit</button>
-  </div>
-
-  <div class="block-detail-past">
-    <span class="block-detail-past-label">Past Entries</span>
-    <div id="blockDetailPastList"></div>
+  <div class="ruler-col-musts">
+    <span class="section-label">Musts &amp; In-between</span>
+    <div class="musts-box" id="mustsBox"></div>
+    <div class="section-share-row" id="mustsShareRow" style="display:none;">
+      <input type="checkbox" id="mustsShare">
+      <label for="mustsShare">Share with Legion</label>
+    </div>
   </div>
 </div>
 
@@ -2178,25 +2675,28 @@
 
 <!-- ============================ TAB 2: LIFE ============================ -->
 <div class="tab-panel" id="tab-life">
-  <h2 class="tab-title">Life</h2>
+  <h2 class="tab-title">Vision</h2>
 
-  <!-- Accomplish (2/3 width) + Musts & In-between (1/3 width), side by side -->
-  <div class="life-row">
-    <div class="life-section life-col-accomplish">
+  <!-- Musts & In-between moved to the Ruler tab, alongside Block Detail. -->
+  <!-- This Year (left half) + This Month (right half), side by side. -->
+  <div class="accomplish-row">
+    <div class="life-section accomplish-col">
       <span class="section-label">What I Want To Accomplish This Year</span>
+      <input type="text" class="theme-line" id="themeYearInput" placeholder="Yearly Focus...">
       <div class="accomplish-box" id="accomplishBox"></div>
       <div class="section-share-row" id="accomplishShareRow" style="display:none;">
         <input type="checkbox" id="accomplishShare">
-        <label for="accomplishShare">Share with Clan</label>
+        <label for="accomplishShare">Share with Legion</label>
       </div>
     </div>
 
-    <div class="life-section life-col-musts">
-      <span class="section-label">Musts &amp; In-between</span>
-      <div class="musts-box" id="mustsBox"></div>
-      <div class="section-share-row" id="mustsShareRow" style="display:none;">
-        <input type="checkbox" id="mustsShare">
-        <label for="mustsShare">Share with Clan</label>
+    <div class="life-section accomplish-col">
+      <span class="section-label">What I Want To Accomplish This Month</span>
+      <input type="text" class="theme-line" id="themeMonthInput" placeholder="Monthly Focus...">
+      <div class="accomplish-box" id="accomplishMonthBox"></div>
+      <div class="section-share-row" id="accomplishMonthShareRow" style="display:none;">
+        <input type="checkbox" id="accomplishMonthShare">
+        <label for="accomplishMonthShare">Share with Legion</label>
       </div>
     </div>
   </div>
@@ -2214,10 +2714,11 @@
         <span class="yearly-year-label" id="yearlyYearLabel">—</span>
         <button type="button" class="secondary" id="yearlyNextYear">›</button>
       </div>
+      <div class="yearly-focus-display" id="yearlyFocusDisplay"></div>
       <div id="yearlyMonthsList" class="yearly-months-grid"></div>
       <div class="section-share-row" id="yearlyShareRow">
         <input type="checkbox" id="yearlyShare">
-        <label for="yearlyShare">Share with Clan</label>
+        <label for="yearlyShare">Share with Legion</label>
       </div>
     </div>
   </div>
@@ -2225,7 +2726,10 @@
 
 <!-- ============================ TAB 3: JOURNAL ============================ -->
 <div class="tab-panel" id="tab-journal">
-  <h2 class="tab-title">Journal</h2>
+  <div class="ledgers-header-row">
+    <h2 class="tab-title">Ledgers</h2>
+    <button type="button" class="secondary ledgers-tradingview-btn" id="tradingviewSettingsBtn">⚙ TradingView Webhook</button>
+  </div>
 
   <div class="journal-split">
     <!-- Left 2/3: the writing box + 3 controls (Add Image, Category, Save) -->
@@ -2271,10 +2775,10 @@
           <span class="export-row-label">Tabs</span>
           <div class="export-tab-group" id="exportTabGroup">
             <button type="button" class="export-tab-btn" data-tab="ruler">Ruler</button>
-            <button type="button" class="export-tab-btn" data-tab="life">Life</button>
-            <button type="button" class="export-tab-btn" data-tab="journal">Journal</button>
-            <button type="button" class="export-tab-btn" data-tab="clans">Clans</button>
-            <button type="button" class="export-tab-btn" data-tab="insights">Insights</button>
+            <button type="button" class="export-tab-btn" data-tab="life">Vision</button>
+            <button type="button" class="export-tab-btn" data-tab="journal">Ledgers</button>
+            <button type="button" class="export-tab-btn" data-tab="clans">Legions</button>
+            <button type="button" class="export-tab-btn" data-tab="insights">Alpha</button>
           </div>
         </div>
 
@@ -2306,11 +2810,11 @@
   <div class="clans-col">
     <div class="clans-section" id="clansSection" style="display:none;">
       <div class="clans-header-row">
-        <span class="section-label">Clans</span>
+        <span class="section-label">Legions</span>
         <div class="clans-actions">
           <input type="text" id="joinCodeInput" placeholder="Invite code">
           <button id="joinClanBtn" class="secondary">Join</button>
-          <button id="createClanBtn">+ Create Clan</button>
+          <button id="createClanBtn">+ Create Legion</button>
         </div>
       </div>
       <div class="clans-msg" id="clansMsg"></div>
@@ -2318,8 +2822,8 @@
     </div>
 
     <div class="clans-locked" id="clansLocked">
-      <span class="section-label">Clans</span>
-      <p>Sign in above to join or create a Clan and see your team's Rulers.</p>
+      <span class="section-label">Legions</span>
+      <p>Sign in above to join or create a Legion and see your team's Rulers.</p>
     </div>
   </div>
 </div><!-- /bottom-row -->
@@ -2327,7 +2831,7 @@
 
 <!-- ============================ TAB 5: INSIGHTS ============================ -->
 <div class="tab-panel" id="tab-insights">
-  <h2 class="tab-title">Insights</h2>
+  <h2 class="tab-title">Alpha</h2>
 
   <div class="insights-headline-card">
     <div class="insights-headline-metric">
@@ -2442,13 +2946,27 @@ function loadLocalSnapshots() {
   return {};
 }
 
-function todayUTCDateString() {
-  return new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD'
+// Local calendar-day string 'YYYY-MM-DD' for an arbitrary Date object,
+// built from its LOCAL Y/M/D components (not UTC) — the single source
+// of truth for "what day is this" throughout the app, so day rollover,
+// every archive record's day-key, and every visible "today" marker
+// all agree with the viewer's own wall clock. Real UTC instants
+// (updated_at, edit-history timestamps, Supabase sync) are untouched —
+// those are absolute moments, not day-buckets, so they don't need this.
+function localDateString(d) {
+  var y = d.getFullYear();
+  var m = d.getMonth() + 1;
+  var day = d.getDate();
+  return y + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
+}
+
+function todayLocalDateString() {
+  return localDateString(new Date());
 }
 
 function captureLocalDailySnapshotIfNeeded() {
   var lastDate = localStorage.getItem(LAST_SNAPSHOT_DATE_KEY);
-  var today = todayUTCDateString();
+  var today = todayLocalDateString();
 
   if (lastDate === today) return; // already checked today, nothing to do
 
@@ -2534,7 +3052,7 @@ function queryDailyRange(startDate, endDate) {
 // saveBlocks() and updateDailyScore()) so "today" is always current,
 // not just backfilled after the day ends.
 function recordToday() {
-  var today = todayUTCDateString();
+  var today = todayLocalDateString();
   var archive = loadDailyArchive();
   var existing = archive[today] || {};
   archive[today] = {
@@ -2600,7 +3118,7 @@ function recordCurrentWeek() {
   for (var i = 0; i < 7; i++) {
     var d = new Date(monday);
     d.setDate(monday.getDate() + i);
-    var rec = getDayRecord(d.toISOString().slice(0, 10));
+    var rec = getDayRecord(localDateString(d));
     if (rec && typeof rec.dailyScore === 'number') dayScores.push(rec.dailyScore);
   }
   var avg = dayScores.length
@@ -2640,7 +3158,7 @@ function syncDailyAndWeeklyArchive() {
 // Saves locally always (full archive bundle); also pushes blocks to
 // Supabase if logged in.
 function snapshotTodayNow() {
-  var today = todayUTCDateString();
+  var today = todayLocalDateString();
   syncDailyAndWeeklyArchive();
 
   if (supabaseClient && currentUser) {
@@ -2665,7 +3183,14 @@ function loadBlocks() {
     try {
       var parsed = JSON.parse(saved);
       if (parsed.length === NUM_BLOCKS) {
-        parsed.forEach(function(b) { if (typeof b.sleep === 'undefined') b.sleep = false; });
+        parsed.forEach(function(b, i) {
+          if (typeof b.sleep === 'undefined') b.sleep = false;
+          // One-time label migration: blocks still carrying the old
+          // 1-indexed default name ("Block 1".."Block 12") get moved
+          // to the current 0-indexed default ("Block 0".."Block 11").
+          // Anything a user actually renamed themselves is left alone.
+          if (b.name === ('Block ' + (i + 1))) b.name = 'Block ' + i;
+        });
         return parsed;
       }
     } catch(e) {}
@@ -2923,8 +3448,153 @@ function getBlockTimeInTimezone(timezone) {
 // there's one formatting rule instead of duplicated padding logic.
 function formatBlockTime(bt) {
   var minStr = (bt.minutesElapsed < 10 ? '0' : '') + bt.minutesElapsed;
-  var secStr = (bt.secondsElapsed < 10 ? '0' : '') + bt.secondsElapsed;
-  return bt.blockNumber + ':' + minStr + ':' + secStr;
+  return bt.blockNumber + ':' + minStr;
+}
+
+// ---- Time Crawler ----
+// One shade per fixed 120-min block (0-11), single gold family only —
+// hierarchy comes from brightness (peaking at midday, dimmest at the
+// dead of night), not a hue shift. No orange/crimson/indigo anymore;
+// this stays in lockstep with the rest of the app's gold-only accent
+// system.
+var RULER_CRAWLER_COLORS = [
+  '#8a6a1a', // 0: 6-8am   dawn, gold rising out of black
+  '#a8841f', // 1: 8-10am  brightening
+  '#c9a227', // 2: 10-12pm rich gold
+  '#d9b23a', // 3: 12-2pm  brightest — midday peak
+  '#c9a227', // 4: 2-4pm   easing back down
+  '#a8841f', // 5: 4-6pm   dimming
+  '#8a6a1a', // 6: 6-8pm   dusk gold
+  '#6b5214', // 7: 8-10pm  fading toward black
+  '#4a3810', // 8: 10pm-12am low ember
+  '#33280c', // 9: 12-2am  near-black gold
+  '#221b08', // 10: 2-4am  deepest night, darkest point
+  '#4a3810'  // 11: 4-6am  pre-dawn, warming back up
+];
+
+// "Block:Minutes" only (no seconds) — the crawler's own overlay text
+// is Ruler Alignment time in the '0:64' style, not the full clock.
+function formatCrawlerTime(bt) {
+  var minStr = (bt.minutesElapsed < 10 ? '0' : '') + bt.minutesElapsed;
+  return bt.blockNumber + ':' + minStr;
+}
+
+// The crawler's position/width are computed off the FIXED 12x120min
+// grid (getSinceSix() / TOTAL_MIN), not the user's actual (resizable)
+// block widths below it — same separation of concerns as the Ruler
+// Alignment clock itself. Its left edge slides continuously (a CSS
+// transition smooths each second's jump into a real "crawl"), and its
+// color switches the instant it enters a new block's fixed slot.
+function updateRulerCrawler(now) {
+  var band = document.getElementById('crawlerBand');
+  if (!band) return;
+  var bt = getBlockTime(now);
+  var sinceSix = getSinceSix();
+  var bandWidthPct = 100 / NUM_BLOCKS;
+  var leftPct = Math.min((sinceSix / TOTAL_MIN) * 100, 100 - bandWidthPct);
+  band.style.left = leftPct + '%';
+  band.style.background = RULER_CRAWLER_COLORS[bt.blockNumber];
+  band.textContent = formatCrawlerTime(bt);
+}
+
+// ---- Sunrise Forecast ----
+// Real astronomical sunrise (NOAA solar position equations), computed
+// locally from the user's lat/long — no external API, so it works
+// offline like the rest of the app and never depends on a third-party
+// service being up. Accurate to well within a minute for a forecast
+// widget's purposes; returns null for polar day/night where there's
+// no sunrise that day.
+var SUNRISE_LOCATION_KEY = 'csrAlignSunriseLocation';
+
+function loadSunriseLocation() {
+  var saved = localStorage.getItem(SUNRISE_LOCATION_KEY);
+  if (saved) { try { return JSON.parse(saved); } catch (e) { return null; } }
+  return null;
+}
+
+function saveSunriseLocation(loc) {
+  localStorage.setItem(SUNRISE_LOCATION_KEY, JSON.stringify(loc));
+}
+
+function computeSunriseUTC(localDate, lat, lon) {
+  var rad = Math.PI / 180;
+  var y = localDate.getFullYear(), m = localDate.getMonth(), d = localDate.getDate();
+  var startOfYear = Date.UTC(y, 0, 1);
+  var dayOfYear = Math.round((Date.UTC(y, m, d) - startOfYear) / 86400000) + 1;
+
+  var gamma = (2 * Math.PI / 365) * (dayOfYear - 1);
+
+  var eqTime = 229.18 * (0.000075 + 0.001868 * Math.cos(gamma) - 0.032077 * Math.sin(gamma)
+              - 0.014615 * Math.cos(2 * gamma) - 0.040849 * Math.sin(2 * gamma));
+  var decl = 0.006918 - 0.399912 * Math.cos(gamma) + 0.070257 * Math.sin(gamma)
+              - 0.006758 * Math.cos(2 * gamma) + 0.000907 * Math.sin(2 * gamma)
+              - 0.002697 * Math.cos(3 * gamma) + 0.00148 * Math.sin(3 * gamma);
+
+  var latRad = lat * rad;
+  var zenith = 90.833 * rad; // official sunrise zenith — accounts for atmospheric refraction + solar disc radius
+
+  var cosHA = (Math.cos(zenith) / (Math.cos(latRad) * Math.cos(decl))) - Math.tan(latRad) * Math.tan(decl);
+  if (cosHA > 1 || cosHA < -1) return null; // polar night or polar day — no sunrise this date
+
+  var haDeg = Math.acos(cosHA) / rad;
+  var solarNoonMin = 720 - 4 * lon - eqTime;
+  var sunriseMin = solarNoonMin - 4 * haDeg;
+
+  return new Date(Date.UTC(y, m, d, 0, 0, 0) + sunriseMin * 60000);
+}
+
+// Today's local sunrise only — narrow enough to sit stacked above
+// the Weekly Visualization box in the same column, rather than its
+// own full-width forecast row.
+function renderSunriseForecast() {
+  var container = document.getElementById('sunriseForecastBody');
+  if (!container) return;
+  var loc = loadSunriseLocation();
+
+  if (!loc) {
+    container.innerHTML = '<button type="button" class="secondary sunrise-forecast-enable" id="sunriseForecastEnableBtn">Enable location</button>';
+    var enableBtn = document.getElementById('sunriseForecastEnableBtn');
+    if (enableBtn) enableBtn.addEventListener('click', requestSunriseLocation);
+    return;
+  }
+
+  container.innerHTML = '';
+  var dayLabels = ['Today', 'Tomorrow', 'In 2 Days'];
+  for (var i = 0; i < 3; i++) {
+    var d = new Date();
+    d.setDate(d.getDate() + i);
+    var sunrise = computeSunriseUTC(d, loc.lat, loc.lon);
+
+    var row = document.createElement('div');
+    row.className = 'sunrise-forecast-row-item';
+    var label = document.createElement('span');
+    label.className = 'sunrise-forecast-day';
+    label.textContent = dayLabels[i];
+    var time = document.createElement('span');
+    time.className = 'sunrise-forecast-value';
+    time.textContent = sunrise ? sunrise.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '—';
+    row.appendChild(label);
+    row.appendChild(time);
+    container.appendChild(row);
+  }
+}
+
+function requestSunriseLocation() {
+  var container = document.getElementById('sunriseForecastBody');
+  if (!navigator.geolocation) {
+    if (container) container.innerHTML = '<span class="sunrise-forecast-error">Location not supported</span>';
+    return;
+  }
+  if (container) container.innerHTML = '<span class="sunrise-forecast-loading">Locating…</span>';
+  navigator.geolocation.getCurrentPosition(function(pos) {
+    saveSunriseLocation({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+    renderSunriseForecast();
+  }, function() {
+    if (!container) return;
+    container.innerHTML = '<span class="sunrise-forecast-error">Location denied</span><button type="button" class="secondary sunrise-forecast-enable" id="sunriseForecastRetryBtn">Retry</button>';
+    var retryBtn = document.getElementById('sunriseForecastRetryBtn');
+    if (retryBtn) retryBtn.addEventListener('click', requestSunriseLocation);
+  }, { timeout: 8000, maximumAge: 3600000 });
 }
 
 function updateCurrentBlockInfo() {
@@ -2982,77 +3652,274 @@ Array.prototype.forEach.call(document.getElementById('quickEnergyBtns').querySel
   });
 });
 
-// ---- Sleep / Wake log ----
-// Captures the ACTUAL clock time you fell asleep or woke up — entirely
-// independent of the Ruler's block scheduling (doesn't touch blocks,
-// doesn't toggle any block's sleep flag). Stored as a flat chronological
-// event log (sleep spans midnight, so a per-calendar-day bucket doesn't
-// fit it cleanly). When an 'awake' click closes a prior unmatched
-// 'sleep' event, the resulting duration is also written onto that
-// morning's Daily Archive record as actualSleepMinutes — same "derive
-// a summary field, keep the raw log elsewhere" pattern journalEntryCount
-// already uses for Journal entries — so Insights has one place to read
-// real sleep duration from, preferring it over the block-based proxy.
-var SLEEP_LOG_KEY = 'csrAlignSleepLog';
 
-function loadSleepLog() {
-  var saved = localStorage.getItem(SLEEP_LOG_KEY);
-  if (saved) {
-    try { var parsed = JSON.parse(saved); return Array.isArray(parsed) ? parsed : []; } catch(e) { return []; }
-  }
-  return [];
+// ============================================================
+// Telegram — GM/GN broadcast to the user's own bot/chats.
+// Bot token + chat IDs + message templates are localStorage-only,
+// scoped to this device, never synced to Supabase or anywhere but
+// api.telegram.org when a send actually happens. No server this app
+// runs ever sees the token.
+// ============================================================
+var TELEGRAM_CONFIG_KEY = 'csrAlignTelegramConfig';
+
+function loadTelegramConfig() {
+  var saved = localStorage.getItem(TELEGRAM_CONFIG_KEY);
+  var defaults = {
+    botToken: '',
+    chatIds: [],
+    gmMessage: 'Good morning! Starting the day strong. ☀️',
+    gnMessage: 'Good night. Wrapping up for today. 🌙'
+  };
+  if (!saved) return defaults;
+  try {
+    var parsed = JSON.parse(saved);
+    return {
+      botToken: typeof parsed.botToken === 'string' ? parsed.botToken : defaults.botToken,
+      chatIds: Array.isArray(parsed.chatIds) ? parsed.chatIds : defaults.chatIds,
+      gmMessage: typeof parsed.gmMessage === 'string' && parsed.gmMessage ? parsed.gmMessage : defaults.gmMessage,
+      gnMessage: typeof parsed.gnMessage === 'string' && parsed.gnMessage ? parsed.gnMessage : defaults.gnMessage
+    };
+  } catch (e) { return defaults; }
 }
 
-function saveSleepLog(log) {
-  localStorage.setItem(SLEEP_LOG_KEY, JSON.stringify(log));
+function saveTelegramConfig(cfg) {
+  localStorage.setItem(TELEGRAM_CONFIG_KEY, JSON.stringify(cfg));
 }
 
-function logSleepWakeEvent(type) {
-  var log = loadSleepLog();
-  var now = new Date();
+function sendTelegramMessage(botToken, chatId, text) {
+  return fetch('https://api.telegram.org/bot' + botToken + '/sendMessage', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: chatId, text: text })
+  }).then(function(res) {
+    if (res.ok) return res.json();
+    return res.json().catch(function() { return {}; }).then(function(body) {
+      throw new Error(body.description || ('HTTP ' + res.status));
+    });
+  });
+}
 
-  if (type === 'awake') {
-    var lastEvent = log.length ? log[log.length - 1] : null;
-    if (lastEvent && lastEvent.type === 'sleep') {
-      var durationMin = Math.round((now - new Date(lastEvent.timestamp)) / 60000);
-      if (durationMin > 0 && durationMin < 1440) {
-        var today = todayUTCDateString();
-        var archive = loadDailyArchive();
-        var rec = archive[today] || { date: today };
-        rec.actualSleepMinutes = durationMin;
-        archive[today] = rec;
-        saveDailyArchive(archive);
-      }
+// Best-effort from the GM/GN buttons, which now do nothing but this:
+// if Telegram isn't set up yet, this silently does nothing rather
+// than nagging on every click. A real send failure (bad token,
+// network) still surfaces as a toast, since that IS actionable for
+// someone who did set it up.
+function broadcastTelegramMessage(text) {
+  var cfg = loadTelegramConfig();
+  if (!cfg.botToken || !cfg.chatIds.length) return;
+  var results = cfg.chatIds.map(function(chatId) {
+    return sendTelegramMessage(cfg.botToken, chatId, text).then(
+      function() { return { ok: true }; },
+      function(err) { return { ok: false, error: err.message }; }
+    );
+  });
+  Promise.all(results).then(function(outcomes) {
+    var failed = outcomes.filter(function(o) { return !o.ok; });
+    if (failed.length === outcomes.length) {
+      showToast('Telegram send failed: ' + failed[0].error, 'error');
+    } else if (failed.length) {
+      showToast('Telegram: sent to ' + (outcomes.length - failed.length) + '/' + outcomes.length + ' chats', 'error');
     }
-  }
-
-  log.push({ type: type, timestamp: now.toISOString() });
-  saveSleepLog(log);
-  return now;
+  });
 }
 
-function updateSleepLogDisplay() {
-  var log = loadSleepLog();
-  var last = log[log.length - 1];
-  var el = document.getElementById('sleepLogLast');
-  if (!el) return;
-  if (!last) { el.textContent = ''; return; }
-  var label = last.type === 'sleep' ? 'Sleep' : 'Awake';
-  var timeStr = new Date(last.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  el.textContent = 'Last: ' + label + ' at ' + timeStr;
+var telegramModalOverlay = document.getElementById('telegramModalOverlay');
+var telegramBotTokenInput = document.getElementById('telegramBotToken');
+var telegramChatIdsInput = document.getElementById('telegramChatIds');
+var telegramGmMessageInput = document.getElementById('telegramGmMessage');
+var telegramGnMessageInput = document.getElementById('telegramGnMessage');
+
+function openTelegramModal() {
+  var cfg = loadTelegramConfig();
+  telegramBotTokenInput.value = cfg.botToken;
+  telegramChatIdsInput.value = cfg.chatIds.join('\n');
+  telegramGmMessageInput.value = cfg.gmMessage;
+  telegramGnMessageInput.value = cfg.gnMessage;
+  telegramModalOverlay.style.display = 'flex';
 }
+function closeTelegramModal() {
+  telegramModalOverlay.style.display = 'none';
+}
+function readTelegramFormConfig() {
+  return {
+    botToken: telegramBotTokenInput.value.trim(),
+    chatIds: telegramChatIdsInput.value.split('\n').map(function(s) { return s.trim(); }).filter(Boolean),
+    gmMessage: telegramGmMessageInput.value,
+    gnMessage: telegramGnMessageInput.value
+  };
+}
+
+document.getElementById('telegramSettingsBtn').addEventListener('click', openTelegramModal);
+document.getElementById('telegramModalClose').addEventListener('click', closeTelegramModal);
+telegramModalOverlay.addEventListener('click', function(e) {
+  if (e.target === telegramModalOverlay) closeTelegramModal();
+});
+document.getElementById('telegramSaveBtn').addEventListener('click', function() {
+  saveTelegramConfig(readTelegramFormConfig());
+  showToast('Telegram settings saved.', 'success');
+  closeTelegramModal();
+});
+document.getElementById('telegramTestBtn').addEventListener('click', function() {
+  var cfg = readTelegramFormConfig();
+  if (!cfg.botToken) { showToast('Enter a bot token first.', 'error'); return; }
+  if (!cfg.chatIds.length) { showToast('Add at least one chat ID first.', 'error'); return; }
+  var results = cfg.chatIds.map(function(chatId) {
+    return sendTelegramMessage(cfg.botToken, chatId, 'Test message from Command Center. If you see this, GM/GN is wired up correctly.').then(
+      function() { return { ok: true }; },
+      function(err) { return { ok: false, error: err.message }; }
+    );
+  });
+  Promise.all(results).then(function(outcomes) {
+    var failed = outcomes.filter(function(o) { return !o.ok; });
+    if (!failed.length) {
+      showToast('Test sent to ' + outcomes.length + ' chat' + (outcomes.length === 1 ? '' : 's') + '.', 'success');
+    } else {
+      showToast('Test failed: ' + failed[0].error, 'error');
+    }
+  });
+});
 
 document.getElementById('logAwakeBtn').addEventListener('click', function() {
-  var now = logSleepWakeEvent('awake');
-  updateSleepLogDisplay();
-  showToast('Wake time logged: ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 'success');
+  broadcastTelegramMessage(loadTelegramConfig().gmMessage);
 });
 document.getElementById('logSleepBtn').addEventListener('click', function() {
-  var now = logSleepWakeEvent('sleep');
-  updateSleepLogDisplay();
-  showToast('Sleep time logged: ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 'success');
+  broadcastTelegramMessage(loadTelegramConfig().gnMessage);
 });
-updateSleepLogDisplay();
+
+// ============================================================
+// TradingView webhook — settings modal + on-login catch-up.
+// The actual receiver (Edge Function + tables) lives outside this
+// file entirely (supabase/functions/tradingview-webhook,
+// supabase/migrations/0002_trade_alerts.sql); this is just the
+// client half: configuring the shared secret, showing the URL to
+// paste into TradingView, and turning received alerts into Ledgers
+// entries. Only the secret is stored locally (localStorage) — the
+// alerts themselves live in Supabase (trade_alerts), not here.
+// ============================================================
+var TRADINGVIEW_SECRET_KEY = 'csrAlignTradingViewSecret';
+
+function loadTradingViewSecret() {
+  return localStorage.getItem(TRADINGVIEW_SECRET_KEY) || '';
+}
+
+function generateWebhookSecret() {
+  var bytes = crypto.getRandomValues(new Uint8Array(24));
+  return bytesToBase64(bytes).replace(/[^a-zA-Z0-9]/g, '').slice(0, 32);
+}
+
+function tradingViewWebhookUrl() {
+  if (!currentUser) return '';
+  return SUPABASE_URL + '/functions/v1/tradingview-webhook?uid=' + currentUser.id;
+}
+
+var tradingviewModalOverlay = document.getElementById('tradingviewModalOverlay');
+var tradingviewWebhookUrlInput = document.getElementById('tradingviewWebhookUrl');
+var tradingviewSecretInput = document.getElementById('tradingviewSecret');
+
+function openTradingViewModal() {
+  tradingviewWebhookUrlInput.value = tradingViewWebhookUrl() || 'Sign in to see your webhook URL';
+  tradingviewSecretInput.value = loadTradingViewSecret();
+  tradingviewModalOverlay.style.display = 'flex';
+}
+function closeTradingViewModal() {
+  tradingviewModalOverlay.style.display = 'none';
+}
+
+document.getElementById('tradingviewSettingsBtn').addEventListener('click', openTradingViewModal);
+document.getElementById('tradingviewModalClose').addEventListener('click', closeTradingViewModal);
+tradingviewModalOverlay.addEventListener('click', function(e) {
+  if (e.target === tradingviewModalOverlay) closeTradingViewModal();
+});
+document.getElementById('tradingviewGenerateBtn').addEventListener('click', function() {
+  tradingviewSecretInput.value = generateWebhookSecret();
+});
+
+document.getElementById('tradingviewSaveBtn').addEventListener('click', function() {
+  if (!currentUser) { showToast('Sign in first — the webhook is tied to your account.', 'error'); return; }
+  var secret = tradingviewSecretInput.value.trim();
+  if (!secret) { showToast('Generate or enter a secret first.', 'error'); return; }
+  localStorage.setItem(TRADINGVIEW_SECRET_KEY, secret);
+  if (!supabaseClient) { showToast('Saved locally, but not synced — Supabase unavailable.', 'error'); return; }
+  supabaseClient.from('webhook_secrets')
+    .upsert({ user_id: currentUser.id, tradingview_secret: secret, updated_at: new Date().toISOString() })
+    .then(function(result) {
+      if (result.error) {
+        showToast('Saved locally, but sync failed: ' + result.error.message, 'error');
+      } else {
+        showToast('Webhook secret saved.', 'success');
+      }
+    });
+});
+
+document.getElementById('tradingviewTestBtn').addEventListener('click', function() {
+  var url = tradingViewWebhookUrl();
+  if (!url) { showToast('Sign in first — the webhook is tied to your account.', 'error'); return; }
+  fetch(url, { method: 'GET' })
+    .then(function(res) {
+      if (res.ok) {
+        showToast('Reachable — the Edge Function responded.', 'success');
+      } else {
+        showToast('Reached the URL but got HTTP ' + res.status + ' — check the function is deployed correctly.', 'error');
+      }
+    })
+    .catch(function() {
+      showToast('Could not reach the webhook — is the Edge Function deployed?', 'error');
+    });
+});
+
+// Converts one trade_alerts row into a Ledgers entry. 'Trader' is
+// already one of this app's default journal categories, so no new
+// category needs adding.
+function buildLedgerEntryFromTradeAlert(alert) {
+  var text;
+  if (alert.action === 'open') {
+    text = 'Trade opened — ' + alert.pair + (alert.side ? ' (' + alert.side + ')' : '') +
+      '\nEntry: ' + (alert.price != null ? alert.price : '—');
+  } else {
+    text = 'Trade closed — ' + alert.pair + (alert.side ? ' (' + alert.side + ')' : '') +
+      '\nExit: ' + (alert.price != null ? alert.price : '—') +
+      '\nP&L: ' + (alert.pnl != null ? alert.pnl : '—');
+  }
+  var stamp = alert.alert_time || alert.created_at || new Date().toISOString();
+  return {
+    id: 'entry-' + Math.random().toString(36).slice(2) + Date.now(),
+    date: stamp.slice(0, 10),
+    createdAt: stamp,
+    text: text,
+    category: 'Trader',
+    score: null,
+    shareWithClan: false,
+    edited: false,
+    history: [],
+    imagePaths: [],
+    encrypted: false
+  };
+}
+
+// Catch-up query: runs on login/app-load, not a live subscription —
+// alerts fired while the app was closed are still captured in
+// trade_alerts by the Edge Function regardless, and get turned into
+// Ledgers entries the next time this runs.
+function processTradeAlerts() {
+  if (!supabaseClient || !currentUser) return;
+  supabaseClient.from('trade_alerts')
+    .select('*')
+    .eq('user_id', currentUser.id)
+    .eq('processed', false)
+    .order('created_at', { ascending: true })
+    .then(function(result) {
+      if (result.error || !result.data || !result.data.length) return;
+      var entries = loadEntries();
+      result.data.forEach(function(alert) {
+        entries.push(buildLedgerEntryFromTradeAlert(alert));
+      });
+      saveEntries(entries);
+      if (typeof renderEntries === 'function') renderEntries();
+      var ids = result.data.map(function(a) { return a.id; });
+      supabaseClient.from('trade_alerts').update({ processed: true }).in('id', ids).then(function() {});
+      showToast('Logged ' + result.data.length + ' trade alert' + (result.data.length === 1 ? '' : 's') + ' to Ledgers.', 'success');
+    });
+}
 
 function findCurrentBlockIndex(sinceSix) {
   for (var i = 0; i < blockEls.length; i++) {
@@ -3064,13 +3931,14 @@ function findCurrentBlockIndex(sinceSix) {
 function updateLiveClock() {
   var now = new Date();
 
-  var localStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  var localStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   document.getElementById('localClock').textContent = localStr;
 
-  var utcStr = now.toLocaleTimeString('en-GB', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-  document.getElementById('utcClock').textContent = utcStr + ' UTC';
+  var utcStr = now.toLocaleTimeString('en-US', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit', hour12: true });
+  document.getElementById('utcClock').textContent = utcStr;
 
   document.getElementById('blockClock').textContent = formatBlockTime(getBlockTime(now));
+  updateRulerCrawler(now);
 }
 
 function updateLive() {
@@ -3306,7 +4174,7 @@ function hasJournalEntryToday() {
 }
 
 function computeDailyScoreBreakdown() {
-  var rec = getDayRecord(todayUTCDateString());
+  var rec = getDayRecord(todayLocalDateString());
   var missionText = ((rec && rec.missionText) || '').trim();
   var missionPoints = (missionText && rec && rec.missionDone) ? 3 : 0;
   var journalPoints = hasJournalEntryToday() ? 2 : 0;
@@ -3322,15 +4190,16 @@ function computeDailyScore() {
   return computeDailyScoreBreakdown().total;
 }
 
-// Averages the rolling window's history + today (the days that can
-// actually have a score) — matches what the rows below it show,
-// rather than the ISO calendar week. The ISO-week average still lives
-// in WeeklyArchive/getWeekRecord() for Insights and Yearly Viz, which
-// deliberately stay Mon-Sun; this summary is local-display-only.
+// Averages Monday-through-today (the days in this week that can
+// actually have a score) — matches what the rows below it show, now
+// that getRollingWindowDates() is itself a fixed Mon-Sun week. Kept
+// as its own function rather than reading WeeklyArchive/getWeekRecord()
+// directly since this is local-display-only and shouldn't depend on
+// that record having already been written for the week.
 function renderWeeklyScoreSummary() {
   var el = document.getElementById('weeklyScoreSummaryValue');
   if (!el) return;
-  var today = todayUTCDateString();
+  var today = todayLocalDateString();
   var scores = getRollingWindowDates()
     .filter(function(d) { return d <= today; })
     .map(function(d) { var rec = getDayRecord(d); return (rec && typeof rec.dailyScore === 'number') ? rec.dailyScore : null; })
@@ -3348,7 +4217,7 @@ function updateDailyScore() {
     el.title = 'Mission ' + breakdown.mission + '/3 · Journal ' + breakdown.journal + '/2 · Musts ' + breakdown.musts + '/2 · Energy ' + breakdown.energy + '/3';
   }
 
-  var today = todayUTCDateString();
+  var today = todayLocalDateString();
   var cell = document.getElementById('weeklyScoreValue-' + today);
   if (cell) cell.textContent = score + '/10';
   syncDailyAndWeeklyArchive();
@@ -3518,7 +4387,7 @@ function buildEntryElement(entry) {
     }
   });
   shareLabel.appendChild(shareCheckbox);
-  shareLabel.appendChild(document.createTextNode('Share with Clan'));
+  shareLabel.appendChild(document.createTextNode('Share with Legion'));
   bottomRow.appendChild(shareLabel);
 
   var editBtn = document.createElement('button');
@@ -3961,12 +4830,13 @@ tackleArea.addEventListener('input', saveTackle);
 tackleShare.addEventListener('change', saveTackle);
 
 // ---- Weekly Visualization ----
-// Rolling 7-day window: 3 completed days of history + today + 3 blank
-// days ahead for planning, all keyed by real calendar date against
-// the SAME DailyArchive Insights/Export/Yearly already read — not a
-// separate recurring Monday-first template anymore. Each day rollover
-// the window shifts: the oldest day drops off, a genuinely blank new
-// day appears on the right (it has no archive record yet).
+// Fixed Monday-Sunday calendar week, keyed by real calendar date
+// against the SAME DailyArchive Insights/Export/Yearly already read.
+// Day 1 is always Monday, day 7 is always Sunday — the window doesn't
+// creep forward one day at a time; it jumps to the next Mon-Sun block
+// the moment the calendar crosses into a new week, same as any
+// standard week view. Days after today within the week are still
+// blank/future (planning-ahead), days before are history.
 var weeklyDaysList = document.getElementById('weeklyDaysList');
 var WEEKDAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -3975,11 +4845,17 @@ function weekdayAbbrForDate(dateStr) {
 }
 
 function getRollingWindowDates() {
-  var today = new Date(todayUTCDateString() + 'T00:00:00Z');
+  var today = new Date(todayLocalDateString() + 'T00:00:00Z');
+  // getUTCDay(): 0=Sun..6=Sat. Convert to Monday-first offset (Mon=0..Sun=6)
+  // so day 1 of the window always lands on Monday regardless of what
+  // weekday today happens to be.
+  var daysSinceMonday = (today.getUTCDay() + 6) % 7;
+  var monday = new Date(today.getTime());
+  monday.setUTCDate(monday.getUTCDate() - daysSinceMonday);
   var dates = [];
-  for (var offset = -3; offset <= 3; offset++) {
-    var d = new Date(today.getTime());
-    d.setUTCDate(d.getUTCDate() + offset);
+  for (var i = 0; i < 7; i++) {
+    var d = new Date(monday.getTime());
+    d.setUTCDate(d.getUTCDate() + i);
     dates.push(d.toISOString().slice(0, 10));
   }
   return dates;
@@ -3999,7 +4875,7 @@ function saveMissionForDate(dateStr, text, done) {
 }
 
 function buildRollingWindowSnapshot() {
-  var today = todayUTCDateString();
+  var today = todayLocalDateString();
   return getRollingWindowDates().map(function(date) {
     var rec = getDayRecord(date);
     return {
@@ -4013,13 +4889,19 @@ function buildRollingWindowSnapshot() {
   });
 }
 
-// Weekly Focus text. Previously a UI-only field with no persistence
-// at all — now saved locally and recorded into the Weekly Archive on
-// every change, so it's real, queryable data (e.g. for Yearly Viz to
-// pull from later), not just a placeholder input.
+// Weekly Focus text. Two-way bound to goal #1 of "What I Want To
+// Accomplish This Month" (Vision tab) — editing either one live-updates
+// the other, same pattern as Monthly Focus <-> the current month's
+// Yearly Visualization cell. goal1InputEl is set once
+// renderAccomplishMonth() creates that textarea (below); this listener
+// only touches it once it exists, since renderAccomplishMonth() runs
+// before any user interaction is possible. Everything already reading
+// WeeklyArchive.focusText (Yearly Viz's pulled-focus display, CSV/PDF
+// export, Insights) is unaffected — only the input source changed.
 var weeklyFocusText = localStorage.getItem(WEEKLY_FOCUS_KEY) || '';
 var weeklyFocusValueAtFocus = weeklyFocusText;
 var weeklyFocusInputEl = document.getElementById('weeklyFocusInput');
+var goal1InputEl = null;
 if (weeklyFocusInputEl) {
   weeklyFocusInputEl.value = weeklyFocusText;
   weeklyFocusInputEl.addEventListener('focus', function() {
@@ -4029,6 +4911,13 @@ if (weeklyFocusInputEl) {
     weeklyFocusText = weeklyFocusInputEl.value;
     localStorage.setItem(WEEKLY_FOCUS_KEY, weeklyFocusText);
     if (typeof recordCurrentWeek === 'function') recordCurrentWeek();
+    if (goal1InputEl && document.activeElement !== goal1InputEl) {
+      goal1InputEl.value = weeklyFocusText;
+    }
+    if (typeof accomplishMonthGoals !== 'undefined') {
+      accomplishMonthGoals[0] = weeklyFocusText;
+      if (typeof saveAccomplishMonth === 'function') saveAccomplishMonth();
+    }
   });
   weeklyFocusInputEl.addEventListener('blur', function() {
     if (weeklyFocusText !== weeklyFocusValueAtFocus && typeof logWeeklyFocusEdit === 'function') {
@@ -4044,7 +4933,7 @@ if (weeklyFocusInputEl) {
 // saveMissionForDate() and re-renders the weekly viz too, so both
 // components always reflect the same underlying data.
 function renderTodaysMission() {
-  var today = todayUTCDateString();
+  var today = todayLocalDateString();
   var rec = getDayRecord(today);
   var text = (rec && rec.missionText) || '';
   var textEl = document.getElementById('todaysMissionText');
@@ -4080,9 +4969,9 @@ function renderTodaysMission() {
 // window's "today" highlight, Today's Mission, and the Daily Score
 // all stay frozen on whatever day was "today" at last render, since
 // none of them are otherwise on a timer.
-var lastKnownDateStr = todayUTCDateString();
+var lastKnownDateStr = todayLocalDateString();
 function checkDayRollover() {
-  var dateStr = todayUTCDateString();
+  var dateStr = todayLocalDateString();
   if (dateStr !== lastKnownDateStr) {
     lastKnownDateStr = dateStr;
     renderWeeklyViz(); // cascades to renderTodaysMission() -> updateDailyScore()
@@ -4091,9 +4980,9 @@ function checkDayRollover() {
 
 function renderWeeklyViz() {
   weeklyDaysList.innerHTML = '';
-  var today = todayUTCDateString();
+  var today = todayLocalDateString();
 
-  getRollingWindowDates().forEach(function(date) {
+  getRollingWindowDates().forEach(function(date, slotIndex) {
     var rec = getDayRecord(date);
     var isToday = date === today;
     var isFuture = date > today;
@@ -4103,7 +4992,12 @@ function renderWeeklyViz() {
 
     var num = document.createElement('span');
     num.className = 'weekly-day-num';
-    num.textContent = weekdayAbbrForDate(date);
+    // Slot position (1-7) in the fixed Mon-Sun week from
+    // getRollingWindowDates() — day 1 is always Monday, day 7 is
+    // always Sunday. isToday (below) lands on whichever day number
+    // actually matches today's weekday, so the highlight isn't
+    // pinned to any fixed slot.
+    num.textContent = String(slotIndex + 1);
     num.title = date;
     row.appendChild(num);
 
@@ -4187,12 +5081,16 @@ function monthKeyFor(year, monthIdx) {
   return year + '-' + (monthIdx + 1 < 10 ? '0' : '') + (monthIdx + 1);
 }
 
-function isMonthLocked(year, monthIdx) {
+// Week notes lock individually by the week's own Monday date, not by
+// which month they're grouped under — a month can straddle past and
+// future weeks (the current month always does). Paid tier has no
+// lock at all, preserving the existing "plan ahead freely" benefit.
+function isYearlyWeekLocked(mondayDate) {
   if (currentUser && currentUserIsPaid) return false;
+  if (!mondayDate) return false;
   var now = new Date();
-  if (year > now.getFullYear()) return true;
-  if (year === now.getFullYear() && monthIdx > now.getMonth()) return true;
-  return false;
+  var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return mondayDate > todayStart;
 }
 
 function freshYearlyYearData() {
@@ -4311,6 +5209,7 @@ function loadMonthlyArchive() {
 
 function saveMonthlyArchive(archive) {
   localStorage.setItem(MONTHLY_ARCHIVE_KEY, JSON.stringify(archive));
+  pushSharedSection('monthlyFocus', archive);
 }
 
 function getMonthRecord(monthKey) {
@@ -4318,29 +5217,35 @@ function getMonthRecord(monthKey) {
   return archive[monthKey] || null;
 }
 
-function computeMonthlyAutoSummary(weekKeys) {
-  var archive = loadWeeklyArchive();
-  var texts = weekKeys
-    .filter(Boolean)
-    .map(function(wk) { return archive[wk] && archive[wk].focusText; })
-    .filter(function(t) { return t && t.trim(); });
-  return texts.join(' • ');
-}
-
+// No longer auto-summarized from the week's pulled Weekly Focus texts
+// (that connection was removed per direct request) — Monthly Focus is
+// now purely its own manually-entered text, sourced from the Vision
+// tab's Monthly Focus input / the Yearly Visualization cell, with no
+// other fallback. weekKeys is kept as a param since callers still pass
+// it (Yearly Viz, CSV/PDF export) — it's just unused here now.
 function getMonthlyFocusDisplay(monthKey, weekKeys) {
   var rec = getMonthRecord(monthKey);
-  if (rec && rec.editedText != null && rec.editedText !== '') return rec.editedText;
-  return computeMonthlyAutoSummary(weekKeys);
+  return (rec && rec.editedText != null) ? rec.editedText : '';
 }
 
-function saveMonthlyFocusEdit(monthKey, previousDisplayed, newText) {
+// Saves live (every keystroke, no history) so this can drive a
+// two-way-bound field elsewhere (the Vision tab's Monthly Focus input)
+// without spamming the edit history — mirrors saveYearlyWeekNoteLive's
+// split from logYearlyWeekNoteEdit below.
+function saveMonthlyFocusLive(monthKey, newText) {
   var archive = loadMonthlyArchive();
   var rec = archive[monthKey] || { editedText: null, history: [] };
   if (!rec.history) rec.history = [];
-  if (previousDisplayed !== newText) {
-    rec.history.push({ text: previousDisplayed, editedAt: new Date().toISOString() });
-  }
   rec.editedText = newText;
+  archive[monthKey] = rec;
+  saveMonthlyArchive(archive);
+}
+
+function logMonthlyFocusEdit(monthKey, previousDisplayed) {
+  var archive = loadMonthlyArchive();
+  var rec = archive[monthKey] || { editedText: null, history: [] };
+  if (!rec.history) rec.history = [];
+  rec.history.push({ text: previousDisplayed, editedAt: new Date().toISOString() });
   archive[monthKey] = rec;
   saveMonthlyArchive(archive);
 }
@@ -4348,8 +5253,14 @@ function saveMonthlyFocusEdit(monthKey, previousDisplayed, newText) {
 // ---- Year navigation ----
 var yearlyCurrentViewYear = new Date().getFullYear();
 var yearlyYearLabelEl = document.getElementById('yearlyYearLabel');
+var yearlyFocusDisplayEl = document.getElementById('yearlyFocusDisplay');
 var yearlyPrevYearBtn = document.getElementById('yearlyPrevYear');
 var yearlyNextYearBtn = document.getElementById('yearlyNextYear');
+// Points at the current real-world month's live <input> in the grid
+// below, whenever that month is actually on screen (i.e. the viewed
+// year is this year) — lets the Vision tab's Monthly Focus field
+// two-way sync with it without a DOM lookup on every keystroke.
+var currentMonthFocusInputEl = null;
 if (yearlyPrevYearBtn) {
   yearlyPrevYearBtn.addEventListener('click', function() {
     yearlyCurrentViewYear -= 1;
@@ -4366,22 +5277,25 @@ if (yearlyNextYearBtn) {
 function renderYearlyViz() {
   yearlyMonthsList.innerHTML = '';
   if (yearlyYearLabelEl) yearlyYearLabelEl.textContent = String(yearlyCurrentViewYear);
+  if (yearlyFocusDisplayEl) yearlyFocusDisplayEl.textContent = localStorage.getItem(THEME_YEAR_KEY) || '';
 
   var now = new Date();
   var isCurrentYear = yearlyCurrentViewYear === now.getFullYear();
   var currentMonthIdx = now.getMonth();
   var yearData = getYearData(yearlyCurrentViewYear);
+  currentMonthFocusInputEl = null;
 
   for (var i = 0; i < 12; i++) {
-    var locked = isMonthLocked(yearlyCurrentViewYear, i);
     var monthKey = monthKeyFor(yearlyCurrentViewYear, i);
     var mondays = getMondaysInMonth(yearlyCurrentViewYear, i);
     var weekKeys = [0, 1, 2, 3].map(function(w) { return mondays[w] ? isoWeekKey(mondays[w]) : null; });
 
+    // No whole-month dimming: Monthly Focus is always fully editable,
+    // so blanket-dimming the card would misleadingly suggest it isn't.
+    // Each week-box below carries its own accurate locked/unlocked state.
     var monthBlock = document.createElement('div');
     monthBlock.className = 'yearly-month'
-      + (isCurrentYear && i === currentMonthIdx ? ' is-current' : '')
-      + (locked ? ' yearly-month-locked' : '');
+      + (isCurrentYear && i === currentMonthIdx ? ' is-current' : '');
 
     var header = document.createElement('div');
     header.className = 'yearly-month-header';
@@ -4391,32 +5305,33 @@ function renderYearlyViz() {
     num.textContent = String(i + 1);
     header.appendChild(num);
 
-    if (locked) {
-      var lockedLabel = document.createElement('span');
-      lockedLabel.className = 'yearly-month-locked-label';
-      lockedLabel.textContent = '🔒 Upgrade to plan ahead';
-      header.appendChild(lockedLabel);
-      monthBlock.appendChild(header);
-      yearlyMonthsList.appendChild(monthBlock);
-      continue;
-    }
-
+    // Monthly Focus is editable for every month, any tier — the
+    // forward-looking exception even inside an otherwise "read only"
+    // future month.
     var focusInput = document.createElement('input');
     focusInput.type = 'text';
     focusInput.className = 'yearly-month-focus';
     focusInput.placeholder = 'Monthly focus...';
     focusInput.value = getMonthlyFocusDisplay(monthKey, weekKeys);
-    (function(mKey) {
+    var isCurrentMonthCell = isCurrentYear && i === currentMonthIdx;
+    if (isCurrentMonthCell) currentMonthFocusInputEl = focusInput;
+    (function(mKey, isCurrentCell) {
       var focusValueAtFocus = focusInput.value;
       focusInput.addEventListener('focus', function() {
         focusValueAtFocus = focusInput.value;
       });
-      focusInput.addEventListener('blur', function() {
-        if (focusInput.value !== focusValueAtFocus) {
-          saveMonthlyFocusEdit(mKey, focusValueAtFocus, focusInput.value);
+      focusInput.addEventListener('input', function() {
+        saveMonthlyFocusLive(mKey, focusInput.value);
+        if (isCurrentCell && themeMonthInput && document.activeElement !== themeMonthInput) {
+          themeMonthInput.value = focusInput.value;
         }
       });
-    })(monthKey);
+      focusInput.addEventListener('blur', function() {
+        if (focusInput.value !== focusValueAtFocus) {
+          logMonthlyFocusEdit(mKey, focusValueAtFocus);
+        }
+      });
+    })(monthKey, isCurrentMonthCell);
     header.appendChild(focusInput);
     monthBlock.appendChild(header);
 
@@ -4429,6 +5344,7 @@ function renderYearlyViz() {
 
       var weekKey = weekKeys[w];
       var weekRec = weekKey ? getWeekRecord(weekKey) : null;
+      var weekLocked = isYearlyWeekLocked(mondays[w]);
 
       var pulled = document.createElement('div');
       pulled.className = 'yearly-week-pulled-focus';
@@ -4437,23 +5353,26 @@ function renderYearlyViz() {
       boxWrap.appendChild(pulled);
 
       var box = document.createElement('textarea');
-      box.className = 'yearly-week-box';
-      box.placeholder = 'Week ' + (w + 1) + ' notes...';
+      box.className = 'yearly-week-box' + (weekLocked ? ' yearly-week-box-locked' : '');
+      box.placeholder = weekLocked ? '🔒 Future week' : ('Week ' + (w + 1) + ' notes...');
       box.value = yearData.months[i].weeks[w].text || '';
-      (function(yr, mi, wi, el) {
-        var valueAtFocus = el.value;
-        el.addEventListener('focus', function() {
-          valueAtFocus = el.value;
-        });
-        el.addEventListener('input', function() {
-          saveYearlyWeekNoteLive(yr, mi, wi, el.value);
-        });
-        el.addEventListener('blur', function() {
-          if (el.value !== valueAtFocus) {
-            logYearlyWeekNoteEdit(yr, mi, wi, valueAtFocus);
-          }
-        });
-      })(yearlyCurrentViewYear, i, w, box);
+      box.readOnly = weekLocked;
+      if (!weekLocked) {
+        (function(yr, mi, wi, el) {
+          var valueAtFocus = el.value;
+          el.addEventListener('focus', function() {
+            valueAtFocus = el.value;
+          });
+          el.addEventListener('input', function() {
+            saveYearlyWeekNoteLive(yr, mi, wi, el.value);
+          });
+          el.addEventListener('blur', function() {
+            if (el.value !== valueAtFocus) {
+              logYearlyWeekNoteEdit(yr, mi, wi, valueAtFocus);
+            }
+          });
+        })(yearlyCurrentViewYear, i, w, box);
+      }
       boxWrap.appendChild(box);
 
       var score = document.createElement('span');
@@ -4479,13 +5398,13 @@ function loadAccomplish() {
     try {
       var parsed = JSON.parse(saved);
       if (Array.isArray(parsed)) {
-        var out = parsed.slice(0, 3);
-        while (out.length < 3) out.push('');
+        var out = parsed.slice(0, 4);
+        while (out.length < 4) out.push('');
         return out;
       }
     } catch(e) {}
   }
-  return ['', '', ''];
+  return ['', '', '', ''];
 }
 
 function saveAccomplish() {
@@ -4498,7 +5417,7 @@ var accomplishGoals = loadAccomplish();
 function renderAccomplish() {
   if (!accomplishBox) return;
   accomplishBox.innerHTML = '';
-  for (var i = 0; i < 3; i++) {
+  for (var i = 0; i < 4; i++) {
     var line = document.createElement('textarea');
     line.className = 'accomplish-line';
     line.placeholder = (i + 1) + '.';
@@ -4511,6 +5430,139 @@ function renderAccomplish() {
     })(i, line);
     accomplishBox.appendChild(line);
   }
+}
+
+// ---- Accomplish This Month — mirrors the yearly one above exactly,
+// just a separate storage key/section and its own 4 lines. Same
+// evergreen, manually-managed behavior as the yearly list: no
+// automatic monthly rotation or archiving. ----
+var ACCOMPLISH_MONTH_KEY = 'csrAlignAccomplishMonth';
+var accomplishMonthBox = document.getElementById('accomplishMonthBox');
+
+function loadAccomplishMonth() {
+  var saved = localStorage.getItem(ACCOMPLISH_MONTH_KEY);
+  if (saved) {
+    try {
+      var parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        var out = parsed.slice(0, 4);
+        while (out.length < 4) out.push('');
+        return out;
+      }
+    } catch(e) {}
+  }
+  return ['', '', '', ''];
+}
+
+function saveAccomplishMonth() {
+  localStorage.setItem(ACCOMPLISH_MONTH_KEY, JSON.stringify(accomplishMonthGoals));
+  pushSharedSection('accomplishMonth', accomplishMonthGoals);
+}
+
+var accomplishMonthGoals = loadAccomplishMonth();
+
+function renderAccomplishMonth() {
+  if (!accomplishMonthBox) return;
+  accomplishMonthBox.innerHTML = '';
+  for (var i = 0; i < 4; i++) {
+    var line = document.createElement('textarea');
+    line.className = 'accomplish-line';
+    line.placeholder = (i + 1) + '.';
+    line.value = accomplishMonthGoals[i] || '';
+    (function(idx, el) {
+      el.addEventListener('input', function() {
+        accomplishMonthGoals[idx] = el.value;
+        saveAccomplishMonth();
+      });
+      // Goal #1 is two-way bound to Weekly Focus on the Ruler tab (see
+      // weeklyFocusInputEl above) — editing either one live-updates
+      // the other into WeeklyArchive; history is logged on blur via
+      // the existing logWeeklyFocusEdit(), same as before.
+      if (idx === 0) {
+        goal1InputEl = el;
+
+        // Sync immediately on load too, so Weekly Focus reflects goal
+        // #1 from the first render rather than whatever was last saved
+        // independently to WEEKLY_FOCUS_KEY.
+        weeklyFocusText = el.value;
+        localStorage.setItem(WEEKLY_FOCUS_KEY, weeklyFocusText);
+        if (weeklyFocusInputEl) weeklyFocusInputEl.value = weeklyFocusText;
+        if (typeof recordCurrentWeek === 'function') recordCurrentWeek();
+
+        var goal1ValueAtFocus = el.value;
+        el.addEventListener('focus', function() {
+          goal1ValueAtFocus = el.value;
+        });
+        el.addEventListener('input', function() {
+          weeklyFocusText = el.value;
+          localStorage.setItem(WEEKLY_FOCUS_KEY, weeklyFocusText);
+          if (typeof recordCurrentWeek === 'function') recordCurrentWeek();
+          if (weeklyFocusInputEl && document.activeElement !== weeklyFocusInputEl) {
+            weeklyFocusInputEl.value = weeklyFocusText;
+          }
+        });
+        el.addEventListener('blur', function() {
+          if (el.value !== goal1ValueAtFocus && typeof logWeeklyFocusEdit === 'function') {
+            logWeeklyFocusEdit(goal1ValueAtFocus);
+          }
+        });
+      }
+    })(i, line);
+    accomplishMonthBox.appendChild(line);
+  }
+}
+
+// ---- Yearly Focus / Monthly Focus — companions to the accomplish
+// boxes above.
+// Yearly Focus is its own simple string, synced to Supabase like the
+// rest of Vision (musts/whiteboard/weekly/yearly/accomplish) via
+// pushSharedSection, and mirrored into the Yearly Visualization's
+// yearlyFocusDisplay (see renderYearlyViz).
+// Monthly Focus is NOT a separate piece of state — it reads/writes
+// the SAME record as the current real-world month's Monthly Focus
+// cell in the Yearly Visualization grid (MONTHLY_ARCHIVE_KEY), so the
+// two fields can never drift out of sync with each other. That record
+// already pushes to Supabase via saveMonthlyArchive().
+var THEME_YEAR_KEY = 'csrAlignThemeYear';
+var themeYearInput = document.getElementById('themeYearInput');
+var themeMonthInput = document.getElementById('themeMonthInput');
+
+function saveThemeYear(text) {
+  localStorage.setItem(THEME_YEAR_KEY, text);
+  if (yearlyFocusDisplayEl) yearlyFocusDisplayEl.textContent = text;
+  pushSharedSection('themeYear', text);
+}
+
+if (themeYearInput) {
+  themeYearInput.value = localStorage.getItem(THEME_YEAR_KEY) || '';
+  themeYearInput.addEventListener('input', function() {
+    saveThemeYear(themeYearInput.value);
+  });
+}
+
+var themeMonthKey = monthKeyFor(new Date().getFullYear(), new Date().getMonth());
+var themeMonthMondays = getMondaysInMonth(new Date().getFullYear(), new Date().getMonth());
+var themeMonthWeekKeys = [0, 1, 2, 3].map(function(w) {
+  return themeMonthMondays[w] ? isoWeekKey(themeMonthMondays[w]) : null;
+});
+
+if (themeMonthInput) {
+  themeMonthInput.value = getMonthlyFocusDisplay(themeMonthKey, themeMonthWeekKeys);
+  var themeMonthValueAtFocus = themeMonthInput.value;
+  themeMonthInput.addEventListener('focus', function() {
+    themeMonthValueAtFocus = themeMonthInput.value;
+  });
+  themeMonthInput.addEventListener('input', function() {
+    saveMonthlyFocusLive(themeMonthKey, themeMonthInput.value);
+    if (currentMonthFocusInputEl && document.activeElement !== currentMonthFocusInputEl) {
+      currentMonthFocusInputEl.value = themeMonthInput.value;
+    }
+  });
+  themeMonthInput.addEventListener('blur', function() {
+    if (themeMonthInput.value !== themeMonthValueAtFocus) {
+      logMonthlyFocusEdit(themeMonthKey, themeMonthValueAtFocus);
+    }
+  });
 }
 
 // ============================================================
@@ -4575,10 +5627,10 @@ document.body.appendChild(toastContainer);
 
 function showToast(message, type) {
   var toast = document.createElement('div');
-  var bg = type === 'error' ? '#5a2323' : (type === 'success' ? '#2f3b34' : '#1a1a1a');
-  var border = type === 'error' ? '#c77' : (type === 'success' ? '#7a9b7a' : '#444');
+  var bg = type === 'error' ? '#430B15' : (type === 'success' ? '#2f3b34' : '#1a1a1a');
+  var border = type === 'error' ? '#B33A52' : (type === 'success' ? '#7a9b7a' : '#444');
   toast.style.cssText =
-    'background:' + bg + ';border:1px solid ' + border + ';color:#eee;' +
+    'background:' + bg + ';border:1px solid ' + border + ';color:var(--rd-text);' +
     'font-family:Georgia,serif;font-size:12px;padding:0.7rem 0.9rem;' +
     'border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,0.4);' +
     'opacity:0;transition:opacity 0.25s;';
@@ -4745,7 +5797,7 @@ function handleSyncFailure(queueKey, payload, performFn, errorMessage) {
   if (retryCount >= MAX_SYNC_RETRIES) {
     showToast(
       'This change has failed to save ' + retryCount + ' times and will stop retrying automatically. ' +
-      'Your data is safe on this device, but other people (e.g. clan-mates) won\'t see it until you fix your connection and reopen the app.',
+      'Your data is safe on this device, but other people (e.g. legion-mates) won\'t see it until you fix your connection and reopen the app.',
       'error'
     );
   } else {
@@ -4995,6 +6047,7 @@ function initAuth() {
       pushMyRulerToSupabase();
       if (typeof pullTackleFromSupabase === 'function') pullTackleFromSupabase();
       if (typeof retryQueuedSyncs === 'function') retryQueuedSyncs(true);
+      if (typeof processTradeAlerts === 'function') processTradeAlerts();
     } else {
       renderAuthBarLoggedOut();
       showClansLocked();
@@ -5012,6 +6065,7 @@ function initAuth() {
       pushMyRulerToSupabase();
       if (typeof pullTackleFromSupabase === 'function') pullTackleFromSupabase();
       if (typeof retryQueuedSyncs === 'function') retryQueuedSyncs(true);
+      if (typeof processTradeAlerts === 'function') processTradeAlerts();
     } else {
       currentUser = null;
       currentUserIsPaid = false;
@@ -5118,7 +6172,7 @@ function pushMyRulerToSupabase() {
 // Whiteboard, Weekly, Yearly). Pushes the section's current data AND
 // its current share toggle state every time, so a toggle flip takes
 // effect immediately without needing the data to also change.
-var sectionShareState = { musts: false, whiteboard: false, weekly: false, yearly: false, ruler: false, accomplish: false };
+var sectionShareState = { musts: false, whiteboard: false, weekly: false, yearly: false, ruler: false, accomplish: false, accomplishMonth: false, themeYear: false, monthlyFocus: false };
 
 registerSyncPerformer('section', function(payload) {
   return supabaseClient.from('shared_sections').upsert(payload);
@@ -5150,7 +6204,7 @@ function saveSectionShareState() {
 
 document.getElementById('createClanBtn').addEventListener('click', function() {
   if (!supabaseClient || !currentUser) return;
-  var name = window.prompt('Name this clan:');
+  var name = window.prompt('Name this Legion:');
   if (!name || !name.trim()) return;
 
   supabaseClient.from('clans')
@@ -5159,19 +6213,19 @@ document.getElementById('createClanBtn').addEventListener('click', function() {
     .then(function(result) {
       if (result.error) {
         if (result.error.message.indexOf('row-level security') !== -1 || result.error.code === '42501') {
-          showClansMsg('Creating clans is a paid feature. Upgrade to create your own.', true);
+          showClansMsg('Creating Legions is a paid feature. Upgrade to create your own.', true);
         } else {
-          showClansMsg('Could not create clan: ' + result.error.message, true);
+          showClansMsg('Could not create Legion: ' + result.error.message, true);
         }
         return;
       }
       var newClan = result.data && result.data[0];
       if (newClan) {
-        // Owner auto-joins their own clan
+        // Owner auto-joins their own Legion
         supabaseClient.from('clan_members')
           .insert({ clan_id: newClan.id, user_id: currentUser.id })
           .then(function() {
-            showClansMsg('Clan "' + newClan.name + '" created! Invite code: ' + newClan.invite_code);
+            showClansMsg('Legion "' + newClan.name + '" created! Invite code: ' + newClan.invite_code);
             loadAndRenderClans();
           });
       }
@@ -5186,7 +6240,7 @@ document.getElementById('joinClanBtn').addEventListener('click', function() {
   supabaseClient.rpc('find_clan_by_invite_code', { code: code })
     .then(function(result) {
       if (result.error || !result.data || !result.data.length) {
-        showClansMsg('No clan found with that code.', true);
+        showClansMsg('No Legion found with that code.', true);
         return;
       }
       var clan = result.data[0];
@@ -5195,9 +6249,9 @@ document.getElementById('joinClanBtn').addEventListener('click', function() {
         .then(function(insertResult) {
           if (insertResult.error) {
             if (insertResult.error.message.indexOf('Free tier') !== -1) {
-              showClansMsg('Free tier is limited to 2 clans. Upgrade to join more.', true);
+              showClansMsg('Free tier is limited to 2 Legions. Upgrade to join more.', true);
             } else if (insertResult.error.code === '23505') {
-              showClansMsg('You\'re already in that clan.', true);
+              showClansMsg('You\'re already in that Legion.', true);
             } else {
               showClansMsg('Could not join: ' + insertResult.error.message, true);
             }
@@ -5213,21 +6267,21 @@ document.getElementById('joinClanBtn').addEventListener('click', function() {
 function loadAndRenderClans() {
   if (!supabaseClient || !currentUser) return;
 
-  clansListEl.innerHTML = '<p style="font-size:12px;color:#666;">Loading your clans…</p>';
+  clansListEl.innerHTML = '<p style="font-size:12px;color:#666;">Loading your Legions…</p>';
 
   supabaseClient.from('clan_members')
     .select('clan_id')
     .eq('user_id', currentUser.id)
     .then(function(memberResult) {
       if (memberResult.error) {
-        clansListEl.innerHTML = '<p style="font-size:12px;color:#c77;">Could not load your clans — check your connection and try refreshing.</p>';
+        clansListEl.innerHTML = '<p style="font-size:12px;color:#B33A52;">Could not load your Legions — check your connection and try refreshing.</p>';
         return;
       }
       if (!memberResult.data) return;
       var clanIds = memberResult.data.map(function(r) { return r.clan_id; });
 
       if (!clanIds.length) {
-        clansListEl.innerHTML = '<p style="font-size:12px;color:#666;">You haven\'t joined a clan yet.</p>';
+        clansListEl.innerHTML = '<p style="font-size:12px;color:#666;">You haven\'t joined a Legion yet.</p>';
         return;
       }
 
@@ -5236,18 +6290,18 @@ function loadAndRenderClans() {
         .in('id', clanIds)
         .then(function(clansResult) {
           if (clansResult.error) {
-            clansListEl.innerHTML = '<p style="font-size:12px;color:#c77;">Could not load clan details — check your connection and try refreshing.</p>';
+            clansListEl.innerHTML = '<p style="font-size:12px;color:#B33A52;">Could not load Legion details — check your connection and try refreshing.</p>';
             return;
           }
           if (!clansResult.data) return;
           renderClansList(clansResult.data);
         })
         .catch(function() {
-          clansListEl.innerHTML = '<p style="font-size:12px;color:#c77;">Network error loading clans. Try refreshing.</p>';
+          clansListEl.innerHTML = '<p style="font-size:12px;color:#B33A52;">Network error loading Legions. Try refreshing.</p>';
         });
     })
     .catch(function() {
-      clansListEl.innerHTML = '<p style="font-size:12px;color:#c77;">Network error loading clans. Try refreshing.</p>';
+      clansListEl.innerHTML = '<p style="font-size:12px;color:#B33A52;">Network error loading Legions. Try refreshing.</p>';
     });
 }
 
@@ -5315,7 +6369,7 @@ function renderOneClanCard(clan) {
       var userIds = memResult.data.map(function(r) { return r.user_id; });
 
       supabaseClient.from('profiles')
-        .select('id, display_name, timezone')
+        .select('id, display_name, timezone, is_paid')
         .in('id', userIds)
         .then(function(profResult) {
           if (profResult.error || !profResult.data) return;
@@ -5328,7 +6382,7 @@ function renderOneClanCard(clan) {
               if (rulerResult.data) {
                 rulerResult.data.forEach(function(r) { rulerMap[r.user_id] = r.blocks; });
               }
-              renderClanMembers(membersWrap, profResult.data, rulerMap);
+              renderClanMembers(membersWrap, profResult.data, rulerMap, clan);
             });
         });
     });
@@ -5359,7 +6413,7 @@ function renderOneClanCardRefresh(clan, membersWrap) {
       var userIds = memResult.data.map(function(r) { return r.user_id; });
 
       supabaseClient.from('profiles')
-        .select('id, display_name, timezone')
+        .select('id, display_name, timezone, is_paid')
         .in('id', userIds)
         .then(function(profResult) {
           if (profResult.error || !profResult.data) return;
@@ -5371,7 +6425,7 @@ function renderOneClanCardRefresh(clan, membersWrap) {
               if (rulerResult.data) {
                 rulerResult.data.forEach(function(r) { rulerMap[r.user_id] = r.blocks; });
               }
-              renderClanMembers(membersWrap, profResult.data, rulerMap);
+              renderClanMembers(membersWrap, profResult.data, rulerMap, clan);
             });
         });
     });
@@ -5391,9 +6445,20 @@ function buildClanClockBox(label, value, isNight) {
   return box;
 }
 
-function renderClanMembers(container, profiles, rulerMap) {
+// Legion title hierarchy: the Legion's creator is always "Legion
+// Commander" (no username appended — there's only one Commander per
+// Legion, so it's unambiguous on its own); paid members are "Legion
+// Warlord [Username]"; everyone else is "Legion [Username]".
+function getLegionTitle(profile, clan) {
+  if (clan && clan.owner_id === profile.id) return 'Legion Commander';
+  if (profile.is_paid) return 'Legion Warlord ' + profile.display_name;
+  return 'Legion ' + profile.display_name;
+}
+
+function renderClanMembers(container, profiles, rulerMap, clan) {
   container.innerHTML = '';
   profiles.forEach(function(profile) {
+    var legionTitle = getLegionTitle(profile, clan);
     var memberDiv = document.createElement('div');
     memberDiv.className = 'clan-member';
     memberDiv.title = 'Click to view ' + profile.display_name + (profile.id === currentUser.id ? '' : "'s") + ' Ruler';
@@ -5403,7 +6468,7 @@ function renderClanMembers(container, profiles, rulerMap) {
 
     var nameSpan = document.createElement('span');
     nameSpan.className = 'clan-member-name';
-    nameSpan.textContent = profile.display_name + (profile.id === currentUser.id ? ' (you)' : '');
+    nameSpan.textContent = legionTitle + (profile.id === currentUser.id ? ' (you)' : '');
     row.appendChild(nameSpan);
 
     var localInfo = getLocalTimeInfo(profile.timezone);
@@ -5417,7 +6482,7 @@ function renderClanMembers(container, profiles, rulerMap) {
     container.appendChild(memberDiv);
 
     memberDiv.addEventListener('click', function() {
-      openMemberDetailModal(profile);
+      openMemberDetailModal(Object.assign({}, profile, { legionTitle: legionTitle }));
     });
   });
 }
@@ -5457,7 +6522,7 @@ function openMemberDetailModal(profile) {
   var header = document.createElement('div');
   header.className = 'member-modal-header';
   var title = document.createElement('span');
-  title.textContent = profile.display_name + (profile.id === currentUser.id ? ' (you)' : '');
+  title.textContent = (profile.legionTitle || profile.display_name) + (profile.id === currentUser.id ? ' (you)' : '');
   var closeBtn = document.createElement('button');
   closeBtn.className = 'secondary';
   closeBtn.textContent = 'Close';
@@ -5629,7 +6694,11 @@ function loadMemberDetailContent(profile, body) {
       });
 
       appendSharedSectionIfAvailable(body, sections.accomplish, 'What I Want To Accomplish This Year', function(data) {
-        return buildSevenRowReadout((data || []).slice(0, 3));
+        return buildSevenRowReadout((data || []).slice(0, 4));
+      });
+
+      appendSharedSectionIfAvailable(body, sections.accomplishMonth, 'What I Want To Accomplish This Month', function(data) {
+        return buildSevenRowReadout((data || []).slice(0, 4));
       });
     }
 
@@ -5637,7 +6706,7 @@ function loadMemberDetailContent(profile, body) {
       body.innerHTML = '<p class="member-modal-loading">Nothing shared yet.</p>';
     }
   }).catch(function() {
-    body.innerHTML = '<p class="member-modal-loading" style="color:#c77;">Could not load this member\'s data — check your connection and try again.</p>';
+    body.innerHTML = '<p class="member-modal-loading" style="color:#B33A52;">Could not load this member\'s data — check your connection and try again.</p>';
   });
 }
 
@@ -5744,7 +6813,7 @@ function appendToMemberWhiteboard(targetProfile, fromUser, message, onComplete) 
     .eq('section', 'whiteboard')
     .then(function(result) {
       var existingText = (result.data && result.data[0] && result.data[0].data && result.data[0].data.text) || '';
-      var fromName = (fromUser.email || 'A clan-mate').split('@')[0];
+      var fromName = (fromUser.email || 'A legion-mate').split('@')[0];
       var newLine = '[' + fromName + ']: ' + message;
       var combinedText = existingText ? (existingText + '\n' + newLine) : newLine;
 
@@ -6225,7 +7294,7 @@ function buildYearlyCsv(startDate, endDate) {
 
 function buildJournalCsv(entries) {
   var lines = [];
-  lines.push(['Date', 'Category', 'Score', 'Edited', 'Shared with Clan', 'Word Count', 'Text'].join(','));
+  lines.push(['Date', 'Category', 'Score', 'Edited', 'Shared with Legion', 'Word Count', 'Text'].join(','));
   entries.forEach(function(e) {
     lines.push([
       csvEscape(e.date),
@@ -6339,7 +7408,7 @@ document.getElementById('exportCsvBtn').addEventListener('click', function() {
       var url = URL.createObjectURL(content);
       var a = document.createElement('a');
       a.href = url;
-      a.download = 'my-ruler-export-' + todayUTCDateString() + '.zip';
+      a.download = 'my-ruler-export-' + todayLocalDateString() + '.zip';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -6452,7 +7521,7 @@ function renderPdfDocument(bundle, imagesByEntryId, onComplete) {
   // ---- Cover / summary page ----
   doc.setFont('times', 'bold');
   doc.setFontSize(24);
-  doc.text('Your Ruler', pageWidth / 2, cursorY, { align: 'center' });
+  doc.text('Command Center', pageWidth / 2, cursorY, { align: 'center' });
 
   doc.setFont('times', 'italic');
   doc.setFontSize(11);
@@ -6462,7 +7531,7 @@ function renderPdfDocument(bundle, imagesByEntryId, onComplete) {
   doc.setFont('times', 'normal');
   doc.setFontSize(10);
   cursorY += 16;
-  var rangeLabel = filters.dateStart.toISOString().slice(0, 10) + '  to  ' + filters.dateEnd.toISOString().slice(0, 10);
+  var rangeLabel = localDateString(filters.dateStart) + '  to  ' + localDateString(filters.dateEnd);
   doc.setTextColor(120);
   doc.text(rangeLabel, pageWidth / 2, cursorY, { align: 'center' });
   doc.setTextColor(0);
@@ -6664,7 +7733,7 @@ function renderPdfDocument(bundle, imagesByEntryId, onComplete) {
     });
   }
 
-  doc.save('my-ruler-report-' + todayUTCDateString() + '.pdf');
+  doc.save('my-ruler-report-' + todayLocalDateString() + '.pdf');
   if (typeof onComplete === 'function') onComplete();
 }
 
@@ -6682,12 +7751,15 @@ var rulerShareRow = document.getElementById('rulerShareRow');
 var rulerShareCheckbox = document.getElementById('rulerShare');
 var accomplishShareRow = document.getElementById('accomplishShareRow');
 var accomplishShareCheckbox = document.getElementById('accomplishShare');
+var accomplishMonthShareRow = document.getElementById('accomplishMonthShareRow');
+var accomplishMonthShareCheckbox = document.getElementById('accomplishMonthShare');
 
 mustsShareCheckbox.checked = !!sectionShareState.musts;
 weeklyShareCheckbox.checked = !!sectionShareState.weekly;
 yearlyShareCheckbox.checked = !!sectionShareState.yearly;
 rulerShareCheckbox.checked = !!sectionShareState.ruler;
 accomplishShareCheckbox.checked = !!sectionShareState.accomplish;
+accomplishMonthShareCheckbox.checked = !!sectionShareState.accomplishMonth;
 
 mustsShareCheckbox.addEventListener('change', function() {
   sectionShareState.musts = mustsShareCheckbox.checked;
@@ -6720,6 +7792,11 @@ accomplishShareCheckbox.addEventListener('change', function() {
   saveSectionShareState();
   pushSharedSection('accomplish', accomplishGoals);
 });
+accomplishMonthShareCheckbox.addEventListener('change', function() {
+  sectionShareState.accomplishMonth = accomplishMonthShareCheckbox.checked;
+  saveSectionShareState();
+  pushSharedSection('accomplishMonth', accomplishMonthGoals);
+});
 
 // These share rows only make sense once logged in (sharing requires
 // an account + clan membership), so they stay hidden for guests.
@@ -6729,6 +7806,7 @@ function updateSectionShareRowsVisibility() {
   weeklyShareRow.style.display = loggedIn ? '' : 'none';
   rulerShareRow.style.display = loggedIn ? '' : 'none';
   accomplishShareRow.style.display = loggedIn ? '' : 'none';
+  accomplishMonthShareRow.style.display = loggedIn ? '' : 'none';
 }
 updateSectionShareRowsVisibility();
 
@@ -6798,11 +7876,11 @@ function computeDaySleepMinutes(blocks) {
   return (blocks || []).filter(function(b) { return b.sleep; }).reduce(function(a, b) { return a + (b.minutes || 0); }, 0);
 }
 
-// Prefers the real Sleep/Wake log's actualSleepMinutes (see
-// logSleepWakeEvent) over the block-based "sleep zone" proxy, since
-// the log reflects when you actually slept, not just how blocks were
-// scheduled. Falls back to the block proxy for days logged before
-// this feature existed or where the buttons weren't used.
+// Prefers a day's real actualSleepMinutes (a handful of historical
+// days may still carry this from the retired GM/GN sleep-log feature)
+// over the block-based "sleep zone" proxy, since a real logged
+// duration reflects when you actually slept, not just how blocks
+// were scheduled. Falls back to the block proxy for everything else.
 function getDaySleepMinutes(dayRecord) {
   if (!dayRecord) return 0;
   if (typeof dayRecord.actualSleepMinutes === 'number') return dayRecord.actualSleepMinutes;
@@ -6896,7 +7974,9 @@ function renderInsightsSleepPerfChart(container, metric) {
   var today = new Date();
   var days = [];
   for (var i = 6; i >= 0; i--) {
-    days.push(new Date(today.getTime() - i * 86400000).toISOString().slice(0, 10));
+    var d = new Date(today);
+    d.setDate(today.getDate() - i);
+    days.push(localDateString(d));
   }
   var records = days.map(function(dateStr) { return getDayRecord(dateStr); });
   var sleepVals = records.map(function(r) { return r ? getDaySleepMinutes(r) : 0; });
@@ -6990,14 +8070,20 @@ function renderInsightsSleepPerfChart(container, metric) {
 // Editable Weekly Summaries — the SAME WeeklyArchive.focusText field
 // Weekly Visualization's panel edits (with the same history-on-blur
 // pattern), just exposed here so a past week can be annotated without
-// navigating back to that specific week. Editing the CURRENT week's
-// row also keeps the live weeklyFocusInput in sync.
+// navigating back to that specific week. The CURRENT week's row is
+// locked read-only here: goal #1 (Vision tab) <-> weeklyFocusInput
+// (Ruler tab) is the single two-way-bound source of truth for the
+// current week now, so editing it from a third place here would let
+// it silently drift out of sync with goal #1 whenever goal #1 next
+// changes and overwrites it. Past weeks have no such live binding, so
+// they stay freely editable.
 function renderInsightsWeeklySummaries(weekRecords, container) {
   container.innerHTML = '';
   if (!weekRecords.length) {
     container.innerHTML = '<p class="insights-empty">No weeks in this range yet.</p>';
     return;
   }
+  var thisWeekKey = isoWeekKey(new Date());
   weekRecords.slice().sort(function(a, b) { return a.weekKey < b.weekKey ? -1 : 1; }).forEach(function(rec) {
     var row = document.createElement('div');
     row.className = 'insights-weekly-summary-row';
@@ -7007,35 +8093,36 @@ function renderInsightsWeeklySummaries(weekRecords, container) {
     label.textContent = rec.weekKey + (typeof rec.scoreAverage === 'number' ? ' — ' + rec.scoreAverage + '/10' : '');
     row.appendChild(label);
 
+    var isCurrentWeek = rec.weekKey === thisWeekKey;
+
     var input = document.createElement('textarea');
     input.className = 'insights-weekly-summary-input';
-    input.placeholder = 'Add context for this week...';
+    input.placeholder = isCurrentWeek ? 'Set from goal #1 under Accomplish This Month' : 'Add context for this week...';
     input.value = rec.focusText || '';
 
-    (function(weekKey, el) {
-      var valueAtFocus = el.value;
-      el.addEventListener('focus', function() { valueAtFocus = el.value; });
-      el.addEventListener('input', function() {
-        var archive = loadWeeklyArchive();
-        var existing = archive[weekKey] || {};
-        archive[weekKey] = { focusText: el.value, scoreAverage: existing.scoreAverage, focusHistory: existing.focusHistory || [] };
-        saveWeeklyArchive(archive);
-        if (weekKey === isoWeekKey(new Date())) {
-          weeklyFocusText = el.value;
-          localStorage.setItem(WEEKLY_FOCUS_KEY, weeklyFocusText);
-          if (weeklyFocusInputEl) weeklyFocusInputEl.value = weeklyFocusText;
-        }
-      });
-      el.addEventListener('blur', function() {
-        if (el.value === valueAtFocus) return;
-        var archive = loadWeeklyArchive();
-        var existing = archive[weekKey] || { focusText: el.value, scoreAverage: null, focusHistory: [] };
-        if (!existing.focusHistory) existing.focusHistory = [];
-        existing.focusHistory.push({ text: valueAtFocus, editedAt: new Date().toISOString() });
-        archive[weekKey] = existing;
-        saveWeeklyArchive(archive);
-      });
-    })(rec.weekKey, input);
+    if (isCurrentWeek) {
+      input.readOnly = true;
+    } else {
+      (function(weekKey, el) {
+        var valueAtFocus = el.value;
+        el.addEventListener('focus', function() { valueAtFocus = el.value; });
+        el.addEventListener('input', function() {
+          var archive = loadWeeklyArchive();
+          var existing = archive[weekKey] || {};
+          archive[weekKey] = { focusText: el.value, scoreAverage: existing.scoreAverage, focusHistory: existing.focusHistory || [] };
+          saveWeeklyArchive(archive);
+        });
+        el.addEventListener('blur', function() {
+          if (el.value === valueAtFocus) return;
+          var archive = loadWeeklyArchive();
+          var existing = archive[weekKey] || { focusText: el.value, scoreAverage: null, focusHistory: [] };
+          if (!existing.focusHistory) existing.focusHistory = [];
+          existing.focusHistory.push({ text: valueAtFocus, editedAt: new Date().toISOString() });
+          archive[weekKey] = existing;
+          saveWeeklyArchive(archive);
+        });
+      })(rec.weekKey, input);
+    }
 
     row.appendChild(input);
     container.appendChild(row);
@@ -7222,7 +8309,7 @@ function closeBlockDetail() {
 // loses continuity with its own past entries.
 function getPastBlockEntries(blockName, limit) {
   var archive = loadDailyArchive();
-  var today = todayUTCDateString();
+  var today = todayLocalDateString();
   var dates = Object.keys(archive).filter(function(d) { return d !== today; }).sort().reverse();
   var results = [];
   for (var i = 0; i < dates.length && results.length < limit; i++) {
@@ -7369,8 +8456,10 @@ loadTackle();
 renderWeeklyViz();
 renderYearlyViz();
 renderAccomplish();
+renderAccomplishMonth();
 renderTodaysMission();
 renderInsights();
+renderSunriseForecast();
 updateLive();
 setInterval(updateLive, 1000);
 
