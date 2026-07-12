@@ -63,6 +63,58 @@ decision, and what still needs a manual step outside this codebase
   `webhook_secrets` (through the normal RLS-protected client), since
   the Edge Function needs a copy server-side to validate incoming
   requests against.
+- **Alpha (multi-profile measurement system)** —
+  `supabase/migrations/0005_alpha_taxonomy_encryption_ready.sql`
+  supersedes `0003_alpha_profiles.sql` entirely (drops and recreates
+  `alpha_profiles`/`alpha_entries` — the tab was rebuilt around a
+  Health/Relationships/Finances taxonomy with E2E encryption as a
+  stated design goal, not an afterthought). Both tables are still
+  written by a normal authenticated client session (plain
+  RLS-protected inserts, own-row-only, no service_role) and row `id`s
+  are still client-generated (`crypto.randomUUID()`) for the same
+  local/Supabase upsert-consistency reason as before.
+  **Encryption status: real, not stubbed.** `alphaEncryptString`/
+  `alphaDecryptString` (for `profile_name`) and `alphaEncryptPayload`/
+  `alphaDecryptPayload` (for `encrypted_data`) now call the app's
+  existing `encryptText`/`decryptText` helpers (AES-256-GCM,
+  PBKDF2-SHA256 at `CRYPTO_PBKDF2_ITERATIONS`) for real — no new crypto
+  code, just new callers. The key-management question that blocked
+  this before is resolved with the simplest honest answer: a
+  **dedicated Alpha passphrase gate**, separate from login (works
+  identically for password and magic-link users), that derives an
+  AES-GCM key held **only in memory** for that session —
+  `renderAlphaPassphraseGate` in index.html. Real consequences of this
+  choice, stated plainly to the user in the gate's own copy:
+  - The passphrase must be re-entered every session/reload — nothing
+    about it is remembered anywhere.
+  - **There is no recovery path.** Forgetting the passphrase makes
+    every ciphertext ever produced with it permanently unreadable.
+    A recoverable "reset" would mean the server could recover it too,
+    which defeats the point.
+  - A per-user PBKDF2 salt persists in `localStorage`
+    (`csrAlignAlphaSalt`) so the same passphrase re-derives the same
+    key across sessions — the salt itself isn't secret, salts never
+    need to be.
+  - Local storage is still plaintext regardless — encryption only
+    applies to what leaves the device (profile/entry data via
+    `alphaEncryptPayload`, voice memo audio via `alphaEncryptBlob`,
+    both below).
+  Voice memos (Relationships session logs) are encrypted the same
+  way: `alphaEncryptBlob`/`alphaDecryptBlob` run the identical
+  AES-GCM key over raw audio bytes instead of a UTF-8 string, and the
+  ciphertext — never plaintext audio — is what reaches
+  `supabase/migrations/0006_alpha_voice_notes_bucket.sql`'s
+  `alpha-voice-notes` Storage bucket (private, owner-only RLS,
+  mirroring the existing `journal-images` bucket pattern exactly).
+  `category`/`subcategory` are still sent **and stay** plaintext on
+  purpose even with real encryption now live — they're a fixed
+  taxonomy enum this file defines, not user content, needed
+  server-side for RLS scoping and so the client can query "profiles
+  under this leaf" without decrypting everything. That's an accepted,
+  documented metadata leak (the server always knows *what kind* of
+  thing you track, never the name, notes, or voice content) — see the
+  header comment above the Alpha JS block and each migration file's
+  own comment for the full reasoning.
 - **Session handling** — `persistSession`/`autoRefreshToken`/
   `detectSessionInUrl` are now explicit in `createClient()` (were
   previously relying on SDK defaults, which happen to be the same
@@ -105,8 +157,19 @@ decision, and what still needs a manual step outside this codebase
 
 ## Manual steps still needed (outside this codebase)
 
-1. **Run the RLS migration** in the Supabase SQL Editor — read its
-   header comment first.
+1. **Run the RLS migration(s)** in the Supabase SQL Editor —
+   `0001_rls_policies.sql`, `0002_trade_alerts.sql`,
+   `0005_alpha_taxonomy_encryption_ready.sql`, and
+   `0006_alpha_voice_notes_bucket.sql`. Read each header comment
+   first. `0005` supersedes `0003_alpha_profiles.sql` (drops and
+   recreates its tables) — only run `0003` if you need the old Alpha
+   schema for some reason; otherwise skip straight to `0005`. `0006`
+   creates the `alpha-voice-notes` Storage bucket the Relationships
+   voice-memo feature needs — nothing in that feature works without
+   it. Also run `0004_fix_rls_policy_bypasses.sql` if it hasn't been
+   applied yet — it closes live, actively-exploitable RLS gaps
+   (stale pre-`0001` policies OR'd with the correct ones), not a
+   routine migration.
 2. **Flip Pages source to "GitHub Actions"**: repo Settings > Pages >
    Build and deployment > Source. Until this changes, Pages keeps
    serving `main` directly and the new workflow's output, while it
@@ -133,8 +196,15 @@ decision, and what still needs a manual step outside this codebase
    - WAF managed rules + rate limiting, particularly on the auth
      endpoints (`signInWithOtp`, `signInWithPassword`) and Legion
      join-by-code, since both are realistic brute-force/abuse targets.
-6. **Decide the journal-encryption key story** before wiring
-   `encryptText`/`decryptText` into `saveEntries()`/`loadEntries()`.
+6. **Journal encryption is still unwired** (`encryptText`/
+   `decryptText` are not called from `saveEntries()`/`loadEntries()`
+   yet) — but the key-management question that blocked it is now
+   answered by precedent: Alpha's dedicated-passphrase-gate model
+   (`renderAlphaPassphraseGate`, session-only key, no recovery) is a
+   proven pattern in this same codebase now. Reusing that shape for
+   journal entries (or sharing one passphrase gate across both
+   features, if that's preferable to entering two separate
+   passphrases) is the natural next step, not a fresh design problem.
 
 ## Explicitly out of scope right now
 

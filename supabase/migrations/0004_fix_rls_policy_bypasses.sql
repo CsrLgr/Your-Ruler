@@ -1,0 +1,52 @@
+-- ============================================================
+-- Fix RLS policy bypasses — drop stale pre-0001 permissive policies
+-- ============================================================
+-- Run this in the Supabase SQL Editor immediately — these are live,
+-- trivially exploitable bypasses, not theoretical ones.
+--
+-- Postgres RLS combines multiple PERMISSIVE policies on the same
+-- command with OR: satisfying any ONE of them is enough to allow the
+-- operation. 0001_rls_policies.sql added tighter, correct policies
+-- (profiles_update_own_not_billing, clan_members_insert_self_capped,
+-- profiles_select_own_or_legion) but never dropped the older, looser
+-- policies they were meant to replace. Since both generations stayed
+-- active side by side, every request could just satisfy the old,
+-- unrestricted policy instead of the new, correct one — fully
+-- undoing the protection the new policy was written to add.
+--
+-- Four concrete bypasses this closes:
+--   1. "Users can update their own profile" (profiles, UPDATE) has no
+--      WITH CHECK clause. Postgres reuses USING (auth.uid() = id) as
+--      the check when WITH CHECK is omitted, so it placed NO
+--      restriction on which columns could change — any signed-in
+--      user could set their own is_paid to true and self-grant every
+--      paid feature in the app, bypassing
+--      profiles_update_own_not_billing entirely.
+--   2. "Users can join a clan (insert their own membership)"
+--      (clan_members, INSERT) only checks user_id = auth.uid(), with
+--      no cap — bypassing clan_members_insert_self_capped's free-tier
+--      "max 2 clans" limit.
+--   3. "Profiles are viewable by authenticated users" (profiles,
+--      SELECT) has qual = true — any authenticated user can read any
+--      other user's full profile row, wider than
+--      profiles_select_own_or_legion (own row or Legion-mates only)
+--      was meant to allow.
+--   4. "Clan members can view each other's shared ruler"
+--      (shared_rulers, SELECT) grants any fellow clan member
+--      visibility into a user's Ruler blocks unconditionally — it has
+--      no is_shared check at all, unlike its sibling policy on
+--      shared_sections (which does check is_shared = true and is
+--      NOT being dropped here, since that one is correctly scoped).
+--      This bypasses shared_rulers_select_own_or_shared, which
+--      correctly requires the owner to have opted in via
+--      shared_sections.is_shared = true for section = 'ruler' before
+--      any clan-mate can see their blocks.
+--
+-- Idempotent: safe to re-run if a policy was already dropped or never
+-- existed under this name.
+-- ============================================================
+
+drop policy if exists "Users can update their own profile" on profiles;
+drop policy if exists "Users can join a clan (insert their own membership)" on clan_members;
+drop policy if exists "Profiles are viewable by authenticated users" on profiles;
+drop policy if exists "Clan members can view each other's shared ruler" on shared_rulers;
