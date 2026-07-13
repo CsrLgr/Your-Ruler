@@ -1,7 +1,7 @@
 {
-  "name": "Command Center",
-  "short_name": "Command",
-  "description": "Command Center for Dangerous Humans — track your time, your decisions, your day.",
+  "name": "Coming Soon",
+  "short_name": "Coming",
+  "description": "Coming Soon for Powerful Humans — track your time, your decisions, your day.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

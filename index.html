@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Command Center</title>
-<meta name="description" content="Command Center for Dangerous Humans — track your time, your decisions, your day.">
+<title>Coming Soon</title>
+<meta name="description" content="Coming Soon for Powerful Humans — track your time, your decisions, your day.">
 <!--
   Content-Security-Policy — a meta-tag CSP, not an HTTP header, so it
   can't set X-Frame-Options/X-Content-Type-Options/HSTS at all (those
@@ -289,7 +289,7 @@
 
   .ruler-block {
     position: relative;
-    background: #2f3b34;
+    background: #131A26;
     border-right: 1px solid #000;
     display: flex;
     flex-direction: column;
@@ -299,7 +299,7 @@
     transition: background 0.2s;
   }
   .ruler-block:last-child { border-right: none; }
-  .ruler-block.sleep-zone { background: #5a2323; }
+  .ruler-block.sleep-zone { background: #0F141F; }
   .ruler-block.current { box-shadow: inset 0 0 0 2px #C5A46E; }
 
   .ruler-block .block-name {
@@ -1370,11 +1370,11 @@
     align-items: center;
     justify-content: space-between;
     gap: 0.75rem;
-    background: #2f3b34;
+    background: #131A26;
     border-radius: 5px;
     padding: 0.45rem 0.65rem;
   }
-  .member-modal-ruler-row.sleep-zone { background: #5a2323; }
+  .member-modal-ruler-row.sleep-zone { background: #0F141F; }
   .member-modal-ruler-name {
     font-size: 12px;
     color: #ddd;
@@ -1512,7 +1512,7 @@
     color: var(--rd-gold-bright);
     border-color: var(--rd-gold-bright);
     border-bottom-color: transparent;
-    background: linear-gradient(180deg, rgba(197,164,110,0.22), transparent);
+    background: rgba(14,19,30,0.6);
     box-shadow: inset 0 2px 0 0 var(--rd-gold-bright), 0 0 20px rgba(197,164,110,0.55);
   }
   .tab-panel { display: none; }
@@ -1592,7 +1592,7 @@
     padding: 0.9rem 1rem;
     border: 1px solid var(--rd-gold-bright);
     border-radius: 12px;
-    background: linear-gradient(180deg, rgba(197,164,110,0.18), transparent);
+    background: rgba(14,19,30,0.7);
     box-shadow: 0 0 26px rgba(197,164,110,0.55);
   }
   .todays-mission-header-row {
@@ -1640,21 +1640,27 @@
     box-shadow: 0 0 30px rgba(0,0,0,0.6), 0 0 14px rgba(197,164,110,0.25);
   }
   .ruler-block {
-    background: linear-gradient(180deg, #1A160D, #0A0906);
+    background: linear-gradient(180deg, #131A26, #0A0D14);
     border-right: 1px solid #000;
     cursor: pointer;
   }
   .ruler-block .block-name { color: var(--rd-text); }
   .ruler-block .block-mins { color: var(--rd-muted); }
   /* Sleep blocks distinguished by being darker/more desaturated
-     within the same gold-black family, not by switching to a
-     different (reddish) hue entirely. */
-  .ruler-block.sleep-zone { background: linear-gradient(180deg, #14120B, #08070A); }
+     within the same navy-black family, not by switching to a
+     different hue entirely. */
+  .ruler-block.sleep-zone { background: linear-gradient(180deg, #0F141F, #070A10); }
   .ruler-block.current {
     border-radius: 6px !important;
     box-shadow: inset 0 0 0 2px var(--rd-gold-bright), 0 0 28px rgba(197,164,110,0.6) !important;
   }
+  /* Gold fill = the CURRENT block's in-progress marker (how far
+     into this specific block we are) — stays gold, matches the
+     block's own gold active-ring. A FULLY elapsed block gets the
+     .elapsed variant instead: same overlay mechanism, cool blue-gray
+     tone so passed blocks read as dimmed/cooled, not warm-washed. */
   .ruler-block .fill-overlay { background: rgba(197,164,110,0.28); }
+  .ruler-block .fill-overlay.elapsed { background: rgba(80,98,128,0.4); }
   .progress-pct { color: var(--rd-gold); }
   .span-markers .marker-start, .span-markers .marker-mid, .span-markers .marker-end { color: var(--rd-muted); }
 
@@ -2443,9 +2449,9 @@
 
   /* ---- Badges & leftover tan/green accents ---- */
   .entry-category { background: var(--rd-gold) !important; color: #1c1305 !important; }
-  .member-modal-ruler-row { background: linear-gradient(180deg,#191313,#0e0a0a) !important; }
+  .member-modal-ruler-row { background: linear-gradient(180deg,#131A26,#0A0D14) !important; }
   .member-modal-ruler-name { color: var(--rd-text) !important; }
-  .member-modal-ruler-row.sleep-zone { background: linear-gradient(180deg,#14120B,#08070A) !important; }
+  .member-modal-ruler-row.sleep-zone { background: linear-gradient(180deg,#0F141F,#070A10) !important; }
   /* Today's row — same red-glow "this is live/active" language as
      Today's Mission, the active Ruler block, the Ruler track border,
      and the active nav tab. Whichever row it lands on as the rolling
@@ -2523,8 +2529,8 @@
 <!-- Site banner: title + tagline, above the tab nav so it's shared
      across all four tabs rather than living inside the Ruler tab. -->
 <div class="header site-banner">
-  <h1>Command Center</h1>
-  <p class="tagline">For Dangerous Humans</p>
+  <h1>Coming Soon</h1>
+  <p class="tagline">For Powerful Humans</p>
 </div>
 
 <!-- ==== 3-tab navigation. Tab 1 (Ruler) is fully built out below;
@@ -3995,12 +4001,15 @@ function updateLive() {
     be.el.classList.remove('current');
     if (i === idx) {
       be.el.classList.add('current');
+      be.fill.classList.remove('elapsed'); // in-progress block keeps the gold fill, not the cool "passed" tone
       var elapsed = sinceSix - be.startMin;
       var pct = (elapsed / (be.endMin - be.startMin)) * 100;
       be.fill.style.width = pct + '%';
     } else if (sinceSix >= be.endMin) {
+      be.fill.classList.add('elapsed');
       be.fill.style.width = '100%';
     } else {
+      be.fill.classList.remove('elapsed');
       be.fill.style.width = '0%';
     }
   });
@@ -7570,12 +7579,12 @@ function renderPdfDocument(bundle, imagesByEntryId, onComplete) {
   // ---- Cover / summary page ----
   doc.setFont('times', 'bold');
   doc.setFontSize(24);
-  doc.text('Command Center', pageWidth / 2, cursorY, { align: 'center' });
+  doc.text('Coming Soon', pageWidth / 2, cursorY, { align: 'center' });
 
   doc.setFont('times', 'italic');
   doc.setFontSize(11);
   cursorY += 20;
-  doc.text('For Dangerous Humans', pageWidth / 2, cursorY, { align: 'center' });
+  doc.text('For Powerful Humans', pageWidth / 2, cursorY, { align: 'center' });
 
   doc.setFont('times', 'normal');
   doc.setFontSize(10);
