@@ -468,7 +468,7 @@
     font-size: 14px;
     padding: 0.5rem 0.65rem;
   }
-  .gmgn-settings-btn:hover { color: var(--rd-gold); border-color: var(--rd-gold); }
+  .gmgn-settings-btn:hover { color: var(--rd-gold); border-color: var(--rd-gold); background: transparent; }
 
   /* ---- Telegram settings modal ---- */
   .telegram-modal-overlay {
@@ -749,7 +749,7 @@
     font-family: Georgia, serif;
     cursor: pointer;
   }
-  .must-score-btn:hover { border-color: #C5A46E; color: #C5A46E; }
+  .must-score-btn:hover { border-color: #C5A46E; color: #C5A46E; background: #131A26; }
   .must-score-btn.active { background: #C5A46E; color: #1a1a1a; border-color: #C5A46E; font-weight: bold; }
   .must-add-row { display: flex; gap: 0.4rem; margin-top: 0.5rem; }
   .must-add-row input[type="text"] {
@@ -1040,7 +1040,7 @@
     border-radius: 6px;
     cursor: pointer;
   }
-  .export-tab-btn:hover { border-color: #C5A46E; color: #C5A46E; }
+  .export-tab-btn:hover { border-color: #C5A46E; color: #C5A46E; background: #131A26; }
   .export-tab-btn.active { background: #C5A46E; color: #1a1a1a; border-color: #C5A46E; font-weight: bold; }
   .export-category-disabled { opacity: 0.5; }
   .export-checkbox-group {
@@ -1171,7 +1171,7 @@
     border-radius: 4px;
     font-family: Georgia, serif;
   }
-  .entry-edit-btn:hover { border-color: #C5A46E; color: #C5A46E; }
+  .entry-edit-btn:hover { border-color: #C5A46E; color: #C5A46E; background: none; }
   .entry-delete-btn {
     background: none;
     border: 1px solid #444;
@@ -1182,7 +1182,7 @@
     border-radius: 4px;
     font-family: Georgia, serif;
   }
-  .entry-delete-btn:hover { border-color: #B33A52; color: #B33A52; }
+  .entry-delete-btn:hover { border-color: #B33A52; color: #B33A52; background: none; }
   .entry-edit-form {
     margin-top: 0.6rem;
     padding-top: 0.6rem;
@@ -1698,7 +1698,7 @@
     font-family: Georgia, serif;
     cursor: pointer;
   }
-  .energy-btn:hover { border-color: var(--rd-gold); color: var(--rd-gold); }
+  .energy-btn:hover { border-color: var(--rd-gold); color: var(--rd-gold); background: var(--rd-field); }
   .energy-btn.active { background: var(--rd-gold); color: #1c1305; border-color: var(--rd-gold); font-weight: bold; }
   .block-detail-notes {
     width: 100%;
@@ -2137,24 +2137,32 @@
     transform: translateZ(0) scale(1);
     transition: transform 0.4s cubic-bezier(.2,.8,.2,1), box-shadow 0.4s ease, border-color 0.4s ease;
   }
-  /* Hover/lock: electric blue only — border and box-shadow change,
-     nothing else, and always the SAME blue (--alpha-blue, hardcoded)
-     — deliberately NOT --alpha-accent, which .alpha-tone-warm
-     recolors to a warm amber (#E8A857) for users with gender set to
-     female. That substitution is exactly what was reading as "yellow
-     glow" on every previous report — the burst effect wasn't the
-     (only) culprit, the whole hover glow was silently going gold for
-     anyone in warm-tone mode, burst or no burst. The reticle's core
-     interactive glow is now unconditional; --alpha-accent/.alpha-
-     tone-warm still exist for the taxonomy-step heading text, a much
-     lower-stakes spot to keep the gender-tone touch. The circle
-     itself does NOT move toward the cursor — only translateZ/scale in
-     place; its background never changes on hover, so the interior
-     always stays dark and clear. */
+  /* Hover/lock: electric blue only — border and box-shadow change.
+     background is EXPLICITLY restated here (identical to the base
+     rule, on purpose) — this is the actual, confirmed fix for the
+     "gold interior fill on hover" bug that survived every earlier
+     attempt: this element is a real <button>, and the app has a
+     global "button { background: linear-gradient(gold...) } /
+     button:hover { background: var(--rd-gold-bright) }" sweep
+     (search for "Shared accents pulled into the new palette"). CSS
+     resolves the `background` property independently per rule, and
+     .alpha-scope-tile never used to declare it in its :hover state at
+     all — so with nothing here to contest it, that global gold
+     button:hover rule (specificity 0,0,1,1) legitimately beat the
+     base .alpha-scope-tile rule (0,0,1,0) for JUST that property,
+     filling the circle's interior gold on every hover, completely
+     independent of --alpha-accent/.alpha-tone-warm (a real, separate
+     bug fixed earlier, and NOT the cause of this one — the two were
+     never related). Restating background here gives this rule
+     (0,0,2,0) — highest specificity of any candidate for this
+     property — so it wins outright, every time, no !important
+     needed. The circle itself does NOT move toward the cursor — only
+     translateZ/scale in place. */
   .alpha-scope-tile:hover,
   .alpha-scope-tile:focus-visible {
     transform: translateZ(60px) scale(1.15);
     border-color: var(--alpha-blue);
+    background: radial-gradient(circle at 50% 40%, #0c0c0e 0%, #000 72%);
     outline: none;
     box-shadow:
       0 24px 60px -14px rgba(0,0,0,0.95),
@@ -2382,7 +2390,7 @@
     padding: 0.25rem 0.55rem;
     cursor: pointer;
   }
-  .alpha-profile-delete-btn:hover { color: #B33A52; border-color: #B33A52; }
+  .alpha-profile-delete-btn:hover { color: #B33A52; border-color: #B33A52; background: transparent; }
 
   .alpha-detail-header {
     display: flex;
@@ -2479,6 +2487,11 @@
     letter-spacing: 0.06em;
     cursor: pointer;
   }
+  /* Had no :hover rule of its own at all, meaning the generic
+     button:hover gold rule (see the note on .alpha-scope-tile:hover)
+     was the ONLY thing setting background on hover — filling these
+     tab buttons gold. Restating the base background here fixes it. */
+  .alpha-subtab-btn:hover { background: var(--rd-panel); }
   .alpha-subtab-btn.active {
     color: var(--rd-gold-bright);
     border-color: var(--rd-gold);
@@ -2523,7 +2536,7 @@
     letter-spacing: 0.04em;
     cursor: pointer;
   }
-  .alpha-choice-btn:hover { border-color: var(--rd-gold); color: var(--rd-gold-bright); }
+  .alpha-choice-btn:hover { border-color: var(--rd-gold); color: var(--rd-gold-bright); background: var(--rd-field); }
   .alpha-choice-btn.active {
     background: var(--rd-gold);
     color: #1c1305;
@@ -2557,6 +2570,13 @@
     letter-spacing: 0.05em;
     cursor: pointer;
   }
+  /* Had no :hover rule at all — the generic button:hover rule
+     (background: var(--rd-gold-bright), flat) was winning over this
+     3-stop gradient on hover, silently flattening it. Still gold
+     either way (not a wrong-palette bug), but a real, confirmable
+     visual inconsistency — restated here so hovering doesn't change
+     the button's look at all. */
+  .alpha-continue-btn:hover { background: linear-gradient(180deg, var(--rd-gold-bright), var(--rd-gold) 65%, #8a6a1a); }
   .alpha-secondary-btn {
     background: transparent;
     border: 1px solid var(--rd-edge);
@@ -2566,7 +2586,7 @@
     font-size: 12px;
     cursor: pointer;
   }
-  .alpha-secondary-btn:hover { color: var(--rd-gold); border-color: var(--rd-gold); }
+  .alpha-secondary-btn:hover { color: var(--rd-gold); border-color: var(--rd-gold); background: transparent; }
 
   .alpha-empty { font-size: 12px; color: var(--rd-muted); font-style: italic; }
   .alpha-placeholder-note {
