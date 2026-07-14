@@ -221,8 +221,8 @@
     position: relative;
     width: 100%;
     height: 26px;
-    background: #0a0707;
-    border: 1px solid #2a2020;
+    background: var(--rd-panel);
+    border: 1px solid var(--rd-edge);
     border-radius: 5px;
     overflow: hidden;
   }
@@ -797,7 +797,7 @@
     border: 1px solid #3a3327;
     border-radius: 8px;
     padding: 1rem;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.45), 0 0 0 1px rgba(212,175,55,0.15);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.45), 0 0 0 1px rgba(197,164,110,0.15);
   }
   .tackle-box .section-label { font-size: 13px; margin-bottom: 0.6rem; letter-spacing: 0.08em; }
   .tackle-box textarea {
@@ -1733,7 +1733,7 @@
     color: var(--rd-gold);
     margin-bottom: 0.6rem;
   }
-  .block-detail-past-entry { padding: 0.5rem 0; border-bottom: 1px solid #241717; }
+  .block-detail-past-entry { padding: 0.5rem 0; border-bottom: 1px solid var(--rd-edge); }
   .block-detail-past-entry:last-child { border-bottom: none; }
   .block-detail-past-row {
     display: flex;
@@ -1841,7 +1841,7 @@
   }
   .yearly-month.is-current {
     border-color: var(--rd-gold);
-    box-shadow: 0 0 0 1px var(--rd-gold), 0 0 18px rgba(212,175,55,0.18);
+    box-shadow: 0 0 0 1px var(--rd-gold), 0 0 18px rgba(197,164,110,0.18);
   }
   .yearly-month-header {
     display: flex;
@@ -1862,7 +1862,7 @@
     min-width: 0;
     background: transparent;
     border: none;
-    border-bottom: 1px solid #2a1a1a;
+    border-bottom: 1px solid var(--rd-edge);
     color: var(--rd-text);
     font-family: Georgia, serif;
     font-size: 13px;
@@ -1985,14 +1985,18 @@
   .alpha-chamber {
     /* Forge Alpha palette: pure black cockpit, electric blue primary,
        gold dialed down to a minimal line accent — no more ambient
-       gold wash/pulse. --alpha-accent is the gender-tone dial — cool
-       blue by default, warmed on .alpha-tone-warm (set in JS from
-       alphaGender) — a subtle tone shift on the same reticle system,
-       never a separate color scheme or an explicit label. */
+       gold wash/pulse. --alpha-blue/--alpha-blue-dim are hardcoded,
+       unconditional — this used to also expose a gender-tone dial
+       (--alpha-accent, warmed via .alpha-tone-warm) that swapped the
+       ENTIRE reticle glow to a warm amber for users with gender set
+       to female. That was the actual, confirmed root cause of every
+       "yellow/gold glow" bug reported across this feature's build —
+       not the decorative gold accents, the "blue" glow itself was
+       silently going gold. Retired entirely rather than patched
+       again: every color in Forge Alpha now reads from a fixed
+       variable, gender no longer touches color at all. */
     --alpha-blue: #2FD8FF;
     --alpha-blue-dim: rgba(47,216,255,0.35);
-    --alpha-accent: var(--alpha-blue);
-    --alpha-accent-dim: var(--alpha-blue-dim);
     max-width: 900px;
     margin: 0 auto;
     padding: 2.2rem 2.4rem 2.6rem 2.4rem;
@@ -2006,14 +2010,10 @@
       0 0 46px rgba(47,216,255,0.1),
       inset 0 0 60px rgba(0,0,0,0.6);
   }
-  .alpha-chamber.alpha-tone-warm {
-    --alpha-accent: #E8A857;
-    --alpha-accent-dim: rgba(232,168,87,0.35);
-  }
   /* Void mode — the two "scope reticle" screens (the hub and the
      sub-scope drill-down) shed the boxed-panel look entirely so the
      reticles read as floating in open black, not sitting in a card.
-     Toggled in JS alongside alpha-tone-warm, on the same element. */
+     Toggled in JS on the same element (see renderAlphaBrowser). */
   .alpha-chamber.alpha-chamber-void {
     border-color: transparent;
     background: transparent;
@@ -2339,8 +2339,8 @@
   .alpha-taxonomy-step { max-width: 760px; margin: 0 auto; text-align: center; }
   .alpha-taxonomy-step .alpha-question-text {
     text-align: center;
-    color: var(--alpha-accent, var(--rd-gold-bright));
-    text-shadow: 0 0 12px var(--alpha-accent-dim, transparent);
+    color: var(--alpha-blue);
+    text-shadow: 0 0 12px var(--alpha-blue-dim);
   }
   .alpha-taxonomy-step .alpha-secondary-btn { margin: 0.6rem auto 0 auto; display: inline-block; }
 
@@ -2382,7 +2382,7 @@
     padding: 0.25rem 0.55rem;
     cursor: pointer;
   }
-  .alpha-profile-delete-btn:hover { color: #C23B5C; border-color: #C23B5C; }
+  .alpha-profile-delete-btn:hover { color: #B33A52; border-color: #B33A52; }
 
   .alpha-detail-header {
     display: flex;
@@ -2748,7 +2748,7 @@
   .clans-section, .member-modal, .clan-card {
     padding: 0.85rem 1rem !important;
   }
-  .must-item { border-bottom-color: #2a1a1a !important; }
+  .must-item { border-bottom-color: var(--rd-edge) !important; }
   .journal-image-thumb, .entry-image-thumbs img { border-color: var(--rd-edge) !important; }
 
   /* ---- Form controls: dark red fields, gold text ---- */
@@ -8565,14 +8565,15 @@ var alphaProfiles = loadAlphaProfiles();
 var alphaEntries = loadAlphaEntries();
 
 // ---- Gate + navigation state ----
-// Gender gates entry to the rest of Forge Alpha and sets the subtle
-// --alpha-accent tone (cool blue vs. warm, via .alpha-tone-warm — see
-// renderAlphaBrowser) — no gendered labels or copy branches anywhere
-// in this file, just that one accent-color dial. It's a one-time
-// checkpoint (persisted locally, asked once), not a personalization
-// input. Local-only: this isn't synced to Supabase or folded into any
-// profile's account-wide `profiles` row, since it's scoped to the
-// Forge Alpha experience specifically, not the account.
+// Gender gates entry to the rest of Forge Alpha. It USED TO also set
+// an --alpha-accent color tone (.alpha-tone-warm) on the reticle
+// system, but that mechanism was the confirmed root cause of a
+// recurring "yellow glow" bug (see the comment on .alpha-chamber) and
+// has been retired — gender no longer affects color anywhere. It's a
+// one-time checkpoint (persisted locally, asked once), not a
+// personalization input. Local-only: this isn't synced to Supabase or
+// folded into any profile's account-wide `profiles` row, since it's
+// scoped to the Forge Alpha experience specifically, not the account.
 var ALPHA_GENDER_KEY = 'csrAlignAlphaGender';
 var alphaGender = localStorage.getItem(ALPHA_GENDER_KEY) || null;
 
@@ -10108,11 +10109,7 @@ function renderAlphaBrowser() {
   alphaStopScopeAnimation();
   container.innerHTML = '';
 
-  // Gender sets a subtle accent-color tone on the reticle system only
-  // (cool electric blue by default, warmed on .alpha-tone-warm) — no
-  // gendered labels or separate visual system anywhere.
   var chamber = container.closest('.alpha-chamber');
-  if (chamber) chamber.classList.toggle('alpha-tone-warm', alphaGender === 'female');
   // Void mode (no boxed-panel look) only applies to the two "floating
   // reticle" screens — the hub and the sub-scope drill-down — each of
   // which re-adds it below once we know that's actually what's
