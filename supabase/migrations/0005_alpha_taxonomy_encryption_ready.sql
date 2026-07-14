@@ -16,15 +16,19 @@
 -- ENCRYPTION STATUS — UPDATED: this is now real, not stubbed.
 -- alphaEncryptString/alphaDecryptString (profile_name) and
 -- alphaEncryptPayload/alphaDecryptPayload (encrypted_data) in
--- index.html call the app's AES-256-GCM + PBKDF2 helpers for real.
--- The key is derived from a dedicated Alpha passphrase
--- (renderAlphaPassphraseGate), held only in memory for the session,
--- never persisted or sent anywhere — see SECURITY.md and the header
--- comment above the Alpha JS block for the full model, including the
--- "no recovery if you forget it" tradeoff. Voice memo audio
--- (alpha_entries via the Relationships module) is encrypted the same
--- way, at the byte level, before it ever reaches Storage — see
--- 0006_alpha_voice_notes_bucket.sql.
+-- index.html call real WebCrypto AES-256-GCM. The key is a
+-- device-bound, non-extractable CryptoKey (alphaGetOrCreateDeviceKey()
+-- in index.html) generated once per (device, signed-in user) and
+-- stored in IndexedDB — no passphrase, unlocks automatically on first
+-- Alpha use after sign-in. Deliberately NOT derived from the Supabase
+-- session/access token: a key derivable from something the auth
+-- server itself issues would be recoverable by the server too, which
+-- would defeat the point. See SECURITY.md and the header comment
+-- above the Alpha JS block for the full model, including the
+-- device-bound tradeoff (no cross-device access without a future
+-- export/import path). Voice memo audio (alpha_entries via the
+-- Relationships module) is encrypted the same way, at the byte level,
+-- before it ever reaches Storage — see 0006_alpha_voice_notes_bucket.sql.
 --
 -- WHAT'S PLAINTEXT ON PURPOSE, EVEN WITH REAL ENCRYPTION LIVE:
 --   - category, subcategory: the fixed taxonomy path (e.g.

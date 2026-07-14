@@ -1959,7 +1959,7 @@
   }
   .theme-line:focus { outline: 1px solid var(--rd-gold); border-left-color: var(--rd-gold); }
 
-  /* ---- ALPHA tab: "improvement chamber" ----
+  /* ---- FORGE ALPHA tab: "improvement chamber" ----
      Clinical/premium/futuristic-edge treatment, deliberately more
      intense than the rest of the app's softer ambient glow: one
      persistent .alpha-chamber wrapper around the ENTIRE tab (title,
@@ -1974,40 +1974,51 @@
      .alpha-question-card are the shared "answer this, then continue"
      primitives reused by the gender gate, the create flow, and by
      each questionnaire module as it's built. */
+  /* Forge Alpha tab is pure black — darker than the rest of the app's body
+     (which keeps its faint carbon-weave + navy glow) — the moment
+     Forge Alpha is the active tab, so it reads as its own lit space,
+     not a panel sitting on the app. Reverts the instant another tab
+     is active (.active is the existing tab-nav toggle, untouched). */
+  body:has(#tab-insights.active) {
+    background: #000;
+  }
   .alpha-chamber {
+    /* Forge Alpha palette: pure black cockpit, electric blue primary,
+       gold dialed down to a minimal line accent — no more ambient
+       gold wash/pulse. --alpha-accent is the gender-tone dial — cool
+       blue by default, warmed on .alpha-tone-warm (set in JS from
+       alphaGender) — a subtle tone shift on the same reticle system,
+       never a separate color scheme or an explicit label. */
+    --alpha-blue: #2FD8FF;
+    --alpha-blue-dim: rgba(47,216,255,0.35);
+    --alpha-accent: var(--alpha-blue);
+    --alpha-accent-dim: var(--alpha-blue-dim);
     max-width: 900px;
     margin: 0 auto;
     padding: 2.2rem 2.4rem 2.6rem 2.4rem;
     border-radius: 14px;
-    border: 1px solid var(--rd-gold);
+    border: 1px solid rgba(197,164,110,0.55);
     background:
-      radial-gradient(ellipse at top, rgba(197,164,110,0.07), transparent 62%),
-      var(--rd-black);
+      radial-gradient(ellipse at 30% -10%, rgba(47,216,255,0.08), transparent 55%),
+      #000;
     box-shadow:
-      0 0 0 1px rgba(197,164,110,0.16),
-      0 0 42px rgba(197,164,110,0.28),
-      0 0 95px rgba(197,164,110,0.14),
-      inset 0 0 60px rgba(197,164,110,0.045);
-    animation: alphaChamberPulse 6s ease-in-out infinite;
+      0 0 0 1px rgba(197,164,110,0.12),
+      0 0 46px rgba(47,216,255,0.1),
+      inset 0 0 60px rgba(0,0,0,0.6);
   }
-  @media (prefers-reduced-motion: reduce) {
-    .alpha-chamber { animation: none; }
+  .alpha-chamber.alpha-tone-warm {
+    --alpha-accent: #E8A857;
+    --alpha-accent-dim: rgba(232,168,87,0.35);
   }
-  @keyframes alphaChamberPulse {
-    0%, 100% {
-      box-shadow:
-        0 0 0 1px rgba(197,164,110,0.16),
-        0 0 42px rgba(197,164,110,0.28),
-        0 0 95px rgba(197,164,110,0.14),
-        inset 0 0 60px rgba(197,164,110,0.045);
-    }
-    50% {
-      box-shadow:
-        0 0 0 1px rgba(197,164,110,0.24),
-        0 0 58px rgba(197,164,110,0.4),
-        0 0 120px rgba(197,164,110,0.2),
-        inset 0 0 72px rgba(197,164,110,0.07);
-    }
+  /* Void mode — the two "scope reticle" screens (the hub and the
+     sub-scope drill-down) shed the boxed-panel look entirely so the
+     reticles read as floating in open black, not sitting in a card.
+     Toggled in JS alongside alpha-tone-warm, on the same element. */
+  .alpha-chamber.alpha-chamber-void {
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+    padding: 2.2rem 0.4rem 0.4rem 0.4rem;
   }
   .alpha-chamber-title {
     text-align: center;
@@ -2030,6 +2041,308 @@
 
   .alpha-gate-card { max-width: 480px; margin: 0 auto; text-align: center; }
   .alpha-gate-card .alpha-choice-row { justify-content: center; }
+
+  /* ---- Forge Alpha: four STATIONARY scopes, the internal reticle
+     mechanics track the cursor ----
+     The circles never move — each sits at a fixed spot (a static
+     ellipse scatter, computed once per tile at build time, not a
+     grid). What tracks the cursor is INSIDE each lens: the crosshair
+     and tick-ring both pan together by the same shared offset,
+     --reticle-pan-x/y, two CSS custom properties set on .alpha-scope-
+     hub by one JS loop (alphaStartScopeAnimation) and read via var()
+     by every crosshair/ring in every scope — "looking through four
+     scopes simultaneously" at one shared aim-point, not four separate
+     per-circle calculations. JS never touches an individual reticle's
+     transform for this; it only ever writes those two custom
+     properties on the hub, so it can't conflict with any CSS
+     transition/animation declared on the reticles themselves.
+     Two-layer structure per tile:
+       .alpha-scope-float  fixed position (top/left set once, inline,
+                            at build time) + a self-contained idle 3D
+                            tilt keyframe (rotateX/rotateY — a subtle
+                            "alive" wobble in place, not a relocation).
+                            Freezes to neutral on hover/focus via
+                            :has(), no JS needed for that either.
+       .alpha-scope-tile   the circular reticle button: real :hover/
+                            :focus-visible drives the "locks into
+                            focus" glow-up — since the circle never
+                            moves, plain hover is reliable and needs
+                            no JS proximity math at all.
+     Three purely decorative children of the tile (ring, crosshair,
+     bullseye) paint under the label/count via DOM order — none of
+     them, or anything else on hover, ever touches the tile's own
+     background, so the interior stays the same dark radial-gradient
+     at rest and on hover alike; only the border/glow (electric blue),
+     the bullseye, and the label change. Reduced-motion drops the idle
+     tilt wobble (autoplay) but keeps the reticle-pan itself, applied
+     instantly per mousemove event rather than eased over a rAF loop
+     — it's a direct response to input, not autoplay, so it doesn't
+     get removed, just de-animated. */
+  .alpha-scope-hub {
+    position: relative;
+    max-width: 760px;
+    height: clamp(380px, 58vh, 620px);
+    margin: 0.4rem auto 1rem auto;
+    perspective: 1400px;
+    overflow: hidden;
+    --reticle-pan-x: 0px;
+    --reticle-pan-y: 0px;
+  }
+
+  .alpha-scope-float {
+    position: absolute;
+    transform-style: preserve-3d;
+    animation-name: alphaScopeTilt;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+    /* top/left (fixed, never touched again) and duration/delay set
+       inline in JS at build time — see alphaBuildScopeTile */
+  }
+  @keyframes alphaScopeTilt {
+    0%   { transform: translate(-50%, -50%) rotateX(8deg) rotateY(-7deg); }
+    25%  { transform: translate(-50%, -50%) rotateX(3deg) rotateY(5deg); }
+    50%  { transform: translate(-50%, -50%) rotateX(11deg) rotateY(-4deg); }
+    75%  { transform: translate(-50%, -50%) rotateX(2deg) rotateY(8deg); }
+    100% { transform: translate(-50%, -50%) rotateX(8deg) rotateY(-7deg); }
+  }
+  .alpha-scope-float:has(.alpha-scope-tile:hover),
+  .alpha-scope-float:has(.alpha-scope-tile:focus-visible) {
+    animation-play-state: paused;
+    transform: translate(-50%, -50%) rotateX(0deg) rotateY(0deg);
+    transition: transform 0.4s ease;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .alpha-scope-float { animation: none !important; transform: translate(-50%, -50%); }
+  }
+
+  .alpha-scope-tile {
+    position: relative;
+    width: min(178px, 34vw);
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    border: 2px solid var(--alpha-blue-dim);
+    background: radial-gradient(circle at 50% 40%, #0c0c0e 0%, #000 72%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    padding: 0;
+    color: var(--rd-text);
+    cursor: pointer;
+    box-shadow:
+      0 16px 40px -14px rgba(0,0,0,0.9),
+      0 0 26px var(--alpha-blue-dim),
+      inset 0 0 22px rgba(0,0,0,0.7);
+    transform: translateZ(0) scale(1);
+    transition: transform 0.4s cubic-bezier(.2,.8,.2,1), box-shadow 0.4s ease, border-color 0.4s ease;
+  }
+  /* Hover/lock: electric blue only — border and box-shadow change,
+     nothing else, and always the SAME blue (--alpha-blue, hardcoded)
+     — deliberately NOT --alpha-accent, which .alpha-tone-warm
+     recolors to a warm amber (#E8A857) for users with gender set to
+     female. That substitution is exactly what was reading as "yellow
+     glow" on every previous report — the burst effect wasn't the
+     (only) culprit, the whole hover glow was silently going gold for
+     anyone in warm-tone mode, burst or no burst. The reticle's core
+     interactive glow is now unconditional; --alpha-accent/.alpha-
+     tone-warm still exist for the taxonomy-step heading text, a much
+     lower-stakes spot to keep the gender-tone touch. The circle
+     itself does NOT move toward the cursor — only translateZ/scale in
+     place; its background never changes on hover, so the interior
+     always stays dark and clear. */
+  .alpha-scope-tile:hover,
+  .alpha-scope-tile:focus-visible {
+    transform: translateZ(60px) scale(1.15);
+    border-color: var(--alpha-blue);
+    outline: none;
+    box-shadow:
+      0 24px 60px -14px rgba(0,0,0,0.95),
+      0 0 75px var(--alpha-blue),
+      0 0 130px var(--alpha-blue-dim),
+      inset 0 0 30px rgba(0,0,0,0.55);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .alpha-scope-tile { transform: none; }
+    .alpha-scope-tile:hover, .alpha-scope-tile:focus-visible { transform: scale(1.08); }
+  }
+
+  /* Tick-mark graduated ring — a full conic gradient masked down to a
+     thin band, so it reads as a scope's calibration ring rather than
+     a filled disc. Always electric blue (--alpha-blue, hardcoded —
+     see the note above .alpha-scope-tile:hover). This is the "scope
+     body" — it stays almost locked in place (a bare 12% sliver of the
+     shared pan, just enough for a faint depth cue) while the bullseye
+     below carries the real cursor-tracking motion. Idle: dim. Hover/
+     lock: brightens and snaps to a new rotation — the "crosshairs
+     snap into focus" moment. */
+  .alpha-scope-ring {
+    position: absolute;
+    inset: 9%;
+    border-radius: 50%;
+    background: repeating-conic-gradient(var(--alpha-blue) 0deg 2deg, transparent 2deg 11deg);
+    -webkit-mask: radial-gradient(circle, transparent 60%, #000 63%, #000 70%, transparent 73%);
+            mask: radial-gradient(circle, transparent 60%, #000 63%, #000 70%, transparent 73%);
+    opacity: 0.5;
+    transform: translate(calc(var(--reticle-pan-x) * 0.12), calc(var(--reticle-pan-y) * 0.12)) rotate(0deg);
+    transition: opacity 0.35s ease, transform 0.6s cubic-bezier(.2,.8,.2,1), filter 0.35s ease;
+    pointer-events: none;
+  }
+  .alpha-scope-tile:hover .alpha-scope-ring,
+  .alpha-scope-tile:focus-visible .alpha-scope-ring {
+    opacity: 1;
+    transform: translate(calc(var(--reticle-pan-x) * 0.12), calc(var(--reticle-pan-y) * 0.12)) rotate(54deg);
+    filter: drop-shadow(0 0 10px var(--alpha-blue));
+  }
+
+  /* Crosshair — two thin gradient lines through the center. Always
+     electric blue (--alpha-blue, hardcoded). Also part of the "scope
+     body": near-locked to the circle (same 12% sliver of the shared
+     pan as the ring), not the piece that visibly tracks the cursor
+     anymore — see .alpha-scope-bullseye for that. Hover/lock still
+     contracts it (scale down) on top of brightening — the literal
+     "crosshair tightens" cue. */
+  .alpha-scope-crosshair {
+    position: absolute;
+    inset: 18%;
+    border-radius: 50%;
+    background:
+      linear-gradient(var(--alpha-blue), var(--alpha-blue)) center / 100% 1px no-repeat,
+      linear-gradient(90deg, var(--alpha-blue), var(--alpha-blue)) center / 1px 100% no-repeat;
+    opacity: 0.45;
+    transform: translate(calc(var(--reticle-pan-x) * 0.12), calc(var(--reticle-pan-y) * 0.12)) scale(1);
+    transition: opacity 0.3s ease, filter 0.3s ease, transform 0.3s cubic-bezier(.2,.8,.2,1);
+    pointer-events: none;
+  }
+  .alpha-scope-tile:hover .alpha-scope-crosshair,
+  .alpha-scope-tile:focus-visible .alpha-scope-crosshair {
+    opacity: 1;
+    transform: translate(calc(var(--reticle-pan-x) * 0.12), calc(var(--reticle-pan-y) * 0.12)) scale(0.8);
+    filter: drop-shadow(0 0 6px var(--alpha-blue));
+  }
+
+  /* Bullseye — the actual aim-point. Always electric blue (--alpha-
+     blue, hardcoded). A small dot that carries the FULL shared pan
+     (amplified 1.6x, since it's small and needs a clearly visible
+     range of travel), drifting inside the lens while the ring/
+     crosshair around it hold nearly still — "the center drifts but
+     the scope body locks in place." Always faintly visible (this is
+     the aim-point, not a hover-only effect). Hover/lock: brightens
+     AND visibly enlarges ("zooms in") — the extra scale(1.6) is
+     appended after the existing translate chain, so it layers on top
+     of the pan/centering rather than replacing it. */
+  .alpha-scope-bullseye {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--alpha-blue);
+    box-shadow: 0 0 8px var(--alpha-blue), 0 0 2px rgba(255,255,255,0.6);
+    opacity: 0.7;
+    transform: translate(-50%, -50%) translate(calc(var(--reticle-pan-x) * 1.6), calc(var(--reticle-pan-y) * 1.6)) scale(1);
+    transition: opacity 0.3s ease, box-shadow 0.3s ease, transform 0.3s cubic-bezier(.2,.8,.2,1);
+    pointer-events: none;
+    z-index: 1;
+  }
+  .alpha-scope-tile:hover .alpha-scope-bullseye,
+  .alpha-scope-tile:focus-visible .alpha-scope-bullseye {
+    opacity: 1;
+    box-shadow: 0 0 14px var(--alpha-blue), 0 0 4px rgba(255,255,255,0.8);
+    transform: translate(-50%, -50%) translate(calc(var(--reticle-pan-x) * 1.6), calc(var(--reticle-pan-y) * 1.6)) scale(1.6);
+  }
+
+  /* Data spokes — hidden at rest, thin gold accent lines radiating
+     from just outside the circle's own edge on hover/lock. The ONLY
+     gold in the whole reticle — everything above is electric blue.
+     Built as a conic gradient masked down to a thin band (same
+     technique as the tick-ring) but positioned OUTSIDE the tile via a
+     negative inset, so its inner edge starts past the circle's own
+     border — there is nothing behind the tile's border for this to
+     "fill"; it can only ever appear beyond it. Sparse, hairline
+     spokes (0.4deg wide every 30deg) so it reads as short radiating
+     data-lines, never a wash or a disc. mix-blend-mode: screen keeps
+     it additive/bright over the black rather than a flat overlay;
+     unsupported browsers just render it as a normal (still fine)
+     layer. */
+  .alpha-scope-spokes {
+    position: absolute;
+    inset: -26%;
+    border-radius: 50%;
+    background: repeating-conic-gradient(var(--rd-gold-bright) 0deg 0.4deg, transparent 0.4deg 30deg);
+    -webkit-mask: radial-gradient(circle, transparent 70%, #000 74%, #000 86%, transparent 90%);
+            mask: radial-gradient(circle, transparent 70%, #000 74%, #000 86%, transparent 90%);
+    opacity: 0;
+    transform: scale(0.85);
+    transition: opacity 0.5s ease, transform 0.5s cubic-bezier(.2,.8,.2,1);
+    pointer-events: none;
+    mix-blend-mode: screen;
+  }
+  .alpha-scope-tile:hover .alpha-scope-spokes,
+  .alpha-scope-tile:focus-visible .alpha-scope-spokes {
+    opacity: 0.65;
+    transform: scale(1.06);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .alpha-scope-ring, .alpha-scope-crosshair, .alpha-scope-bullseye, .alpha-scope-spokes { transition: opacity 0.2s ease; }
+  }
+
+  .alpha-scope-tile-label {
+    position: relative;
+    z-index: 2;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--rd-gold-bright);
+    text-align: center;
+    text-shadow: 0 0 10px rgba(0,0,0,0.9);
+    padding: 0 0.6rem;
+    transition: font-size 0.3s cubic-bezier(.2,.8,.2,1);
+  }
+  .alpha-scope-tile:hover .alpha-scope-tile-label,
+  .alpha-scope-tile:focus-visible .alpha-scope-tile-label {
+    font-size: 16px;
+  }
+  /* Current Snipes gets zero visual differentiation from the other
+     three scopes, by direct request — identical electric-blue border/
+     glow/ring/crosshair at rest and on hover/lock alike. The class
+     stays on the element (a hook for the count badge and any future
+     non-color distinction) but carries no styling of its own
+     anymore. */
+  .alpha-scope-tile-count {
+    position: relative;
+    z-index: 2;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--rd-text);
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 10px rgba(0,0,0,0.9);
+  }
+  /* HUD-style numeric readout — deliberately scoped !important
+     exception to the app-wide Space Grotesk sweep (see the wildcard
+     "Total typographic unification" rule): only the two live numeric
+     readouts in Forge Alpha get the monospace/technical treatment,
+     nothing else in the app changes font. */
+  .alpha-scope-tile-count, .alpha-stat-value {
+    font-family: 'Courier New', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important;
+    letter-spacing: 0.03em;
+  }
+  @media (max-width: 480px) {
+    .alpha-scope-hub { height: clamp(340px, 70vh, 520px); }
+  }
+
+  /* Sub-scope drill-down (renderAlphaTaxonomyStep) — no card
+     background, the reticles float straight in the chamber's black,
+     same void treatment as the hub. */
+  .alpha-taxonomy-step { max-width: 760px; margin: 0 auto; text-align: center; }
+  .alpha-taxonomy-step .alpha-question-text {
+    text-align: center;
+    color: var(--alpha-accent, var(--rd-gold-bright));
+    text-shadow: 0 0 12px var(--alpha-accent-dim, transparent);
+  }
+  .alpha-taxonomy-step .alpha-secondary-btn { margin: 0.6rem auto 0 auto; display: inline-block; }
 
   .alpha-improvement-section { margin-bottom: 1.4rem; }
   .alpha-improvement-section-label {
@@ -2098,6 +2411,38 @@
   }
   .alpha-voice-status { font-size: 12px; color: var(--rd-muted); }
   .alpha-voice-section audio { width: 100%; margin-top: 0.5rem; }
+
+  .alpha-stats-row {
+    max-width: 700px;
+    margin: 0 auto 1.2rem auto;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.6rem;
+  }
+  .alpha-stat-tile {
+    background: var(--rd-panel);
+    border: 1px solid var(--rd-edge);
+    border-radius: 8px;
+    padding: 0.75rem 0.5rem;
+    text-align: center;
+    box-shadow: 0 0 10px rgba(197,164,110,0.18);
+  }
+  .alpha-stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--rd-gold-bright);
+    font-variant-numeric: tabular-nums;
+  }
+  .alpha-stat-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--rd-muted);
+    margin-top: 0.25rem;
+  }
+  @media (max-width: 480px) {
+    .alpha-stats-row { grid-template-columns: repeat(2, 1fr); }
+  }
 
   .alpha-session-history { max-width: 700px; margin: 1.2rem auto 0 auto; }
   .alpha-session-row {
@@ -2536,7 +2881,7 @@
 <!-- ==== 3-tab navigation. Tab 1 (Ruler) is fully built out below;
      Journal + Clans reuse the existing sections, regrouped. ==== -->
 <nav class="tab-nav" id="tabNav">
-  <button class="tab-btn" data-tab="tab-insights">Alpha</button>
+  <button class="tab-btn" data-tab="tab-insights">Forge Alpha</button>
   <button class="tab-btn" data-tab="tab-life">Vision</button>
   <button class="tab-btn active" data-tab="tab-ruler">Ruler</button>
   <button class="tab-btn" data-tab="tab-journal">Ledgers</button>
@@ -2931,18 +3276,18 @@
 </div><!-- /bottom-row -->
 </div><!-- ============================ /TAB 4: CLANS ============================ -->
 
-<!-- ============================ TAB 5: ALPHA ============================ -->
+<!-- ============================ TAB 5: FORGE ALPHA ============================ -->
 <div class="tab-panel" id="tab-insights">
   <!-- The whole tab is one "chamber": title, tagline, and the dynamic
        flow (gender gate -> create flow -> improvements list -> profile
        detail, all rendered by renderAlphaBrowser() and its helpers in
-       the Alpha JS block) share a single persistent glow wrapper, per
-       direct request. Kept as one dynamic container inside .alpha-
+       the Forge Alpha JS block) share a single persistent glow wrapper,
+       per direct request. Kept as one dynamic container inside .alpha-
        browser rather than many pre-declared show/hide divs, same
        pattern as renderYearlyViz()/renderWeeklyViz() elsewhere in this
        app: clear and rebuild, not toggle visibility. -->
   <div class="alpha-chamber">
-    <h2 class="tab-title alpha-chamber-title">Alpha</h2>
+    <h2 class="tab-title alpha-chamber-title">Forge Alpha</h2>
     <p class="alpha-tagline">You can’t improve what you can’t measure.</p>
     <div class="alpha-browser" id="alphaBrowser"></div>
   </div>
@@ -6103,6 +6448,14 @@ function initAuth() {
       renderAuthBarLoggedIn(session.user.email);
       ensureProfileTimezone(session.user);
       currentUser = session.user;
+      // The Forge Alpha tab's initial renderAlphaBrowser() call (at
+      // script load) almost always runs BEFORE this async session
+      // restore resolves, so it renders as "not signed in" first.
+      // Re-render now that currentUser is actually known, so an
+      // already-signed-in visitor's device key starts loading
+      // immediately rather than waiting for some unrelated Forge
+      // Alpha interaction to happen to trigger a re-render.
+      if (typeof renderAlphaBrowser === 'function') renderAlphaBrowser();
       refreshCurrentUserPaidStatus();
       showClansUnlocked();
       loadAndRenderClans();
@@ -6118,9 +6471,20 @@ function initAuth() {
 
   supabaseClient.auth.onAuthStateChange(function(event, session) {
     if (session && session.user) {
+      // Forge Alpha's device-bound encryption key is per (device, user) —
+      // only reset/reload it when the signed-in user actually changes
+      // (not on every token refresh for the same user, which fires
+      // this same callback periodically while already logged in).
+      var isDifferentAlphaUser = !currentUser || currentUser.id !== session.user.id;
       renderAuthBarLoggedIn(session.user.email);
       ensureProfileTimezone(session.user);
       currentUser = session.user;
+      if (isDifferentAlphaUser) {
+        alphaEncryptionKey = null;
+        alphaKeyLoading = false;
+        alphaKeyUnsupported = false;
+        if (typeof renderAlphaBrowser === 'function') renderAlphaBrowser();
+      }
       refreshCurrentUserPaidStatus();
       showClansUnlocked();
       loadAndRenderClans();
@@ -6131,6 +6495,10 @@ function initAuth() {
     } else {
       currentUser = null;
       currentUserIsPaid = false;
+      alphaEncryptionKey = null;
+      alphaKeyLoading = false;
+      alphaKeyUnsupported = false;
+      if (typeof renderAlphaBrowser === 'function') renderAlphaBrowser();
       renderAuthBarLoggedOut();
       showClansLocked();
       updateJournalImageUIVisibility();
@@ -6923,9 +7291,9 @@ function showExportMsg(text, isError) {
 // Ruler/Life category lists are fixed; Journal's is dynamic (built
 // from journalCategories, same source as the app's own category
 // picker, so it stays in sync automatically). Clans has nothing to
-// export yet (it's shared/social data, not really "yours"). Alpha
-// isn't exportable either — its Output/Input data lives in its own
-// Supabase tables (see 0003_alpha_profiles.sql), not this pipeline.
+// export yet (it's shared/social data, not really "yours"). Forge
+// Alpha isn't exportable either — its data lives in its own Supabase
+// tables (see 0003_alpha_profiles.sql), not this pipeline.
 var EXPORT_CATEGORY_DEFS = {
   ruler: [
     { id: 'blocks', label: 'Blocks' },
@@ -7869,7 +8237,7 @@ function updateSectionShareRowsVisibility() {
 updateSectionShareRowsVisibility();
 
 // ============================================================
-// Alpha — multi-profile measurement system, built encryption-first.
+// Forge Alpha — multi-profile measurement system, built encryption-first.
 //
 // Structure: three fixed categories (Health/Relationships/Finances).
 // Health goes one level deeper than the other two (category ->
@@ -7880,30 +8248,36 @@ updateSectionShareRowsVisibility();
 // level under Relationships/Finances.
 //
 // A user can create multiple profiles per leaf (e.g. "Gym Routine"
-// and "Running Training" both under health/physical.motion). Each
-// profile has an Output tab (setup questionnaire — NOT built yet
-// except structurally) and an Input tab (logging — also not built
-// yet). Both are placeholders that plug in via
-// ALPHA_QUESTIONNAIRE_MODULES, keyed by taxonomy leaf path, so adding
-// a real questionnaire later is "register a module," not "rewrite
-// the browser."
+// and "Running Training" both under health/physical.motion). Creation
+// happens only via the Health/Relationships/Finance scope tiles at
+// the hub (renderAlphaScopeHub) and ends with a one-time setup step
+// (a module's renderOutput). After that, a profile's detail view has
+// an Input tab (log new sessions) and a Stats tab (past entries +
+// aggregated numbers). All three (renderOutput/renderInput/
+// renderStats) plug in via ALPHA_QUESTIONNAIRE_MODULES, keyed by
+// taxonomy leaf path, so adding a real questionnaire later is
+// "register a module," not "rewrite the browser." The 4th core scope,
+// Current Snipes (renderAlphaCurrentSnipes), lists every profile
+// across all three categories in one place.
 //
-// ---- ENCRYPTION STATUS (read before assuming this is private) ----
+// ---- ENCRYPTION STATUS — real, not stubbed ----
 // alphaEncryptString()/alphaEncryptPayload() and their decrypt
-// counterparts are CURRENTLY IDENTITY FUNCTIONS — no encryption
-// happens yet. This app already has real crypto helpers sitting
-// unused (encryptText()/decryptText(), AES-256-GCM + PBKDF2, see
-// where journal encryption is discussed) — the missing piece isn't
-// the crypto, it's KEY MANAGEMENT: where does the key come from?
-// This app supports both password sign-in AND magic-link (OTP)
-// sign-in, so a password-derived key wouldn't work for every user —
-// a dedicated E2E passphrase (separate from login, with its own
-// setup/recovery UX and a real "if you forget this, your data is
-// unrecoverable" tradeoff) is the more honest path, but that's a
-// deliberately separate follow-up, not part of this skeleton pass.
-// Every Alpha payload leaving the device routes through these four
-// functions specifically so wiring in the real thing later is a
-// small, localized change:
+// counterparts call real AES-256-GCM (encryptText()/decryptText(),
+// the same helpers journal encryption uses). The key
+// (alphaEncryptionKey) is a device-bound, non-extractable CryptoKey
+// generated once per (device, signed-in user) and stored in
+// IndexedDB (alphaGetOrCreateDeviceKey()) — no passphrase, unlocks
+// automatically the first time Forge Alpha is opened after sign-in.
+// Deliberately NOT derived from the Supabase session/access token: a
+// key derivable from something the auth server itself issues would
+// be recoverable by the server (or anyone with service_role access)
+// too, which would defeat the point of end-to-end encryption. See
+// SECURITY.md for the full model, including the device-bound
+// tradeoff (no cross-device access without a future export/import
+// path). Every Forge Alpha payload leaving the device routes through these
+// four functions specifically so future key-management upgrades
+// (hardware keys, threshold crypto, multi-device sync) stay a small,
+// localized change:
 //   alphaEncryptString(plain) / alphaDecryptString(cipher) — for
 //     profile_name (a `text` column — ciphertext string in/out).
 //   alphaEncryptPayload(obj) / alphaDecryptPayload(raw) — for
@@ -7961,17 +8335,16 @@ var ALPHA_TAXONOMY = {
       }
     }
   },
-  // Relationship leaves all share ONE questionnaire module (see
-  // ALPHA_RELATIONSHIP_LEAVES / the relationshipMetrics module below)
-  // — same "how often, for how long" setup and same session-logging
-  // Input form for all five, custom groups included.
+  // Relationship leaves all share ONE questionnaire module
+  // (ALPHA_RELATIONSHIP_MODULE, assigned after it's defined below) —
+  // same "how often, for how long" setup and same session-logging
+  // Input form for all four, custom groups included.
   relationships: {
     label: 'Relationships',
     children: {
       intimate: { label: 'Intimate' },
-      friends: { label: 'Friends' },
-      family: { label: 'Family' },
-      restOfWorld: { label: 'Rest of World' },
+      innerCircle: { label: 'Inner Circle' },
+      world: { label: 'The World' },
       custom: { label: 'Custom', isCustomGroup: true }
     }
   },
@@ -7980,7 +8353,8 @@ var ALPHA_TAXONOMY = {
     children: {
       increaseIncome: { label: 'Increase Income' },
       reduceExpenses: { label: 'Reduce Expenses' },
-      buySell: { label: 'Buy or Sell' }
+      buySell: { label: 'Buy or Sell' },
+      trw: { label: 'TRW (The Real World University)' }
     }
   }
 };
@@ -7990,13 +8364,23 @@ var ALPHA_TAXONOMY = {
 // '.', e.g. 'mental.focus'; just the key itself for a 1-level leaf
 // like 'intimate'). null = not designed yet, shows the generic
 // placeholder. A real module is { renderOutput: fn(container,
-// profile), renderInput: fn(container, profile) }. Add one entry at a
-// time as each area gets designed — nothing else in this file needs
-// to change to plug one in.
+// profile), renderInput: fn(container, profile), renderStats:
+// fn(container, profile) }. renderOutput is the one-time setup
+// questionnaire shown immediately after creation (see
+// renderAlphaSetupStep) — it is NOT a persistent tab. renderInput and
+// renderStats back the two tabs a profile's detail view actually
+// shows afterward: Input to log new sessions, Stats to see past
+// entries and aggregated numbers/trends. Add one entry at a time as
+// each area gets designed — nothing else in this file needs to
+// change to plug one in.
 var ALPHA_QUESTIONNAIRE_MODULES = {
-  // Health — Mental Health was flagged as "fully designed and ready
-  // to plug in," but the actual question set hasn't been shared yet.
-  // These three are the next thing to wire in once it is.
+  // Health — Mental (all three) and Physical Motion/Recovery share
+  // ALPHA_HEALTH_METRIC_MODULE; Physical Bio Flow uses
+  // ALPHA_BIOFLOW_MODULE (same setup, different Input). All six are
+  // assigned right after those modules are defined below (not here,
+  // same reason as Relationships/Finances — the module objects don't
+  // exist yet at this point in the file). Spiritual isn't designed
+  // yet, stays null.
   'mental.focus': null,
   'mental.emotionalControl': null,
   'mental.resilience': null,
@@ -8006,56 +8390,104 @@ var ALPHA_QUESTIONNAIRE_MODULES = {
   'spiritual.connection': null,
   'spiritual.perception': null,
   'spiritual.expression': null,
-  // Relationships — all five share ALPHA_RELATIONSHIP_MODULE, assigned
+  // Relationships — all four share ALPHA_RELATIONSHIP_MODULE, assigned
   // right after it's defined below (not here, since it doesn't exist
   // yet at this point in the file).
   'intimate': null,
-  'friends': null,
-  'family': null,
-  'restOfWorld': null,
+  'innerCircle': null,
+  'world': null,
   'custom': null,
   // Finances
   'increaseIncome': null,
   'reduceExpenses': null,
-  'buySell': null
+  'buySell': null,
+  'trw': null
 };
 
-// ---- Encryption plumbing — REAL, not a stub. Uses the exact same
-// primitives as everywhere else crypto is discussed in this file
-// (deriveKeyFromPassphrase/encryptText/decryptText, AES-256-GCM +
-// PBKDF2-SHA256 at CRYPTO_PBKDF2_ITERATIONS, generateSalt/
-// bytesToBase64/base64ToBytes) — no new crypto code, just new callers.
+// ---- Encryption plumbing — REAL, not a stub.
 //
-// Key model: alphaEncryptionKey is a CryptoKey, held ONLY in memory,
-// NEVER written to localStorage or Supabase. It's derived once per
-// session from a passphrase the user enters at the Alpha passphrase
-// gate (see renderAlphaPassphraseGate), combined with a salt that
-// IS persisted locally (ALPHA_SALT_KEY) — the salt isn't secret, it
-// just needs to stay the same across sessions so the same passphrase
-// always re-derives the same key. Real, honest consequences of this
-// design: (1) the passphrase must be re-entered every session/reload,
-// nothing about it is remembered; (2) there is no recovery path — if
-// the passphrase is lost, every ciphertext ever produced with it is
-// permanently unreadable, by design (a recoverable "forgot my
-// passphrase" flow would mean the server could recover it too, which
-// defeats the point); (3) local storage is still plaintext regardless
-// (see the header comment above) — encryption only applies to what
-// leaves the device via alphaEncryptString/alphaEncryptPayload below,
-// and (new) alphaEncryptBlob for voice memos.
+// Key model: alphaEncryptionKey is a CryptoKey, generated ONCE per
+// signed-in user per DEVICE and stored in IndexedDB as a
+// NON-EXTRACTABLE key (generateKey(..., extractable: false, ...)) —
+// the raw key bytes can never be read back out via JS, by this app's
+// own code or anyone else's, even with full access to IndexedDB's
+// storage. This is deliberately NOT derived from anything
+// session/login-related (the Supabase access token, the account
+// password, etc.) — a key derived from something the auth server
+// itself issues would be a key the server (or anyone with
+// service_role/admin access) could also derive, which would make
+// "the server never sees plaintext" false. A locally-generated,
+// non-extractable, never-transmitted key is what actually keeps that
+// claim true.
 //
-// All four functions are async now (WebCrypto is promise-based) —
-// every caller was updated to .then() rather than use the result
-// synchronously.
-var ALPHA_SALT_KEY = 'csrAlignAlphaSalt';
-var alphaEncryptionKey = null; // null = locked; set once the passphrase gate resolves
-var alphaUnlocking = false;    // guards the gate's submit button against double-clicks mid-derive
+// This trades ONE property for another, on purpose: no passphrase to
+// remember or re-enter (it "just works" once signed in, per direct
+// request), but the key is DEVICE-BOUND — data encrypted on one
+// browser/device isn't decryptable on another, since each generates
+// its own independent key on first use. There's no cross-device sync
+// or recovery path for this key, same "if it's gone, the ciphertext
+// it produced is gone" tradeoff the passphrase model had, just tied
+// to a device now instead of a memorized phrase. Signing out and back
+// in as a DIFFERENT user on the same device gets a separate key too
+// (keyed by user id — see ALPHA_DEVICE_KEY_DB below), so a shared
+// computer can't cross-contaminate two accounts' keys.
+//
+// Only relevant once signed in — pushAlphaProfileToSupabase/
+// pushAlphaEntryToSupabase already no-op without a currentUser, so a
+// local-only (not signed in) visitor never needs a key at all; Forge
+// Alpha still works fully locally, just without cloud sync, same as
+// every other feature in this app.
+var alphaEncryptionKey = null;      // null until auto-unlocked (or permanently, if not signed in / unsupported)
+var alphaKeyLoading = false;        // guards against kicking off a second concurrent generate/load
+var alphaKeyUnsupported = false;    // set if IndexedDB/WebCrypto aren't available — falls through to local-only rather than looping forever
+var ALPHA_DEVICE_KEY_DB = 'csrAlignAlphaKeyDB';
+var ALPHA_DEVICE_KEY_STORE = 'keys';
 
-function alphaGetOrCreateSalt() {
-  var saved = localStorage.getItem(ALPHA_SALT_KEY);
-  if (saved) return base64ToBytes(saved);
-  var salt = generateSalt();
-  localStorage.setItem(ALPHA_SALT_KEY, bytesToBase64(salt));
-  return salt;
+function alphaOpenKeyDb() {
+  return new Promise(function(resolve, reject) {
+    var req = indexedDB.open(ALPHA_DEVICE_KEY_DB, 1);
+    req.onupgradeneeded = function() {
+      req.result.createObjectStore(ALPHA_DEVICE_KEY_STORE);
+    };
+    req.onsuccess = function() { resolve(req.result); };
+    req.onerror = function() { reject(req.error); };
+  });
+}
+function alphaLoadStoredDeviceKey(db, keyId) {
+  return new Promise(function(resolve, reject) {
+    var tx = db.transaction(ALPHA_DEVICE_KEY_STORE, 'readonly');
+    var req = tx.objectStore(ALPHA_DEVICE_KEY_STORE).get(keyId);
+    req.onsuccess = function() { resolve(req.result || null); };
+    req.onerror = function() { reject(req.error); };
+  });
+}
+function alphaStoreDeviceKey(db, keyId, key) {
+  return new Promise(function(resolve, reject) {
+    var tx = db.transaction(ALPHA_DEVICE_KEY_STORE, 'readwrite');
+    var req = tx.objectStore(ALPHA_DEVICE_KEY_STORE).put(key, keyId);
+    req.onsuccess = function() { resolve(); };
+    req.onerror = function() { reject(req.error); };
+  });
+}
+// One key per (device, user) pair — userId keys the IndexedDB record
+// so two different accounts on the same browser never share a key.
+function alphaGetOrCreateDeviceKey(userId) {
+  if (typeof indexedDB === 'undefined' || !window.crypto || !window.crypto.subtle) {
+    return Promise.reject(new Error('This browser doesn\'t support the storage/crypto APIs Forge Alpha encryption needs.'));
+  }
+  var keyId = 'alphaDeviceKey:' + userId;
+  return alphaOpenKeyDb().then(function(db) {
+    return alphaLoadStoredDeviceKey(db, keyId).then(function(existingKey) {
+      if (existingKey) return existingKey;
+      return crypto.subtle.generateKey(
+        { name: 'AES-GCM', length: 256 },
+        false, // extractable: false — raw key material can never be exported, by design
+        ['encrypt', 'decrypt']
+      ).then(function(newKey) {
+        return alphaStoreDeviceKey(db, keyId, newKey).then(function() { return newKey; });
+      });
+    });
+  });
 }
 
 function alphaEncryptString(plain) {
@@ -8133,17 +8565,28 @@ var alphaProfiles = loadAlphaProfiles();
 var alphaEntries = loadAlphaEntries();
 
 // ---- Gate + navigation state ----
-// Gender gates entry to the rest of Alpha but has zero effect beyond
-// that — no color/theme/copy branches on it anywhere in this file.
-// It's a one-time checkpoint (persisted locally, asked once), not a
-// personalization input. Local-only: this isn't synced to Supabase or
-// folded into any profile's account-wide `profiles` row, since it's
-// scoped to the Alpha experience specifically, not the account.
+// Gender gates entry to the rest of Forge Alpha and sets the subtle
+// --alpha-accent tone (cool blue vs. warm, via .alpha-tone-warm — see
+// renderAlphaBrowser) — no gendered labels or copy branches anywhere
+// in this file, just that one accent-color dial. It's a one-time
+// checkpoint (persisted locally, asked once), not a personalization
+// input. Local-only: this isn't synced to Supabase or folded into any
+// profile's account-wide `profiles` row, since it's scoped to the
+// Forge Alpha experience specifically, not the account.
 var ALPHA_GENDER_KEY = 'csrAlignAlphaGender';
 var alphaGender = localStorage.getItem(ALPHA_GENDER_KEY) || null;
 
 var alphaSelectedProfileId = null;   // set once an improvement is opened
-var alphaActiveSubTab = 'output';    // 'output' | 'input', within a profile detail view
+var alphaActiveSubTab = 'input';     // 'input' | 'stats', within a profile detail view
+var alphaSetupProfileId = null;      // profile awaiting its one-time creation setup step (module's renderOutput), before it ever reaches the Input/Stats tabs
+// Progressive-disclosure wizard state for ALPHA_HEALTH_METRIC_MODULE's
+// renderOutput (one question per screen) — { profileId, step,
+// measuring, frequency, baseline, target }, or null between setups.
+// Lives here (not on the profile object) because it's genuinely
+// transient: reset the moment a DIFFERENT profile's setup starts (see
+// the profileId check in renderOutput), never persisted anywhere.
+var alphaHealthSetupState = null;
+var alphaShowingSnipes = false;      // viewing "Current Snipes" — the 4th core scope, listing every existing profile across all categories
 var alphaCreating = false;           // in the "create new improvement" flow
 // Drill-down path mid-creation, e.g. ['health','mental','focus'] or
 // ['relationships','intimate'] — Health goes one level deeper
@@ -8225,7 +8668,7 @@ function saveAlphaEntry(profileId, data) {
 
 // ---- Voice memos (used by the Relationships module) ----
 // Records via MediaRecorder, encrypts the resulting audio with the
-// SAME AES-GCM session key as everything else in Alpha
+// SAME AES-GCM session key as everything else in Forge Alpha
 // (alphaEncryptBlob), and uploads CIPHERTEXT bytes to the
 // alpha-voice-notes bucket — see 0006_alpha_voice_notes_bucket.sql.
 // {path, iv, mimeType} then lives inside the entry's own
@@ -8272,8 +8715,443 @@ function alphaLoadVoiceMemo(voiceMemo) {
   });
 }
 
-// ---- Relationships module — shared by all five leaves (intimate,
-// friends, family, restOfWorld, custom). Output sets the two metrics
+// ---- Health baseline/target module — shared by five leaves
+// (mental.focus, mental.emotionalControl, mental.resilience,
+// physical.motion, physical.recovery — "same format for all three"
+// within each of Mental and Physical, per direct request). Output
+// captures what's being measured, how often, and a 1-10 baseline/
+// target pair. Input logs a session: duration, a 1-10 result, and
+// free-text notes. History of past sessions renders below the
+// logging form, same pattern as ALPHA_RELATIONSHIP_MODULE.
+// The four setup questions, one per screen — shared by every leaf
+// that uses ALPHA_HEALTH_METRIC_MODULE (Mental Focus/Emotional
+// Control/Resilience, Physical Motion/Recovery) and, via the reused
+// renderOutput reference, Bio Flow too.
+var ALPHA_HEALTH_SETUP_STEPS = [
+  { key: 'measuring', question: 'What specifically are you measuring?', kind: 'text', placeholder: 'e.g. Focus during deep work' },
+  { key: 'frequency', question: 'How often do you experience it?', kind: 'text', placeholder: 'e.g. Daily, a few times a week' },
+  { key: 'baseline', question: 'Current baseline?', kind: 'scale' },
+  { key: 'target', question: 'Target goal?', kind: 'scale' }
+];
+
+var ALPHA_HEALTH_METRIC_MODULE = {
+  // Owning its own completion means renderAlphaSetupStep does NOT
+  // append its own generic "Continue" button below this — the last
+  // question's own button both saves and decides what happens next
+  // (open the Input tab), rather than a second, separately-triggered
+  // step doing that.
+  ownsSetupCompletion: true,
+
+  renderOutput: function(container, profile) {
+    // Fresh wizard state the first time this profile's setup runs, or
+    // if a DIFFERENT profile's setup starts (e.g. the user backs out
+    // to the hub and creates a different improvement) — never reused
+    // across profiles, and never persisted anywhere itself; the only
+    // thing that survives past this screen is profile.setup, written
+    // once, on the final question.
+    if (!alphaHealthSetupState || alphaHealthSetupState.profileId !== profile.id) {
+      alphaHealthSetupState = {
+        profileId: profile.id,
+        step: 0,
+        measuring: (profile.setup && profile.setup.measuring) || '',
+        frequency: (profile.setup && profile.setup.frequency) || '',
+        baseline: (profile.setup && profile.setup.baseline) || null,
+        target: (profile.setup && profile.setup.target) || null
+      };
+    }
+    var state = alphaHealthSetupState;
+    var stepDef = ALPHA_HEALTH_SETUP_STEPS[state.step];
+    var isLast = state.step === ALPHA_HEALTH_SETUP_STEPS.length - 1;
+
+    var card = document.createElement('div');
+    card.className = 'alpha-question-card';
+
+    var progress = document.createElement('span');
+    progress.className = 'alpha-field-label';
+    progress.textContent = 'Question ' + (state.step + 1) + ' of ' + ALPHA_HEALTH_SETUP_STEPS.length;
+    card.appendChild(progress);
+
+    var q = document.createElement('div');
+    q.className = 'alpha-question-text';
+    q.textContent = stepDef.question;
+    card.appendChild(q);
+
+    var input = document.createElement('input');
+    input.className = 'alpha-answer-input';
+    if (stepDef.kind === 'text') {
+      input.type = 'text';
+      input.placeholder = stepDef.placeholder;
+      input.value = state[stepDef.key] || '';
+    } else {
+      input.type = 'number';
+      input.min = '1';
+      input.max = '10';
+      input.placeholder = '1-10';
+      input.value = state[stepDef.key] || '';
+    }
+    card.appendChild(input);
+
+    // Captures whatever's currently in the field into wizard state —
+    // used both by "advance" (moving forward) and "back" (so an
+    // answer already typed isn't lost if the user steps back to
+    // revisit an earlier question).
+    var captureAnswer = function() {
+      if (stepDef.kind === 'text') {
+        state[stepDef.key] = input.value.trim();
+        return true;
+      }
+      var n = input.value ? Number(input.value) : null;
+      if (n !== null && (n < 1 || n > 10)) {
+        input.focus();
+        return false;
+      }
+      state[stepDef.key] = n;
+      return true;
+    };
+
+    var advance = function() {
+      if (!captureAnswer()) return;
+      if (!isLast) {
+        state.step++;
+        renderAlphaBrowser();
+        return;
+      }
+      // Final question answered — write the completed setup, persist
+      // it (encrypted, via the existing push path), then go straight
+      // into logging the first session rather than back to the hub.
+      profile.setup = {
+        measuring: state.measuring,
+        frequency: state.frequency,
+        baseline: state.baseline,
+        target: state.target
+      };
+      saveAlphaProfiles(alphaProfiles);
+      pushAlphaProfileToSupabase(profile);
+      alphaHealthSetupState = null;
+      alphaSetupProfileId = null;
+      alphaSelectedProfileId = profile.id;
+      alphaActiveSubTab = 'input';
+      if (typeof showToast === 'function') showToast('Profile created — log your first session.', 'success');
+      renderAlphaBrowser();
+    };
+    input.addEventListener('keydown', function(e) { if (e.key === 'Enter') advance(); });
+
+    var nextBtn = document.createElement('button');
+    nextBtn.type = 'button';
+    nextBtn.className = 'alpha-continue-btn';
+    nextBtn.textContent = isLast ? 'Finish' : 'Next';
+    nextBtn.addEventListener('click', advance);
+    card.appendChild(nextBtn);
+
+    if (state.step > 0) {
+      var backBtn = document.createElement('button');
+      backBtn.type = 'button';
+      backBtn.className = 'alpha-secondary-btn';
+      backBtn.textContent = '← Back';
+      backBtn.addEventListener('click', function() {
+        captureAnswer();
+        state.step--;
+        renderAlphaBrowser();
+      });
+      card.appendChild(backBtn);
+    }
+
+    container.appendChild(card);
+  },
+
+  renderInput: function(container, profile) {
+    var card = document.createElement('div');
+    card.className = 'alpha-question-card';
+
+    var q = document.createElement('div');
+    q.className = 'alpha-question-text';
+    q.textContent = 'Log a session';
+    card.appendChild(q);
+
+    var durationInput = document.createElement('input');
+    durationInput.type = 'text';
+    durationInput.className = 'alpha-answer-input';
+    durationInput.placeholder = 'Duration — e.g. 25 min';
+    card.appendChild(durationInput);
+
+    var resultWrap = document.createElement('div');
+    var resultLabel = document.createElement('span');
+    resultLabel.className = 'alpha-field-label';
+    resultLabel.textContent = 'Result (1-10)';
+    var resultInput = document.createElement('input');
+    resultInput.type = 'number';
+    resultInput.min = '1';
+    resultInput.max = '10';
+    resultInput.className = 'alpha-answer-input';
+    resultWrap.appendChild(resultLabel);
+    resultWrap.appendChild(resultInput);
+    card.appendChild(resultWrap);
+
+    var notesArea = document.createElement('textarea');
+    notesArea.className = 'alpha-answer-input alpha-text-input';
+    notesArea.placeholder = 'Experience notes...';
+    card.appendChild(notesArea);
+
+    var saveBtn = document.createElement('button');
+    saveBtn.type = 'button';
+    saveBtn.className = 'alpha-continue-btn';
+    saveBtn.textContent = 'Save Session';
+    saveBtn.addEventListener('click', function() {
+      if (!durationInput.value.trim() && !resultInput.value) {
+        if (typeof showToast === 'function') showToast('Log a duration or a result first.', 'error');
+        return;
+      }
+      saveAlphaEntry(profile.id, {
+        duration: durationInput.value.trim(),
+        result: resultInput.value ? Number(resultInput.value) : null,
+        notes: notesArea.value.trim()
+      });
+      if (typeof showToast === 'function') showToast('Session logged.', 'success');
+      renderAlphaBrowser();
+    });
+    card.appendChild(saveBtn);
+
+    container.appendChild(card);
+  },
+
+  renderStats: function(container, profile) {
+    var history = alphaEntries.filter(function(e) { return e.profileId === profile.id; })
+      .slice().sort(function(a, b) { return a.createdAt < b.createdAt ? 1 : -1; });
+
+    var weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    var sessionsThisWeek = 0;
+    var resultSum = 0, resultCount = 0;
+    history.forEach(function(entry) {
+      var created = entry.createdAt ? new Date(entry.createdAt) : null;
+      if (created && created.getTime() >= weekAgo) sessionsThisWeek++;
+      if (typeof entry.data.result === 'number') { resultSum += entry.data.result; resultCount++; }
+    });
+    var avgResult = resultCount ? Math.round(resultSum / resultCount * 10) / 10 : 0;
+    var target = profile.setup && profile.setup.target;
+
+    var statsRow = document.createElement('div');
+    statsRow.className = 'alpha-stats-row';
+    [
+      ['Sessions', String(history.length)],
+      ['This Week', String(sessionsThisWeek)],
+      ['Avg Result', avgResult ? avgResult + '/10' : '—'],
+      ['Target', target ? target + '/10' : '—']
+    ].forEach(function(pair) {
+      var stat = document.createElement('div');
+      stat.className = 'alpha-stat-tile';
+      var val = document.createElement('div');
+      val.className = 'alpha-stat-value';
+      val.textContent = pair[1];
+      var lbl = document.createElement('div');
+      lbl.className = 'alpha-stat-label';
+      lbl.textContent = pair[0];
+      stat.appendChild(val);
+      stat.appendChild(lbl);
+      statsRow.appendChild(stat);
+    });
+    container.appendChild(statsRow);
+
+    var historyWrap = document.createElement('div');
+    historyWrap.className = 'alpha-session-history';
+    if (!history.length) {
+      var empty = document.createElement('p');
+      empty.className = 'alpha-empty';
+      empty.textContent = 'No sessions logged yet.';
+      historyWrap.appendChild(empty);
+    } else {
+      history.forEach(function(entry) {
+        var row = document.createElement('div');
+        row.className = 'alpha-session-row';
+
+        var when = document.createElement('div');
+        when.className = 'alpha-session-when';
+        var created = entry.createdAt ? new Date(entry.createdAt) : null;
+        when.textContent = created ? created.toLocaleString() : entry.date;
+        if (entry.data.duration) when.textContent += ' · ' + entry.data.duration;
+        if (typeof entry.data.result === 'number') when.textContent += ' · Result ' + entry.data.result + '/10';
+        row.appendChild(when);
+
+        if (entry.data.notes) {
+          var notes = document.createElement('p');
+          notes.className = 'alpha-session-notes';
+          notes.textContent = entry.data.notes;
+          row.appendChild(notes);
+        }
+
+        historyWrap.appendChild(row);
+      });
+    }
+    container.appendChild(historyWrap);
+  }
+};
+ALPHA_QUESTIONNAIRE_MODULES['mental.focus'] = ALPHA_HEALTH_METRIC_MODULE;
+ALPHA_QUESTIONNAIRE_MODULES['mental.emotionalControl'] = ALPHA_HEALTH_METRIC_MODULE;
+ALPHA_QUESTIONNAIRE_MODULES['mental.resilience'] = ALPHA_HEALTH_METRIC_MODULE;
+ALPHA_QUESTIONNAIRE_MODULES['physical.motion'] = ALPHA_HEALTH_METRIC_MODULE;
+ALPHA_QUESTIONNAIRE_MODULES['physical.recovery'] = ALPHA_HEALTH_METRIC_MODULE;
+
+// ---- Bio Flow module — reuses ALPHA_HEALTH_METRIC_MODULE's setup
+// questionnaire directly (same what/frequency/baseline/target as
+// every other health leaf), but Input differs: a food/diet log, an
+// optional calorie count, a 1-10 "how do you feel" score, and notes.
+var ALPHA_BIOFLOW_MODULE = {
+  renderOutput: ALPHA_HEALTH_METRIC_MODULE.renderOutput,
+  // Reused renderOutput handles its own completion (see
+  // ALPHA_HEALTH_METRIC_MODULE) — this flag lives on ALPHA_BIOFLOW_MODULE
+  // too since renderAlphaSetupStep checks it on whichever module
+  // object is actually registered for the profile's leaf, not on the
+  // renderOutput function itself.
+  ownsSetupCompletion: true,
+
+  renderInput: function(container, profile) {
+    var card = document.createElement('div');
+    card.className = 'alpha-question-card';
+
+    var q = document.createElement('div');
+    q.className = 'alpha-question-text';
+    q.textContent = 'Log a session';
+    card.appendChild(q);
+
+    var foodArea = document.createElement('textarea');
+    foodArea.className = 'alpha-answer-input alpha-text-input';
+    foodArea.placeholder = 'Food / diet log...';
+    card.appendChild(foodArea);
+
+    var caloriesWrap = document.createElement('div');
+    var caloriesLabel = document.createElement('span');
+    caloriesLabel.className = 'alpha-field-label';
+    caloriesLabel.textContent = 'Calories (optional)';
+    var caloriesInput = document.createElement('input');
+    caloriesInput.type = 'number';
+    caloriesInput.min = '0';
+    caloriesInput.className = 'alpha-answer-input';
+    caloriesWrap.appendChild(caloriesLabel);
+    caloriesWrap.appendChild(caloriesInput);
+    card.appendChild(caloriesWrap);
+
+    var feelWrap = document.createElement('div');
+    var feelLabel = document.createElement('span');
+    feelLabel.className = 'alpha-field-label';
+    feelLabel.textContent = 'How do you feel (1-10)';
+    var feelInput = document.createElement('input');
+    feelInput.type = 'number';
+    feelInput.min = '1';
+    feelInput.max = '10';
+    feelInput.className = 'alpha-answer-input';
+    feelWrap.appendChild(feelLabel);
+    feelWrap.appendChild(feelInput);
+    card.appendChild(feelWrap);
+
+    var notesArea = document.createElement('textarea');
+    notesArea.className = 'alpha-answer-input alpha-text-input';
+    notesArea.placeholder = 'Experience notes...';
+    card.appendChild(notesArea);
+
+    var saveBtn = document.createElement('button');
+    saveBtn.type = 'button';
+    saveBtn.className = 'alpha-continue-btn';
+    saveBtn.textContent = 'Save Session';
+    saveBtn.addEventListener('click', function() {
+      if (!foodArea.value.trim() && !feelInput.value) {
+        if (typeof showToast === 'function') showToast('Log a food entry or how you feel first.', 'error');
+        return;
+      }
+      saveAlphaEntry(profile.id, {
+        foodLog: foodArea.value.trim(),
+        calories: caloriesInput.value ? Number(caloriesInput.value) : null,
+        feel: feelInput.value ? Number(feelInput.value) : null,
+        notes: notesArea.value.trim()
+      });
+      if (typeof showToast === 'function') showToast('Session logged.', 'success');
+      renderAlphaBrowser();
+    });
+    card.appendChild(saveBtn);
+
+    container.appendChild(card);
+  },
+
+  renderStats: function(container, profile) {
+    var history = alphaEntries.filter(function(e) { return e.profileId === profile.id; })
+      .slice().sort(function(a, b) { return a.createdAt < b.createdAt ? 1 : -1; });
+
+    var weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    var sessionsThisWeek = 0;
+    var feelSum = 0, feelCount = 0;
+    var calorieSum = 0, calorieCount = 0;
+    history.forEach(function(entry) {
+      var created = entry.createdAt ? new Date(entry.createdAt) : null;
+      if (created && created.getTime() >= weekAgo) sessionsThisWeek++;
+      if (typeof entry.data.feel === 'number') { feelSum += entry.data.feel; feelCount++; }
+      if (typeof entry.data.calories === 'number') { calorieSum += entry.data.calories; calorieCount++; }
+    });
+    var avgFeel = feelCount ? Math.round(feelSum / feelCount * 10) / 10 : 0;
+    var avgCalories = calorieCount ? Math.round(calorieSum / calorieCount) : 0;
+
+    var statsRow = document.createElement('div');
+    statsRow.className = 'alpha-stats-row';
+    [
+      ['Sessions', String(history.length)],
+      ['This Week', String(sessionsThisWeek)],
+      ['Avg Feel', avgFeel ? avgFeel + '/10' : '—'],
+      ['Avg Calories', avgCalories ? String(avgCalories) : '—']
+    ].forEach(function(pair) {
+      var stat = document.createElement('div');
+      stat.className = 'alpha-stat-tile';
+      var val = document.createElement('div');
+      val.className = 'alpha-stat-value';
+      val.textContent = pair[1];
+      var lbl = document.createElement('div');
+      lbl.className = 'alpha-stat-label';
+      lbl.textContent = pair[0];
+      stat.appendChild(val);
+      stat.appendChild(lbl);
+      statsRow.appendChild(stat);
+    });
+    container.appendChild(statsRow);
+
+    var historyWrap = document.createElement('div');
+    historyWrap.className = 'alpha-session-history';
+    if (!history.length) {
+      var empty = document.createElement('p');
+      empty.className = 'alpha-empty';
+      empty.textContent = 'No sessions logged yet.';
+      historyWrap.appendChild(empty);
+    } else {
+      history.forEach(function(entry) {
+        var row = document.createElement('div');
+        row.className = 'alpha-session-row';
+
+        var when = document.createElement('div');
+        when.className = 'alpha-session-when';
+        var created = entry.createdAt ? new Date(entry.createdAt) : null;
+        when.textContent = created ? created.toLocaleString() : entry.date;
+        if (typeof entry.data.feel === 'number') when.textContent += ' · Feel ' + entry.data.feel + '/10';
+        if (typeof entry.data.calories === 'number') when.textContent += ' · ' + entry.data.calories + ' cal';
+        row.appendChild(when);
+
+        if (entry.data.foodLog) {
+          var food = document.createElement('p');
+          food.className = 'alpha-session-notes';
+          food.textContent = entry.data.foodLog;
+          row.appendChild(food);
+        }
+        if (entry.data.notes) {
+          var notes = document.createElement('p');
+          notes.className = 'alpha-session-notes';
+          notes.textContent = entry.data.notes;
+          row.appendChild(notes);
+        }
+
+        historyWrap.appendChild(row);
+      });
+    }
+    container.appendChild(historyWrap);
+  }
+};
+ALPHA_QUESTIONNAIRE_MODULES['physical.bioflow'] = ALPHA_BIOFLOW_MODULE;
+
+// ---- Relationships module — shared by all four leaves (intimate,
+// innerCircle, world, custom). Output sets the two metrics
 // asked for: frequency and duration. Input logs a session: start/end
 // time, written notes, and an optional voice memo recorded live and
 // uploaded encrypted. History of past sessions renders below the
@@ -8433,11 +9311,50 @@ var ALPHA_RELATIONSHIP_MODULE = {
     card.appendChild(saveBtn);
 
     container.appendChild(card);
+  },
 
-    // ---- History of past sessions ----
+  renderStats: function(container, profile) {
     var history = alphaEntries.filter(function(e) { return e.profileId === profile.id; })
       .slice().sort(function(a, b) { return a.createdAt < b.createdAt ? 1 : -1; });
 
+    // ---- Aggregated numbers ----
+    var totalMins = 0, timedCount = 0;
+    var weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    var sessionsThisWeek = 0;
+    history.forEach(function(entry) {
+      var start = entry.data.startTime ? new Date(entry.data.startTime) : null;
+      var end = entry.data.endTime ? new Date(entry.data.endTime) : null;
+      if (start && end) {
+        totalMins += Math.round((end - start) / 60000);
+        timedCount++;
+      }
+      if (start && start.getTime() >= weekAgo) sessionsThisWeek++;
+    });
+    var avgMins = timedCount ? Math.round(totalMins / timedCount) : 0;
+
+    var statsRow = document.createElement('div');
+    statsRow.className = 'alpha-stats-row';
+    [
+      ['Sessions', String(history.length)],
+      ['This Week', String(sessionsThisWeek)],
+      ['Total Time', totalMins ? (totalMins >= 60 ? Math.round(totalMins / 60 * 10) / 10 + ' hrs' : totalMins + ' min') : '—'],
+      ['Avg Length', avgMins ? avgMins + ' min' : '—']
+    ].forEach(function(pair) {
+      var stat = document.createElement('div');
+      stat.className = 'alpha-stat-tile';
+      var val = document.createElement('div');
+      val.className = 'alpha-stat-value';
+      val.textContent = pair[1];
+      var lbl = document.createElement('div');
+      lbl.className = 'alpha-stat-label';
+      lbl.textContent = pair[0];
+      stat.appendChild(val);
+      stat.appendChild(lbl);
+      statsRow.appendChild(stat);
+    });
+    container.appendChild(statsRow);
+
+    // ---- History of past sessions ----
     var historyWrap = document.createElement('div');
     historyWrap.className = 'alpha-session-history';
     if (!history.length) {
@@ -8500,9 +9417,8 @@ var ALPHA_RELATIONSHIP_MODULE = {
   }
 };
 ALPHA_QUESTIONNAIRE_MODULES.intimate = ALPHA_RELATIONSHIP_MODULE;
-ALPHA_QUESTIONNAIRE_MODULES.friends = ALPHA_RELATIONSHIP_MODULE;
-ALPHA_QUESTIONNAIRE_MODULES.family = ALPHA_RELATIONSHIP_MODULE;
-ALPHA_QUESTIONNAIRE_MODULES.restOfWorld = ALPHA_RELATIONSHIP_MODULE;
+ALPHA_QUESTIONNAIRE_MODULES.innerCircle = ALPHA_RELATIONSHIP_MODULE;
+ALPHA_QUESTIONNAIRE_MODULES.world = ALPHA_RELATIONSHIP_MODULE;
 ALPHA_QUESTIONNAIRE_MODULES.custom = ALPHA_RELATIONSHIP_MODULE;
 
 // ---- Taxonomy helpers ----
@@ -8562,56 +9478,27 @@ function renderAlphaGenderGate(container) {
 // ---- Passphrase gate — unlocks the in-memory encryption key. See
 // the header comment on the encryption plumbing above for the full
 // tradeoff explanation (no persistence, no recovery, by design). ----
-function renderAlphaPassphraseGate(container) {
-  var card = document.createElement('div');
-  card.className = 'alpha-question-card alpha-gate-card';
-
-  var q = document.createElement('div');
-  q.className = 'alpha-question-text';
-  q.textContent = 'Enter your Alpha encryption passphrase.';
-  card.appendChild(q);
-
+// Shown only for the brief moment (typically well under a second)
+// while the device key is being loaded from IndexedDB or generated
+// for the first time — no input, nothing to do, just a placeholder
+// so the panel isn't blank for that instant. Auto-advances itself via
+// renderAlphaBrowser() once alphaEncryptionKey is set (see the
+// dispatcher's key-loading branch below).
+function renderAlphaKeyLoading(container) {
   var note = document.createElement('p');
   note.className = 'alpha-placeholder-note';
-  note.textContent = 'This unlocks end-to-end encryption for everything you create in Alpha — the same standard used for Ledger entries. It is never sent anywhere and never stored, only held in memory for this session. Use the exact same passphrase every time. If you forget it, anything already encrypted with it cannot be recovered — there is no reset.';
-  card.appendChild(note);
-
-  var input = document.createElement('input');
-  input.type = 'password';
-  input.className = 'alpha-answer-input';
-  input.placeholder = 'Passphrase...';
-  input.autocomplete = 'off';
-  card.appendChild(input);
-
-  var btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = 'alpha-continue-btn';
-  btn.textContent = 'Unlock';
-
-  var submit = function() {
-    var phrase = input.value;
-    if (!phrase || alphaUnlocking) return;
-    alphaUnlocking = true;
-    btn.disabled = true;
-    btn.textContent = 'Unlocking…';
-    var salt = alphaGetOrCreateSalt();
-    deriveKeyFromPassphrase(phrase, salt).then(function(key) {
-      alphaEncryptionKey = key;
-      alphaUnlocking = false;
-      renderAlphaBrowser();
-    }).catch(function() {
-      alphaUnlocking = false;
-      btn.disabled = false;
-      btn.textContent = 'Unlock';
-      if (typeof showToast === 'function') showToast('Could not unlock Alpha encryption. Try again.', 'error');
-    });
-  };
-  btn.addEventListener('click', submit);
-  input.addEventListener('keydown', function(e) { if (e.key === 'Enter') submit(); });
-  card.appendChild(btn);
-
-  container.appendChild(card);
-  input.focus();
+  note.textContent = 'Unlocking your encrypted Forge Alpha data…';
+  container.appendChild(note);
+}
+// Shown if IndexedDB/WebCrypto genuinely aren't available (very old
+// browser, privacy mode blocking IndexedDB, etc.) — Forge Alpha still
+// works fully locally without a key, this just explains why cloud
+// sync specifically won't happen on this device.
+function renderAlphaKeyUnsupportedNote(container) {
+  var note = document.createElement('p');
+  note.className = 'alpha-placeholder-note';
+  note.textContent = 'This browser doesn’t support the encryption Forge Alpha needs to sync to the cloud — everything you create here still saves locally on this device, it just won’t back up to your account.';
+  container.appendChild(note);
 }
 
 // ---- Create flow: drill the taxonomy down to a leaf, then name it ----
@@ -8629,9 +9516,17 @@ function alphaResolveCreateNode() {
   }
   return node;
 }
+// Sub-scopes reuse alphaBuildScopeTile/the .alpha-scope-hub orbit —
+// same floating-reticle language as the four core scopes, per the
+// "sub-scopes materialize as new floating reticles" brief. No card
+// background here on purpose (alpha-chamber-void, set below); the
+// reticles float directly in the chamber's black.
 function renderAlphaTaxonomyStep(container) {
-  var card = document.createElement('div');
-  card.className = 'alpha-question-card';
+  var chamber = container.closest('.alpha-chamber');
+  if (chamber) chamber.classList.add('alpha-chamber-void');
+
+  var wrap = document.createElement('div');
+  wrap.className = 'alpha-taxonomy-step';
 
   var node = alphaCreatePath.length ? alphaResolveCreateNode() : null;
   var options = node ? node.children : ALPHA_TAXONOMY;
@@ -8639,35 +9534,35 @@ function renderAlphaTaxonomyStep(container) {
   var q = document.createElement('div');
   q.className = 'alpha-question-text';
   q.textContent = alphaCreatePath.length === 0 ? 'What do you want to improve?' : 'Which area?';
-  card.appendChild(q);
+  wrap.appendChild(q);
 
-  var row = document.createElement('div');
-  row.className = 'alpha-choice-row alpha-choice-row-wrap';
-  Object.keys(options).forEach(function(key) {
-    var btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'alpha-choice-btn';
-    btn.textContent = options[key].label;
-    btn.addEventListener('click', function() {
+  var hub = document.createElement('div');
+  hub.className = 'alpha-scope-hub';
+  var optionKeys = Object.keys(options);
+  optionKeys.forEach(function(key, i) {
+    var built = alphaBuildScopeTile(options[key].label, null, function() {
       alphaCreatePath = alphaCreatePath.concat([key]);
       renderAlphaBrowser();
-    });
-    row.appendChild(btn);
+    }, i, optionKeys.length);
+    hub.appendChild(built.floatEl);
   });
-  card.appendChild(row);
+  wrap.appendChild(hub);
+  container.appendChild(wrap);
+  alphaStartScopeAnimation(hub);
 
   var backBtn = document.createElement('button');
   backBtn.type = 'button';
   backBtn.className = 'alpha-secondary-btn';
-  backBtn.textContent = alphaCreatePath.length === 0 ? 'Cancel' : '← Back';
+  // Category was already chosen by the scope tile at the hub, so
+  // backing out of its first sub-scope level returns straight to the
+  // hub (Cancel), same as backing out at depth 0.
+  backBtn.textContent = alphaCreatePath.length <= 1 ? 'Cancel' : '← Back';
   backBtn.addEventListener('click', function() {
-    if (alphaCreatePath.length === 0) alphaCreating = false;
+    if (alphaCreatePath.length <= 1) { alphaCreating = false; alphaCreatePath = []; }
     else alphaCreatePath = alphaCreatePath.slice(0, -1);
     renderAlphaBrowser();
   });
-  card.appendChild(backBtn);
-
-  container.appendChild(card);
+  wrap.appendChild(backBtn);
 }
 
 // ---- Custom group naming (Relationships -> Custom only) ----
@@ -8777,8 +9672,7 @@ function renderAlphaNameImprovement(container) {
     alphaCreating = false;
     alphaCreatePath = [];
     alphaCreatePendingCustomGroup = null;
-    alphaSelectedProfileId = profile.id;
-    alphaActiveSubTab = 'output';
+    alphaSetupProfileId = profile.id;
     renderAlphaBrowser();
   };
   createBtn.addEventListener('click', advance);
@@ -8799,12 +9693,243 @@ function renderAlphaNameImprovement(container) {
   container.appendChild(card);
 }
 
-// ---- Existing improvements, grouped by category ----
-function renderAlphaImprovementsList(container) {
+// ---- The four core scopes (always visible): Health, Relationships,
+// Finance, Current Snipes. Clicking a category scope jumps straight
+// into that category's sub-scope drill-down (alphaCreatePath starts
+// pre-seeded with the category, so the taxonomy step's first render
+// is "Which area?" for that category, not "What do you want to
+// improve?"). Clicking Current Snipes shows every existing profile. ----
+// ---- Shared tactical reticle tile builder ----
+// Used by both the top-level scope hub and the sub-scope drill-down
+// step, so "sub-scopes materialize as new floating reticles" reuses
+// the exact same visual language as the four core scopes rather than
+// a second, different-looking picker UI.
+//
+// The circle's position is set ONCE here, at build time, and never
+// touched again — index/total place it on a static ellipse scatter
+// around the hub's center (an organic, non-grid arrangement that
+// scales cleanly whether there are 3 sub-scopes or 4). All the
+// cursor-tracking lives inside the lens instead — see
+// alphaStartScopeAnimation, which this function has no dependency on
+// at all.
+//
+// Returns { floatEl, tileEl } — the caller appends floatEl to the hub.
+function alphaBuildScopeTile(labelText, extraTileClass, onClick, index, total) {
+  var angle = (index / total) * 360 - 90; // first tile at 12 o'clock, clockwise
+  var rad = angle * Math.PI / 180;
+  var rx = 34, ry = 30; // ellipse radii, in % of the hub
+  var top = 50 + ry * Math.sin(rad);
+  var left = 50 + rx * Math.cos(rad);
+
+  var float = document.createElement('div');
+  float.className = 'alpha-scope-float';
+  float.style.top = top.toFixed(2) + '%';
+  float.style.left = left.toFixed(2) + '%';
+  // Distinct, non-round durations/delays per tile so the idle 3D tilt
+  // reads as several independently-alive instruments, not one
+  // synchronized mechanism repeating in lockstep.
+  float.style.animationDuration = (9 + (index % 4) * 2.3).toFixed(1) + 's';
+  float.style.animationDelay = '-' + ((index * 1.85) % 7).toFixed(1) + 's';
+
+  var tile = document.createElement('button');
+  tile.type = 'button';
+  tile.className = 'alpha-scope-tile' + (extraTileClass ? ' ' + extraTileClass : '');
+
+  // Four purely decorative layers (tick ring, crosshair, bullseye,
+  // hover spokes) — see the CSS block by the same names for what each
+  // does. Painted before the label/count so those stay on top. Ring/
+  // crosshair/bullseye read --reticle-pan-x/y (set on the hub,
+  // inherited down) directly in their own CSS transform, each at a
+  // different scale — ring/crosshair barely move (the "scope body"),
+  // the bullseye moves the most (the actual aim-point) — nothing here
+  // wires that up per-tile, it's automatic. No fill/background
+  // changes on hover anywhere in this tile — only border/glow (always
+  // electric blue, hardcoded — see the CSS comment on .alpha-scope-
+  // tile:hover for why NOT --alpha-accent), scale, the bullseye/label
+  // size bump, and the gold spokes appearing OUTSIDE the circle's own
+  // edge — so the interior always stays the same dark radial-gradient
+  // regardless of hover state.
+  var ring = document.createElement('span');
+  ring.className = 'alpha-scope-ring';
+  ring.setAttribute('aria-hidden', 'true');
+  tile.appendChild(ring);
+
+  var crosshair = document.createElement('span');
+  crosshair.className = 'alpha-scope-crosshair';
+  crosshair.setAttribute('aria-hidden', 'true');
+  tile.appendChild(crosshair);
+
+  var bullseye = document.createElement('span');
+  bullseye.className = 'alpha-scope-bullseye';
+  bullseye.setAttribute('aria-hidden', 'true');
+  tile.appendChild(bullseye);
+
+  var spokes = document.createElement('span');
+  spokes.className = 'alpha-scope-spokes';
+  spokes.setAttribute('aria-hidden', 'true');
+  tile.appendChild(spokes);
+
+  var label = document.createElement('span');
+  label.className = 'alpha-scope-tile-label';
+  label.textContent = labelText;
+  tile.appendChild(label);
+
+  tile.addEventListener('click', onClick);
+  float.appendChild(tile);
+
+  return { floatEl: float, tileEl: tile };
+}
+
+// ---- Internal reticle tracking ----
+// The circles themselves never move (see alphaBuildScopeTile — their
+// position is set once and never touched again). What tracks the
+// cursor is purely the internal crosshair+ring INSIDE every lens,
+// via two CSS custom properties set on the hub — --reticle-pan-x/y —
+// which every .alpha-scope-crosshair/.alpha-scope-ring in every scope
+// reads directly through var() in its own `transform`. That's the
+// entire mechanism: this function only ever writes those two
+// properties on the hub element, once per frame; it never touches an
+// individual reticle. "Locking into focus" needs no JS at all — with
+// the circle stationary, plain :hover/:focus-visible on the button
+// is reliable, so that's handled entirely in CSS (see .alpha-scope-
+// tile:hover in the stylesheet).
+//
+// Tracking listens on document (not the hub) so the aim-point follows
+// the cursor anywhere on the page, same reasoning as the earlier
+// per-circle version: the hub is the "aim field" the cursor position
+// gets normalized against, but you don't have to be hovering it.
+//
+// alphaScopeAnimHandle/alphaScopeCursorHandler are module-level so
+// any re-render can tear down the PREVIOUS screen's loop and listener
+// before starting a new one — see alphaStopScopeAnimation, called at
+// the top of renderAlphaBrowser on every single render. document
+// itself is never destroyed, so a document-level listener that isn't
+// explicitly removed would keep accumulating one extra copy per
+// render for the lifetime of the page.
+var alphaScopeAnimHandle = null;
+var alphaScopeCursorHandler = null;
+function alphaStopScopeAnimation() {
+  if (alphaScopeAnimHandle !== null) {
+    cancelAnimationFrame(alphaScopeAnimHandle);
+    alphaScopeAnimHandle = null;
+  }
+  if (alphaScopeCursorHandler !== null) {
+    document.removeEventListener('mousemove', alphaScopeCursorHandler);
+    alphaScopeCursorHandler = null;
+  }
+}
+function alphaStartScopeAnimation(hub) {
+  var MAX_PAN = 16; // px the crosshair/ring can shift off-center inside a lens — same for all four, "one shared aim-point, four lenses"
+
+  // prefers-reduced-motion: this is a direct, bounded response to the
+  // user's own cursor input, not autoplay, so it stays fully
+  // functional — it just applies instantly per mousemove event
+  // instead of running a perpetual rAF easing loop.
+  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var cursor = { x: 0, y: 0 };
+  var panX = 0, panY = 0;
+
+  function applyPan(instant) {
+    var rect = hub.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    var nx = ((cursor.x - rect.left) / rect.width - 0.5) * 2;   // -1..1 across the hub
+    var ny = ((cursor.y - rect.top) / rect.height - 0.5) * 2;
+    nx = Math.max(-1, Math.min(1, nx));
+    ny = Math.max(-1, Math.min(1, ny));
+    var targetX = nx * MAX_PAN, targetY = ny * MAX_PAN;
+    if (instant) {
+      panX = targetX;
+      panY = targetY;
+    } else {
+      panX += (targetX - panX) * 0.16;
+      panY += (targetY - panY) * 0.16;
+    }
+    hub.style.setProperty('--reticle-pan-x', panX.toFixed(1) + 'px');
+    hub.style.setProperty('--reticle-pan-y', panY.toFixed(1) + 'px');
+  }
+
+  alphaScopeCursorHandler = function(e) {
+    cursor.x = e.clientX;
+    cursor.y = e.clientY;
+    if (reduceMotion) applyPan(true);
+  };
+  document.addEventListener('mousemove', alphaScopeCursorHandler);
+
+  if (reduceMotion) return; // instant per-event updates above; no continuous animation loop
+
+  function tick() {
+    applyPan(false);
+    alphaScopeAnimHandle = requestAnimationFrame(tick);
+  }
+  alphaScopeAnimHandle = requestAnimationFrame(tick);
+}
+
+function renderAlphaScopeHub(container) {
+  var chamber = container.closest('.alpha-chamber');
+  if (chamber) chamber.classList.add('alpha-chamber-void');
+
+  var wrap = document.createElement('div');
+  wrap.className = 'alpha-scope-hub';
+
+  var scopes = [
+    { key: 'health', label: ALPHA_TAXONOMY.health.label },
+    { key: 'relationships', label: ALPHA_TAXONOMY.relationships.label },
+    { key: 'finances', label: ALPHA_TAXONOMY.finances.label },
+    { key: 'snipes', label: 'Current Snipes' }
+  ];
+  scopes.forEach(function(scope, i) {
+    var built = alphaBuildScopeTile(scope.label, scope.key === 'snipes' ? 'alpha-scope-tile-snipes' : null, function() {
+      if (scope.key === 'snipes') {
+        alphaShowingSnipes = true;
+      } else {
+        alphaCreating = true;
+        alphaCreatePath = [scope.key];
+        alphaCreatePendingCustomGroup = null;
+      }
+      renderAlphaBrowser();
+    }, i, scopes.length);
+
+    if (scope.key === 'snipes') {
+      var count = document.createElement('span');
+      count.className = 'alpha-scope-tile-count';
+      count.textContent = String(alphaProfiles.length);
+      built.tileEl.appendChild(count);
+    }
+
+    wrap.appendChild(built.floatEl);
+  });
+  container.appendChild(wrap);
+  alphaStartScopeAnimation(wrap);
+}
+
+// ---- Current Snipes — the 4th core scope: every active tracking
+// profile the user has created, across every category. Creation
+// itself happens only via the Health/Relationships/Finance scope
+// tiles at the hub above — this view is purely for finding and
+// opening what already exists. ----
+function renderAlphaCurrentSnipes(container) {
+  var header = document.createElement('div');
+  header.className = 'alpha-detail-header';
+  var title = document.createElement('div');
+  title.className = 'alpha-detail-title';
+  title.textContent = 'Current Snipes';
+  var backBtn = document.createElement('button');
+  backBtn.type = 'button';
+  backBtn.className = 'alpha-secondary-btn';
+  backBtn.textContent = '← Back to Scopes';
+  backBtn.addEventListener('click', function() {
+    alphaShowingSnipes = false;
+    renderAlphaBrowser();
+  });
+  header.appendChild(title);
+  header.appendChild(backBtn);
+  container.appendChild(header);
+
   if (!alphaProfiles.length) {
     var empty = document.createElement('p');
     empty.className = 'alpha-empty';
-    empty.textContent = 'No improvements yet — create your first one below.';
+    empty.textContent = 'No tracking profiles yet — pick Health, Relationships, or Finance to create your first one.';
     container.appendChild(empty);
   } else {
     Object.keys(ALPHA_TAXONOMY).forEach(function(catKey) {
@@ -8828,7 +9953,7 @@ function renderAlphaImprovementsList(container) {
         name.textContent = profile.profileName;
         name.addEventListener('click', function() {
           alphaSelectedProfileId = profile.id;
-          alphaActiveSubTab = 'output';
+          alphaActiveSubTab = 'input';
           renderAlphaBrowser();
         });
         var del = document.createElement('button');
@@ -8847,31 +9972,68 @@ function renderAlphaImprovementsList(container) {
       container.appendChild(section);
     });
   }
-
-  var createBtn = document.createElement('button');
-  createBtn.type = 'button';
-  createBtn.className = 'alpha-continue-btn';
-  createBtn.textContent = 'Create New Improvement';
-  createBtn.addEventListener('click', function() {
-    alphaCreating = true;
-    alphaCreatePath = [];
-    alphaCreatePendingCustomGroup = null;
-    renderAlphaBrowser();
-  });
-  container.appendChild(createBtn);
 }
 
-// ---- Profile detail (Output/Input) ----
-function renderAlphaOutputPlaceholder(container, profile) {
-  var note = document.createElement('p');
-  note.className = 'alpha-placeholder-note';
-  note.textContent = 'The setup questionnaire for this improvement hasn’t been designed yet. Once it is, register it in ALPHA_QUESTIONNAIRE_MODULES and it plugs in here automatically.';
-  container.appendChild(note);
+// ---- One-time creation setup step ----
+// Shown exactly once, immediately after a profile is created, before
+// it ever reaches the Input/Stats tabs — the module's renderOutput
+// (e.g. ALPHA_RELATIONSHIP_MODULE's "how often, for how long") lives
+// here now, not as a persistent tab.
+function renderAlphaSetupStep(container, profile) {
+  var header = document.createElement('div');
+  header.className = 'alpha-detail-header';
+  var title = document.createElement('div');
+  title.className = 'alpha-detail-title';
+  title.textContent = profile.profileName;
+  var path = document.createElement('span');
+  path.className = 'alpha-detail-path';
+  path.textContent = alphaTaxonomyPathLabel(profile);
+  header.appendChild(title);
+  header.appendChild(path);
+  container.appendChild(header);
+
+  var mod = ALPHA_QUESTIONNAIRE_MODULES[profile.subcategory];
+  var panel = document.createElement('div');
+  if (mod && mod.renderOutput) {
+    mod.renderOutput(panel, profile);
+  } else {
+    var note = document.createElement('p');
+    note.className = 'alpha-placeholder-note';
+    note.textContent = 'The setup questionnaire for this improvement hasn’t been designed yet. Once it is, register it in ALPHA_QUESTIONNAIRE_MODULES and it plugs in here automatically.';
+    panel.appendChild(note);
+  }
+  container.appendChild(panel);
+
+  // Modules that manage their own multi-step setup flow (progressive
+  // disclosure, its own Next/Back/Finish) set ownsSetupCompletion and
+  // handle saving + deciding what happens next themselves — a second,
+  // generic "Continue" button below theirs would just be a redundant,
+  // differently-behaving way to finish the same screen.
+  if (!mod || !mod.ownsSetupCompletion) {
+    var continueBtn = document.createElement('button');
+    continueBtn.type = 'button';
+    continueBtn.className = 'alpha-continue-btn';
+    continueBtn.textContent = 'Continue';
+    continueBtn.addEventListener('click', function() {
+      alphaSetupProfileId = null;
+      if (typeof showToast === 'function') showToast('Tracking profile created — find it under Current Snipes.', 'success');
+      renderAlphaBrowser();
+    });
+    container.appendChild(continueBtn);
+  }
 }
+
+// ---- Profile detail (Input/Stats) ----
 function renderAlphaInputPlaceholder(container, profile) {
   var note = document.createElement('p');
   note.className = 'alpha-placeholder-note';
-  note.textContent = 'Once this improvement’s setup questionnaire is designed, you’ll log data here that feeds its stats.';
+  note.textContent = 'Once this improvement’s questionnaire is designed, you’ll log data here that feeds its stats.';
+  container.appendChild(note);
+}
+function renderAlphaStatsPlaceholder(container, profile) {
+  var note = document.createElement('p');
+  note.className = 'alpha-placeholder-note';
+  note.textContent = 'Once this improvement’s questionnaire is designed, past entries and aggregated numbers will show up here.';
   container.appendChild(note);
 }
 function renderAlphaProfileDetail(container, profile) {
@@ -8903,11 +10065,11 @@ function renderAlphaProfileDetail(container, profile) {
 
   var subnav = document.createElement('div');
   subnav.className = 'alpha-subnav';
-  ['output', 'input'].forEach(function(tab) {
+  ['input', 'stats'].forEach(function(tab) {
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'alpha-subtab-btn' + (alphaActiveSubTab === tab ? ' active' : '');
-    btn.textContent = tab === 'output' ? 'Output' : 'Input';
+    btn.textContent = tab === 'input' ? 'Input' : 'Stats';
     btn.addEventListener('click', function() {
       alphaActiveSubTab = tab;
       renderAlphaBrowser();
@@ -8918,33 +10080,82 @@ function renderAlphaProfileDetail(container, profile) {
 
   var panel = document.createElement('div');
   var mod = ALPHA_QUESTIONNAIRE_MODULES[profile.subcategory];
-  if (alphaActiveSubTab === 'output') {
-    if (mod && mod.renderOutput) mod.renderOutput(panel, profile);
-    else renderAlphaOutputPlaceholder(panel, profile);
-  } else {
+  if (alphaActiveSubTab === 'input') {
     if (mod && mod.renderInput) mod.renderInput(panel, profile);
     else renderAlphaInputPlaceholder(panel, profile);
+  } else {
+    if (mod && mod.renderStats) mod.renderStats(panel, profile);
+    else renderAlphaStatsPlaceholder(panel, profile);
   }
   container.appendChild(panel);
 }
 
 // ---- Main dispatcher ----
-// Gate (gender, then passphrase) -> create flow (drill-down, then
-// name) -> improvements list, or straight to a profile's detail view
-// if one's open. No breadcrumb — a "Back"/"Cancel" button on each
-// step covers it.
+// Gate (gender, then encryption key) -> create flow (drill-down, then
+// name) -> one-time setup step for the freshly created profile ->
+// improvements list, or straight to a profile's Input/Stats detail
+// view if one's open. No breadcrumb — a "Back"/"Cancel"/"Continue"
+// button on each step covers it.
 function renderAlphaBrowser() {
   var container = document.getElementById('alphaBrowser');
   if (!container) return;
+  // Cancel any tracker rAF loop from whatever was previously showing
+  // BEFORE clearing the DOM it was animating — every render goes
+  // through this one choke point regardless of which screen ends up
+  // rendering below, so a loop never outlives the elements it targets
+  // (renderAlphaScopeHub/renderAlphaTaxonomyStep are the only two
+  // that start a new one).
+  alphaStopScopeAnimation();
   container.innerHTML = '';
+
+  // Gender sets a subtle accent-color tone on the reticle system only
+  // (cool electric blue by default, warmed on .alpha-tone-warm) — no
+  // gendered labels or separate visual system anywhere.
+  var chamber = container.closest('.alpha-chamber');
+  if (chamber) chamber.classList.toggle('alpha-tone-warm', alphaGender === 'female');
+  // Void mode (no boxed-panel look) only applies to the two "floating
+  // reticle" screens — the hub and the sub-scope drill-down — each of
+  // which re-adds it below once we know that's actually what's
+  // rendering this pass. Every other screen (forms, lists) keeps the
+  // normal boxed instrument-panel chamber.
+  if (chamber) chamber.classList.remove('alpha-chamber-void');
 
   if (!alphaGender) {
     renderAlphaGenderGate(container);
     return;
   }
-  if (!alphaEncryptionKey) {
-    renderAlphaPassphraseGate(container);
+
+  // Encryption key is only needed to sync to Supabase, so it's only
+  // relevant once signed in — no currentUser means no cloud sync is
+  // happening anyway (pushAlphaProfileToSupabase/pushAlphaEntryToSupabase
+  // already no-op without one), so skip straight to the normal flow.
+  if (currentUser && !alphaEncryptionKey && !alphaKeyUnsupported) {
+    if (!alphaKeyLoading) {
+      alphaKeyLoading = true;
+      alphaGetOrCreateDeviceKey(currentUser.id).then(function(key) {
+        alphaEncryptionKey = key;
+        alphaKeyLoading = false;
+        renderAlphaBrowser();
+      }).catch(function() {
+        alphaKeyLoading = false;
+        alphaKeyUnsupported = true;
+        renderAlphaBrowser();
+      });
+    }
+    renderAlphaKeyLoading(container);
     return;
+  }
+  if (currentUser && alphaKeyUnsupported) {
+    renderAlphaKeyUnsupportedNote(container);
+  }
+
+  if (alphaSetupProfileId) {
+    var setupProfile = alphaProfiles.find(function(p) { return p.id === alphaSetupProfileId; });
+    if (setupProfile) {
+      renderAlphaSetupStep(container, setupProfile);
+      return;
+    }
+    alphaSetupProfileId = null; // stale id (e.g. just deleted) — fall through
   }
 
   if (alphaSelectedProfileId) {
@@ -8973,14 +10184,19 @@ function renderAlphaBrowser() {
     return;
   }
 
-  renderAlphaImprovementsList(container);
+  if (alphaShowingSnipes) {
+    renderAlphaCurrentSnipes(container);
+    return;
+  }
+
+  renderAlphaScopeHub(container);
 }
 
 renderAlphaBrowser();
 
 // ============================================================
 // Tab navigation — five panels (Ruler / Life / Journal / Clans /
-// Alpha), only one visible at a time. Everything stays in the DOM
+// Forge Alpha), only one visible at a time. Everything stays in the DOM
 // (just hidden), so all existing init/render/sync logic is untouched.
 // ============================================================
 (function() {

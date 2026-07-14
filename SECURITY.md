@@ -75,26 +75,37 @@ decision, and what still needs a manual step outside this codebase
   local/Supabase upsert-consistency reason as before.
   **Encryption status: real, not stubbed.** `alphaEncryptString`/
   `alphaDecryptString` (for `profile_name`) and `alphaEncryptPayload`/
-  `alphaDecryptPayload` (for `encrypted_data`) now call the app's
-  existing `encryptText`/`decryptText` helpers (AES-256-GCM,
-  PBKDF2-SHA256 at `CRYPTO_PBKDF2_ITERATIONS`) for real — no new crypto
-  code, just new callers. The key-management question that blocked
-  this before is resolved with the simplest honest answer: a
-  **dedicated Alpha passphrase gate**, separate from login (works
-  identically for password and magic-link users), that derives an
-  AES-GCM key held **only in memory** for that session —
-  `renderAlphaPassphraseGate` in index.html. Real consequences of this
-  choice, stated plainly to the user in the gate's own copy:
-  - The passphrase must be re-entered every session/reload — nothing
-    about it is remembered anywhere.
-  - **There is no recovery path.** Forgetting the passphrase makes
-    every ciphertext ever produced with it permanently unreadable.
-    A recoverable "reset" would mean the server could recover it too,
-    which defeats the point.
-  - A per-user PBKDF2 salt persists in `localStorage`
-    (`csrAlignAlphaSalt`) so the same passphrase re-derives the same
-    key across sessions — the salt itself isn't secret, salts never
-    need to be.
+  `alphaDecryptPayload` (for `encrypted_data`) call real WebCrypto
+  AES-256-GCM — no server-visible plaintext leaves the device.
+  **Key model (revised — no longer a passphrase):** the key is a
+  **device-bound, non-extractable CryptoKey**
+  (`crypto.subtle.generateKey(..., extractable: false, ...)`),
+  generated once per (device, signed-in user) pair on first Alpha use
+  and stored in IndexedDB — `alphaGetOrCreateDeviceKey()` in
+  index.html. `extractable: false` means the raw key bytes can never
+  be read back out via JS, by this app's own code or anyone else's,
+  even with direct access to IndexedDB's storage.
+  This deliberately does **not** derive the key from anything the
+  Supabase auth session issues (access token, refresh token, etc.) —
+  a key derivable from something the auth server itself mints is a
+  key the server (or anyone with `service_role`/admin access, who can
+  mint a valid session for any user) could also derive, which would
+  make "the server never sees plaintext" false. A locally-generated,
+  never-transmitted key is what keeps that claim actually true.
+  Real consequences of this choice:
+  - **No passphrase, no prompt** — unlocks automatically the moment
+    a signed-in user first opens Alpha on a given device. This was a
+    direct, explicit tradeoff request: friction removed in exchange
+    for the key being device-bound rather than portable.
+  - **The key is DEVICE-BOUND, not account-wide.** Data encrypted on
+    one browser/device is not decryptable on another — each device
+    generates its own independent key on first use. There's currently
+    no export/import or cross-device recovery path for this key.
+  - Keyed by `user_id` inside IndexedDB (`alphaDeviceKey:<user_id>`),
+    so two different accounts signing in on the same shared device
+    never share or overwrite each other's key — `onAuthStateChange`
+    resets `alphaEncryptionKey` whenever the signed-in user actually
+    changes (not on routine token refreshes for the same user).
   - Local storage is still plaintext regardless — encryption only
     applies to what leaves the device (profile/entry data via
     `alphaEncryptPayload`, voice memo audio via `alphaEncryptBlob`,
@@ -199,12 +210,13 @@ decision, and what still needs a manual step outside this codebase
 6. **Journal encryption is still unwired** (`encryptText`/
    `decryptText` are not called from `saveEntries()`/`loadEntries()`
    yet) — but the key-management question that blocked it is now
-   answered by precedent: Alpha's dedicated-passphrase-gate model
-   (`renderAlphaPassphraseGate`, session-only key, no recovery) is a
-   proven pattern in this same codebase now. Reusing that shape for
-   journal entries (or sharing one passphrase gate across both
-   features, if that's preferable to entering two separate
-   passphrases) is the natural next step, not a fresh design problem.
+   answered by precedent: Alpha's device-bound non-extractable-key
+   model (`alphaGetOrCreateDeviceKey()`, IndexedDB, no passphrase) is
+   a proven pattern in this same codebase now. Reusing the same
+   IndexedDB-backed key for journal entries too (rather than a second
+   independent one) is the natural next step, not a fresh design
+   problem — same device-bound tradeoff applies: no cross-device
+   access without an export/import path, which doesn't exist yet.
 
 ## Explicitly out of scope right now
 
