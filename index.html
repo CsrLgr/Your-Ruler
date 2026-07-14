@@ -7011,6 +7011,38 @@ function retryQueuedSyncs(force) {
   });
 }
 
+// ---- One-time cleanup: stale queued failures from before the
+// shared_sections_section_check constraint was updated to allow
+// 'themeYear'/'monthlyFocus' (see the migration run directly in
+// Supabase). Every push for those two sections failed with a check
+// constraint violation until that fix landed — any still-queued entry
+// for them with retryCount > 0 predates it and is a stale, no-longer-
+// meaningful attempt at an old payload. Left alone, retryQueuedSyncs(true)
+// below (which bypasses the normal retry-cap backoff) would keep
+// retrying it and re-toasting an error on every single init, even
+// though the actual current value is already saved locally and will
+// re-enqueue fresh the next time that field is edited. Runs once, via
+// its own flag, so a genuinely new failure for either section after
+// this point (unrelated to the constraint bug) still retries and
+// reports normally rather than being silently swallowed forever.
+var STALE_SECTION_QUEUE_CLEANUP_KEY = 'csrAlignStaleSectionQueueCleanupDone';
+function clearStaleConstraintQueueEntriesIfNeeded() {
+  if (localStorage.getItem(STALE_SECTION_QUEUE_CLEANUP_KEY)) return;
+  localStorage.setItem(STALE_SECTION_QUEUE_CLEANUP_KEY, '1');
+  var queue = loadSyncQueue();
+  var changed = false;
+  Object.keys(queue).forEach(function(queueKey) {
+    var parts = queueKey.split(':');
+    var section = parts[parts.length - 1];
+    var isAffectedSection = parts[0] === 'section' && (section === 'themeYear' || section === 'monthlyFocus');
+    if (isAffectedSection && queue[queueKey].retryCount > 0) {
+      delete queue[queueKey];
+      changed = true;
+    }
+  });
+  if (changed) saveSyncQueue(queue);
+}
+
 window.addEventListener('online', function() {
   showToast('Back online — syncing your changes...', 'success');
   retryQueuedSyncs(true);
@@ -7226,6 +7258,7 @@ function initAuth() {
       loadAndRenderClans();
       pushMyRulerToSupabase();
       if (typeof pullTackleFromSupabase === 'function') pullTackleFromSupabase();
+      if (typeof clearStaleConstraintQueueEntriesIfNeeded === 'function') clearStaleConstraintQueueEntriesIfNeeded();
       if (typeof retryQueuedSyncs === 'function') retryQueuedSyncs(true);
       if (typeof processTradeAlerts === 'function') processTradeAlerts();
       if (typeof cleanupOldVisionYearShareIfNeeded === 'function') cleanupOldVisionYearShareIfNeeded();
@@ -7256,6 +7289,7 @@ function initAuth() {
       loadAndRenderClans();
       pushMyRulerToSupabase();
       if (typeof pullTackleFromSupabase === 'function') pullTackleFromSupabase();
+      if (typeof clearStaleConstraintQueueEntriesIfNeeded === 'function') clearStaleConstraintQueueEntriesIfNeeded();
       if (typeof retryQueuedSyncs === 'function') retryQueuedSyncs(true);
       if (typeof processTradeAlerts === 'function') processTradeAlerts();
       if (typeof cleanupOldVisionYearShareIfNeeded === 'function') cleanupOldVisionYearShareIfNeeded();
