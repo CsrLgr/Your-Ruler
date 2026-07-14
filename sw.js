@@ -1,8 +1,9 @@
-const CACHE_NAME = 'csr-align-v4';
+const CACHE_NAME = 'csr-align-v5';
 const urlsToCache = [
   './',
   './index.html',
-  './manifest.json'
+  './manifest.json',
+  './fonts/OCRA.ttf'
 ];
 
 self.addEventListener('install', event => {
