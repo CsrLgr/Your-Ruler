@@ -60,44 +60,66 @@
     margin: 0 auto;
   }
 
-  /* Sunrise — today's real astronomical sunrise time for the user's
-     location (computed locally, no external API — offline-friendly
-     like the rest of the app). Narrow, single-line, stacked above
-     the Weekly Visualization box in the same column — not a
-     multi-day forecast anymore, just today's reading. */
-  .sunrise-forecast-card {
-    width: 290px;
-    box-sizing: border-box;
-    background: var(--rd-panel);
-    border: 1px solid var(--rd-edge);
-    border-radius: 8px;
-    padding: 0.5rem 0.85rem;
-    margin-bottom: 0.6rem;
+  /* Shared-with-Legion status list — plain stacked text, deliberately
+     no border/background/padding-box of its own (per direct request).
+     position:fixed to the viewport's top-left corner (not scoped to
+     any one tab/.page-wrap) so it persists across every tab and stays
+     put regardless of scroll position — a permanent piece of the
+     Command Center chrome, same idea as the auth bar above it. Empty
+     when nothing is shared (no placeholder text). z-index high enough
+     to clear the tab nav/site banner it floats over. */
+  .shared-sections-list {
+    position: fixed;
+    top: 0.6rem;
+    left: 0.75rem;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    pointer-events: none;
   }
-  .sunrise-forecast-title {
+  .shared-sections-item {
+    font-size: 11px;
+    color: var(--rd-muted);
+    white-space: nowrap;
+  }
+
+  /* Sunrise — real astronomical sunrise (computed locally, no external
+     API — offline-friendly like the rest of the app) for the user's
+     location. The old bordered forecast card is gone; this is just a
+     small far-left label sitting where it used to, right above the
+     Weekly Visualization box — the actual forecast values now nest
+     directly under the UTC and Local Time clocks instead (see
+     .sunrise-preview-item below), so this label carries no data of
+     its own. */
+  .sunrise-label {
     display: block;
     font-size: 9px;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--rd-gold);
-    margin-bottom: 0.3rem;
+    margin-bottom: 0.4rem;
   }
-  /* Three compact stacked rows rather than the old wide side-by-side
-     columns — narrow enough to match the Weekly Visualization box's
-     width below it. */
-  .sunrise-forecast-row-item {
-    display: flex;
-    justify-content: space-between;
-    gap: 0.6rem;
-    padding: 0.15rem 0;
+  /* Nests inside .clock-item (UTC only, not the center Ruler
+     Alignment clock or Local Time) — .clock-item is already
+     flex-column + centered, so this just sits below that clock's own
+     value, centered to match, no row of its own to take extra
+     vertical space. Single line now: "Sunrise Tomorrow - (time)". */
+  .sunrise-preview-item {
+    display: block;
+    margin-top: 0.3rem;
+    color: var(--rd-text);
+    font-variant-numeric: tabular-nums;
     font-size: 11px;
+    white-space: nowrap;
   }
-  .sunrise-forecast-day { color: var(--rd-muted); }
-  .sunrise-forecast-value { color: var(--rd-text); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 13px; white-space: nowrap; }
-  .sunrise-forecast-loading, .sunrise-forecast-error { font-size: 10px; color: var(--rd-muted); }
-  .sunrise-forecast-enable {
-    font-size: 10px;
-    padding: 0.35rem 0.6rem;
+  .sunrise-preview-loading, .sunrise-preview-error {
+    font-size: 9px;
+    color: var(--rd-muted);
+  }
+  .sunrise-preview-enable {
+    font-size: 9px;
+    padding: 0.3rem 0.5rem;
   }
 
   /* Thin auth bar above everything else. Logged-out: email + password
@@ -147,8 +169,9 @@
   .header-row .header {
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-self: stretch;
+    gap: 1.75rem;
   }
   .header h1 { font-size: 28px; margin: 0; color: var(--rd-text); }
   .header p { font-size: 14px; color: #999; margin-top: 0.4rem; }
@@ -159,13 +182,6 @@
     text-transform: uppercase;
     margin-top: 0.15rem;
     margin-bottom: 0;
-  }
-  .clocks-row {
-    display: flex;
-    justify-content: center;
-    gap: 1.5rem;
-    margin-top: 0.6rem;
-    flex-wrap: wrap;
   }
   .clock-item {
     display: flex;
@@ -208,10 +224,10 @@
 
   /* Time Crawler band — a fixed-12x120min "now" marker riding above
      the (user-resizable) Ruler blocks, independent of their actual
-     widths, same as the Ruler Alignment clock it displays. Brightness
-     shifts per block to trace the day's arc — dim gold at dawn, peak
-     gold at midday, near-black gold at the dead of night — staying in
-     the single gold accent family rather than cycling hue. */
+     widths, same as the Ruler Alignment clock it displays. The track
+     itself is just an invisible positioning strip now (no box/border
+     of its own) — only the band is visible, floating on top of the
+     Ruler. */
   .crawler-row {
     position: relative;
     width: 100%;
@@ -221,10 +237,6 @@
     position: relative;
     width: 100%;
     height: 26px;
-    background: var(--rd-panel);
-    border: 1px solid var(--rd-edge);
-    border-radius: 5px;
-    overflow: hidden;
   }
   .crawler-band {
     position: absolute;
@@ -275,6 +287,41 @@
     margin-top: 2px;
   }
 
+  /* Ruler scale — a plain tick-and-number strip along the bottom edge
+     of the block timeline, on the fixed 12x120min grid (not the
+     user's resizable block widths), 6 AM through +24h. Absolutely
+     positioned at exact percentages rather than flexed/justified so
+     the ticks land precisely on the grid regardless of container
+     width. */
+  .ruler-scale {
+    position: relative;
+    width: 100%;
+    height: 20px;
+    margin-top: 6px;
+  }
+  .ruler-tick {
+    position: absolute;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transform: translateX(-50%);
+  }
+  .ruler-tick:first-child { transform: translateX(0); align-items: flex-start; }
+  .ruler-tick:last-child { transform: translateX(-100%); align-items: flex-end; }
+  .ruler-tick-mark {
+    width: 1px;
+    height: 6px;
+    background: var(--rd-gold);
+  }
+  .ruler-tick-label {
+    margin-top: 3px;
+    font-size: 10px;
+    line-height: 1;
+    color: var(--rd-gold);
+    font-variant-numeric: tabular-nums;
+  }
+
   .ruler-track {
     display: flex;
     width: 100%;
@@ -299,7 +346,7 @@
     transition: background 0.2s;
   }
   .ruler-block:last-child { border-right: none; }
-  .ruler-block.sleep-zone { background: #0F141F; }
+  .ruler-block.sleep-zone { background: #430B15; }
   .ruler-block.current { box-shadow: inset 0 0 0 2px #C5A46E; }
 
   .ruler-block .block-name {
@@ -437,6 +484,89 @@
   .energy-modal-btns { display: flex; justify-content: center; gap: 0.6rem; margin-bottom: 1rem; }
   .energy-modal-cancel { width: 100%; }
 
+  /* ---- Send Entry modal (composer + every past entry) ---- */
+  .send-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 1rem;
+  }
+  .send-modal {
+    background: var(--rd-panel);
+    border: 1px solid var(--rd-edge);
+    border-radius: 10px;
+    width: 100%;
+    max-width: 380px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 1.25rem;
+  }
+  .send-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+  }
+  .send-modal-note {
+    font-size: 12px;
+    color: var(--rd-muted);
+    margin: 0 0 0.85rem 0;
+  }
+  .send-modal-choice-row { display: flex; gap: 0.6rem; }
+  .send-modal-choice-row button { flex: 1; }
+  #sendModalBody select {
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 13px;
+    padding: 0.55rem 0.7rem;
+    margin-bottom: 0.85rem;
+  }
+  #sendModalBody > button { width: 100%; margin-top: 0.5rem; }
+
+  /* ---- Inbox tab ---- */
+  .inbox-unread-badge {
+    display: inline-block;
+    min-width: 16px;
+    padding: 0 4px;
+    margin-left: 0.35rem;
+    border-radius: 8px;
+    background: var(--rd-gold);
+    color: #1a1206;
+    font-size: 10px;
+    font-weight: bold;
+    line-height: 16px;
+    text-align: center;
+  }
+  .inbox-list {
+    max-width: 800px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .inbox-item {
+    background: var(--rd-panel);
+    border: 1px solid var(--rd-edge);
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+  }
+  .inbox-item.is-unread { border-color: var(--rd-gold); }
+  .inbox-item-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 11px;
+    color: var(--rd-muted);
+    margin-bottom: 0.4rem;
+  }
+  .inbox-item-from { color: var(--rd-gold); font-weight: bold; }
+  .inbox-item-text { font-size: 13px; color: var(--rd-text); white-space: pre-wrap; }
+  .inbox-empty { font-size: 12px; color: var(--rd-muted); font-style: italic; text-align: center; }
+
   /* ---- GM/GN — centered between Daily Score and Today's Mission ---- */
   .gmgn-row {
     display: flex;
@@ -461,47 +591,8 @@
     border: 1px solid var(--rd-gold);
     color: var(--rd-gold);
   }
-  .gmgn-settings-btn {
-    background: transparent;
-    border: 1px solid var(--rd-edge);
-    color: var(--rd-muted);
-    font-size: 14px;
-    padding: 0.5rem 0.65rem;
-  }
-  .gmgn-settings-btn:hover { color: var(--rd-gold); border-color: var(--rd-gold); background: transparent; }
-
-  /* ---- Telegram settings modal ---- */
-  .telegram-modal-overlay {
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 100;
-    padding: 1rem;
-  }
-  .telegram-modal {
-    background: var(--rd-panel);
-    border: 1px solid var(--rd-edge);
-    border-radius: 10px;
-    width: 100%;
-    max-width: 420px;
-    max-height: 90vh;
-    overflow-y: auto;
-    padding: 1.25rem;
-  }
-  .telegram-modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.5rem;
-  }
-  .telegram-modal-note {
-    font-size: 11px;
-    color: var(--rd-muted);
-    margin: 0 0 1rem 0;
-  }
+  /* ---- Settings tab: field labels + inputs shared by every section
+     (Telegram, TradingView, Affiliate Link) ---- */
   .telegram-field-label {
     display: block;
     font-size: 10px;
@@ -510,18 +601,13 @@
     color: var(--rd-gold);
     margin: 0.85rem 0 0.35rem 0;
   }
-  .telegram-modal input, .telegram-modal textarea {
+  .settings-section input, .settings-section textarea {
     width: 100%;
     box-sizing: border-box;
     font-size: 13px;
     padding: 0.55rem 0.7rem;
   }
-  .telegram-modal-actions {
-    display: flex;
-    gap: 0.6rem;
-    margin-top: 1.1rem;
-  }
-  .telegram-modal-actions button { flex: 1; }
+  .settings-actions button { flex: 1; }
 
   .block-energy-badge {
     position: absolute;
@@ -693,7 +779,29 @@
   button.secondary:hover { background: #1C2536; }
   button.combo-btn { margin: 0 auto; display: block; }
 
-  /* Musts & In-between — a quiet plain-text reminder list, no checkboxes */
+  /* Musts & In-between — a quiet plain-text reminder list, no checkboxes.
+     "Score" used to repeat on every row's own label; it now lives once
+     in the header, right-aligned over the row-level score-button
+     column, so the box reads the same whether it's full-width or
+     squeezed into the narrow sidebar next to an open Block Detail. */
+  .musts-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+  .musts-header .section-label { margin-bottom: 0; }
+  .musts-header-score {
+    flex-shrink: 0;
+    width: 68px;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #777;
+    text-align: center;
+  }
   .musts-box {
     background: #111722;
     border: 1px solid #2a2a2a;
@@ -712,31 +820,7 @@
   }
   .must-item:last-child { border-bottom: none; }
   .must-item .must-label { flex: 0 0 auto; }
-  .must-item .must-note { font-size: 10px; color: #666; }
-  .must-metric-input {
-    flex: 1;
-    min-width: 60px;
-    font-family: Georgia, serif;
-    font-size: 10px;
-    padding: 0.3rem 0.5rem;
-    border-radius: 6px;
-  }
-  .must-metric-input::placeholder { font-style: italic; }
-  .must-score-col {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.15rem;
-    margin-left: auto;
-    flex-shrink: 0;
-  }
-  .must-score-label {
-    font-size: 8px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: #666;
-  }
-  .must-score-wrap { display: flex; gap: 0.25rem; }
+  .must-score-wrap { display: flex; gap: 0.25rem; margin-left: auto; flex-shrink: 0; }
   .must-score-btn {
     width: 20px;
     height: 20px;
@@ -800,11 +884,60 @@
     box-shadow: 0 6px 18px rgba(0,0,0,0.45), 0 0 0 1px rgba(197,164,110,0.15);
   }
   .tackle-box .section-label { font-size: 13px; margin-bottom: 0.6rem; letter-spacing: 0.08em; }
-  .tackle-box textarea {
+  .tackle-list {
     flex: 1;
     min-height: 200px;
-    font-size: 14px;
-    padding: 0.8rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  .tackle-task-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
+    padding: 0.15rem 0;
+  }
+  .tackle-task-checkbox {
+    flex-shrink: 0;
+    width: 15px;
+    height: 15px;
+    margin-top: 0.15rem;
+    accent-color: #C5A46E;
+    cursor: pointer;
+  }
+  .tackle-task-text {
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+    line-height: 1.35;
+    word-break: break-word;
+    cursor: pointer;
+  }
+  /* Checked off, not deleted — struck through and dimmed so it's
+     clearly "done" rather than removed, still right there in the
+     list until the next local-midnight rollover archives it. */
+  .tackle-task-row.is-done .tackle-task-text {
+    text-decoration: line-through;
+    opacity: 0.55;
+  }
+  .tackle-task-delete {
+    flex-shrink: 0;
+    background: transparent;
+    border: none;
+    color: #666;
+    font-size: 13px;
+    line-height: 1;
+    padding: 0 0.2rem;
+    cursor: pointer;
+  }
+  .tackle-task-delete:hover { color: #C5A46E; }
+  .tackle-add-row { margin-top: 0.4rem; }
+  .tackle-add-input {
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 12px;
+    padding: 0.5rem 0.6rem;
   }
   .tackle-share-row {
     display: flex;
@@ -858,6 +991,11 @@
   .weekly-wrap {
     flex: 0 0 auto;
   }
+  /* Restored to its original 290px — the Done checkbox column that
+     used to eat part of .weekly-day-input's (flex:1) width is gone
+     entirely now (removed per direct request; see Today's Mission's
+     own checkbox instead), which frees enough room on its own without
+     needing the box itself wider. */
   .weekly-box {
     width: 290px;
     background: #111722;
@@ -950,7 +1088,6 @@
     min-width: 0;
   }
   .weekly-day-input:focus { outline: none; border-bottom-color: #C5A46E; }
-  .weekly-day-done { accent-color: var(--rd-gold); }
 
   .weekly-col-headers {
     display: flex;
@@ -974,22 +1111,6 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
-  .weekly-col-header-done {
-    width: 18px;
-    flex-shrink: 0;
-    font-size: 9px;
-    color: #777;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    text-align: center;
-  }
-  .weekly-day-done {
-    flex-shrink: 0;
-    width: 16px;
-    height: 16px;
-    cursor: pointer;
-  }
-  .weekly-day-done:disabled { cursor: not-allowed; opacity: 0.4; }
   .weekly-col-header-score {
     width: 38px;
     flex-shrink: 0;
@@ -1096,15 +1217,6 @@
   }
   .export-msg.error { color: #B33A52; }
 
-  .bottom-row {
-    max-width: 1100px;
-    margin: 2rem auto 0 auto;
-    display: flex;
-    gap: 1.5rem;
-    flex-wrap: wrap;
-    align-items: flex-start;
-  }
-
   .entries-list {
     flex: 1 1 380px;
     min-width: 280px;
@@ -1183,6 +1295,26 @@
     font-family: Georgia, serif;
   }
   .entry-delete-btn:hover { border-color: #B33A52; color: #B33A52; background: none; }
+  .entry-send-btn {
+    background: none;
+    border: 1px solid #444;
+    color: #888;
+    font-size: 10px;
+    padding: 0.25rem 0.55rem;
+    cursor: pointer;
+    border-radius: 4px;
+    font-family: Georgia, serif;
+  }
+  .entry-send-btn:hover { border-color: var(--rd-gold); color: var(--rd-gold); background: none; }
+  /* Legion multi-select — only shown once the Share checkbox is
+     checked, right next to it, not a separate row. Passive visibility
+     only; sending a DM (.entry-send-btn) is a completely separate
+     action from this. */
+  .entry-share-legion-select {
+    font-size: 10px;
+    padding: 0.15rem 0.3rem;
+    max-width: 160px;
+  }
   .entry-edit-form {
     margin-top: 0.6rem;
     padding-top: 0.6rem;
@@ -1213,10 +1345,75 @@
   .entry-history-version { margin-bottom: 0.5rem; white-space: pre-wrap; }
   .entry-history-ts { color: #555; font-size: 10px; display: block; margin-bottom: 0.15rem; }
 
-  .clans-col {
-    flex: 1 1 380px;
-    min-width: 280px;
+  /* ---- Legions tab: Inbox + Contacts stacked (left), Legions list +
+     the selected Legion's live chat stacked (right) ---- */
+  .legions-split {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+    flex-wrap: wrap;
   }
+  .legions-inbox-col { flex: 1 1 340px; min-width: 280px; display: flex; flex-direction: column; gap: 1.5rem; }
+  .legions-right-col { flex: 1 1 440px; min-width: 280px; display: flex; flex-direction: column; gap: 1.5rem; }
+
+  .contacts-section {
+    background: #111722;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    padding: 1rem;
+  }
+  .contacts-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid #232323;
+    font-size: 12px;
+  }
+  .contacts-item:last-child { border-bottom: none; }
+  .contacts-item-name { color: var(--rd-text); }
+  .contacts-item-legion { color: var(--rd-muted); font-size: 10px; text-align: right; }
+  .contacts-empty { font-size: 12px; color: #666; font-style: italic; }
+
+  /* ---- Legion chat room (selected clan card, right column) ---- */
+  .clan-chat-panel {
+    background: #111722;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+  }
+  .clan-chat-header { margin-bottom: 0.6rem; }
+  .clan-chat-messages {
+    height: 320px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-right: 0.3rem;
+  }
+  .clan-chat-message {
+    align-self: flex-start;
+    max-width: 85%;
+    background: var(--rd-field);
+    border: 1px solid var(--rd-edge);
+    border-radius: 8px;
+    padding: 0.4rem 0.6rem;
+  }
+  .clan-chat-message.is-own {
+    align-self: flex-end;
+    background: rgba(197,164,110,0.15);
+    border-color: var(--rd-gold);
+  }
+  .clan-chat-message-meta { font-size: 10px; color: var(--rd-muted); margin-bottom: 0.2rem; }
+  .clan-chat-message-text { font-size: 13px; color: var(--rd-text); white-space: pre-wrap; }
+  .clan-chat-empty { font-size: 12px; color: #666; font-style: italic; text-align: center; margin: auto 0; }
+  .clan-chat-input-row { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+  .clan-chat-input-row input { flex: 1; min-width: 0; }
 
   /* ---- Clans (Phase 2) ---- */
   .clans-section {
@@ -1266,6 +1463,9 @@
     padding: 1rem;
     margin-bottom: 1.25rem;
   }
+  /* Highlights whichever Legion's chat is currently open below the
+     list (see selectClanForChat() in the JS). */
+  .clan-card.is-chat-active { border-color: var(--rd-gold); }
   .clan-card-header {
     display: flex;
     justify-content: space-between;
@@ -1274,7 +1474,8 @@
     flex-wrap: wrap;
     gap: 0.5rem;
   }
-  .clan-card-header .clan-name { font-size: 16px; color: #C5A46E; }
+  .clan-card-header .clan-name { font-size: 16px; color: #C5A46E; cursor: pointer; }
+  .clan-card-header .clan-name:hover { text-decoration: underline; }
   .clan-card-header .clan-meta { font-size: 11px; color: #777; }
   .clan-card-header .clan-leave {
     background: none;
@@ -1481,6 +1682,12 @@
   }
 
   /* ---- Tab navigation ---- */
+  /* Settings stays in normal flow, right next to Legions (not pulled
+     out to the row's edge) — the centering instead comes from
+     .tab-nav-spacer, an invisible mirror of the Settings button on the
+     far left. Equal-width bookends on both sides of the 5 real tabs
+     don't shift their center of mass, so Today (the middle one of the
+     5) still lands exactly on the row's true center. */
   .tab-nav {
     max-width: 1100px;
     margin: 0 auto 0.75rem auto;
@@ -1489,6 +1696,19 @@
     justify-content: center;
     padding-bottom: 0.2rem;
     flex-wrap: wrap;
+    /* Small nudge left (~2 characters) — Weekly Visualization sitting
+       beside the header on the Today tab pushes Ruler Alignment right
+       of true page-center by a fair amount (exact compensation would
+       overlap it), so this closes most of that visual gap without
+       touching that layout at all. */
+    transform: translateX(-20px);
+  }
+  .tab-nav-spacer { visibility: hidden; pointer-events: none; }
+  @media (max-width: 700px) {
+    /* The spacer only exists to balance Settings for centering math on
+       wide rows — once the nav wraps, it just wastes a slot, so drop
+       it from layout entirely. */
+    .tab-nav-spacer { display: none; }
   }
   /* Weighty but not oversized — noticeably bigger than the original
      12px/tight-padding version, short of the "physical control" scale
@@ -1531,20 +1751,83 @@
   .header .tagline { color: var(--rd-gold); }
   .header p { color: var(--rd-muted); }
 
-  /* ---- Clocks — Ruler Alignment is the big centrepiece, UTC and
-     Local Time flank it symmetrically (left/right). Equal min-width
-     on the two side items keeps the center clock visually centered
-     even though "HH:MM UTC" and "HH:MM AM/PM" aren't the same length. ---- */
-  .clocks-row { align-items: flex-end; gap: 2.2rem; margin-top: 0.9rem; justify-content: center; }
-  .clock-item:not(.clock-item-main) { min-width: 90px; }
-  .clock-item .clock-label { color: var(--rd-muted); }
-  .clock-item .clock-value { color: var(--rd-gold); font-size: 28px; }
+  /* ---- Header grid — a real 3-column grid instead of nested flex
+     columns, specifically so the Quick Links can share Daily Score's
+     grid row and land at the exact same vertical position (previously
+     they only lined up with wherever the clocks happened to end,
+     which drifted them toward the top instead). Row 1: UTC / Ruler
+     Alignment / Local Time. Row 2: Sunrise Tomorrow (center only).
+     Row 3: Quick Links Left / Daily Score / Quick Links Right — same
+     row, so they're centered together by construction. Row 4: GM/GN.
+     Side columns fixed at 120px (equal, non-shrinking) so the center
+     column — and everything in it — sits on the row's true center
+     regardless of "UTC" vs. "Local Time" label-width differences.
+     Uniform row-gap gives every row the same breathing room, which is
+     what actually makes the whole block read as evenly/symmetrically
+     spaced rather than cramped at the top. */
+  .header-grid {
+    display: grid;
+    grid-template-columns: 120px 1fr 120px;
+    column-gap: 1.25rem;
+    row-gap: 0.9rem;
+    align-items: center;
+    justify-items: center;
+    margin-top: 0;
+  }
+  .hg-utc { grid-column: 1; grid-row: 1; }
+  .hg-ruler { grid-column: 2; grid-row: 1; }
+  .hg-local { grid-column: 3; grid-row: 1; }
+  .hg-sunrise { grid-column: 2; grid-row: 2; }
+  /* Pulled up closer to Sunrise Tomorrow than the grid's normal
+     row-gap would give it (negative margin, shared across all 3 of
+     row 3's items so they move up together and stay aligned with each
+     other) — Daily Score reads as directly under the sunrise line,
+     while the gap below it, before GM/GN, stays at the normal rhythm. */
+  .hg-links-left, .hg-score, .hg-links-right { grid-row: 3; margin-top: -0.5rem; }
+  .hg-links-left { grid-column: 1; }
+  .hg-score { grid-column: 2; }
+  .hg-links-right { grid-column: 3; }
+  .hg-gmgn { grid-column: 2; grid-row: 4; }
+  /* Narrow screens: collapse to a single centered column, everything
+     in natural (DOM) order, rather than squeezing 3 fixed columns
+     into too little width. */
+  @media (max-width: 700px) {
+    .header-grid { grid-template-columns: 1fr; }
+    .header-grid > * { grid-column: 1; grid-row: auto; margin-top: 0; }
+  }
+  /* font-size matched to .clock-item-main's label (10px, was 9px) so
+     the label line's height is identical across all three columns —
+     that's what actually keeps the values aligned under
+     flex-start, not just the values matching each other. */
+  .clock-item .clock-label { color: var(--rd-muted); font-size: 10px; }
+  /* inline-flex column: .clock-value-time (the digits) and
+     .clock-value-ampm (AM/PM, see setClockValue() in the JS) stack as
+     its two children instead of running inline as one string — this
+     is what actually lets AM/PM be both smaller AND sit closer to the
+     digits (half a line down) rather than just smaller-but-still-
+     beside-them. */
+  .clock-item .clock-value { display: inline-flex; flex-direction: column; align-items: center; color: var(--rd-gold); }
+  .clock-value-time { font-size: 30px; line-height: 1; white-space: nowrap; }
+  /* Deliberately small and tight against the digits — AM/PM is a
+     qualifier, not part of the headline number. Time digits (30px)
+     dominate; this is roughly a third of that, so the side clocks
+     read as "a time, with a small AM/PM note," not "two same-weight
+     halves," keeping visual priority on the center Ruler Alignment
+     clock instead of competing with it. */
+  .clock-value-ampm {
+    font-size: 10px;
+    line-height: 1;
+    margin-top: 1px;
+    color: var(--rd-muted);
+    letter-spacing: 0.04em;
+  }
   .clock-item-main .clock-label { color: var(--rd-gold); font-size: 10px; }
   .clock-item-main .clock-value {
-    font-size: 38px;
+    font-size: 30px;
     line-height: 1;
     color: var(--rd-gold-bright);
     text-shadow: 0 0 16px rgba(197,164,110,0.5);
+    white-space: nowrap;
   }
   .ruler-alignment-formula {
     display: block;
@@ -1563,9 +1846,18 @@
     margin: 0 1px;
     color: var(--rd-gold);
   }
+  /* Narrow phones: .header-grid is already a single stacked column at
+     this width (see the 700px breakpoint above), so this just shrinks
+     the clock text itself to fit a ~320-480px screen cleanly. */
+  @media (max-width: 480px) {
+    .header-grid { row-gap: 0.6rem; }
+    .clock-value-time { font-size: 22px; }
+    .clock-item-main .clock-value { font-size: 26px; }
+  }
 
-  /* ---- Daily Score — sits centered under the Block clock, same
-     visual family (gold, glowing) so the two read as one unit ---- */
+  /* ---- Daily Score — sits centered in the header spine, under
+     Sunrise Tomorrow, same visual family (gold, glowing) as the Ruler
+     Alignment clock above it so the whole spine reads as one unit. ---- */
   .daily-score {
     display: flex;
     flex-direction: column;
@@ -1584,6 +1876,46 @@
     color: var(--rd-gold-bright);
     text-shadow: 0 0 22px rgba(197,164,110,0.65);
   }
+  /* Quick Links: 6 user-programmable buttons that open an external
+     link in a new tab (Twitter, Telegram, Discord, whatever) — 3
+     stacked per side, sharing Daily Score's grid row (.hg-links-left/
+     .hg-score/.hg-links-right) so they're centered with the score
+     rather than the clocks above. "Floating" via a soft drop shadow
+     (elevated card look) rather than literal position:absolute —
+     keeps them in normal flex flow so they stay balanced across
+     screen widths instead of needing hand-tuned coordinates. */
+  .quick-links-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .quick-link-slot {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+  .quick-link-btn {
+    min-width: 46px;
+    max-width: 72px;
+    padding: 0.3rem 0.5rem;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    border-radius: 8px;
+    background: var(--rd-field);
+    border: 1px solid var(--rd-edge);
+    color: var(--rd-gold);
+    box-shadow: 0 4px 14px -6px rgba(0,0,0,0.75);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* Explicit background restated on :hover — a bare button:hover rule
+     elsewhere in this app forces gold at higher specificity for the
+     background property specifically unless every custom button class
+     restates its own background here too (see .alpha-scope-tile:hover
+     and friends for the same fix, found earlier this session). */
+  .quick-link-btn:hover { border-color: var(--rd-gold); background: var(--rd-field); }
 
   /* ---- Today's Mission — full-width banner directly above the
      Ruler, closing the flow: time -> score -> mission -> schedule ---- */
@@ -1602,6 +1934,12 @@
     gap: 0.5rem;
     flex-wrap: wrap;
     margin-bottom: 0.4rem;
+  }
+  .todays-mission-done {
+    width: 15px;
+    height: 15px;
+    accent-color: var(--rd-gold);
+    cursor: pointer;
   }
   .todays-mission-label {
     font-size: 10px;
@@ -1646,21 +1984,30 @@
   }
   .ruler-block .block-name { color: var(--rd-text); }
   .ruler-block .block-mins { color: var(--rd-muted); }
-  /* Sleep blocks distinguished by being darker/more desaturated
-     within the same navy-black family, not by switching to a
-     different hue entirely. */
-  .ruler-block.sleep-zone { background: linear-gradient(180deg, #0F141F, #070A10); }
+  /* Unavailable/sleep blocks marked with the app's existing blood-red
+     danger accent (same #430B15/#B33A52 family used for error toasts
+     and destructive buttons) instead of the navy-black family, so an
+     unavailable block reads as a clear, deliberate "off" state rather
+     than just a darker shade of the normal block. */
+  .ruler-block.sleep-zone { background: linear-gradient(180deg, #430B15, #200509); }
   .ruler-block.current {
     border-radius: 6px !important;
     box-shadow: inset 0 0 0 2px var(--rd-gold-bright), 0 0 28px rgba(197,164,110,0.6) !important;
   }
   /* Gold fill = the CURRENT block's in-progress marker (how far
      into this specific block we are) — stays gold, matches the
-     block's own gold active-ring. A FULLY elapsed block gets the
-     .elapsed variant instead: same overlay mechanism, cool blue-gray
-     tone so passed blocks read as dimmed/cooled, not warm-washed. */
-  .ruler-block .fill-overlay { background: rgba(197,164,110,0.28); }
-  .ruler-block .fill-overlay.elapsed { background: rgba(80,98,128,0.4); }
+     block's own gold active-ring. Raised from 0.28 to 0.5 alpha: at
+     the old low opacity it blended down to a muted gray-brown over
+     the dark navy block background instead of reading as gold. A
+     FULLY elapsed block gets the .elapsed variant instead: same
+     overlay mechanism, translucent (not opaque) so the block
+     underneath keeps every property it already has — name, minutes,
+     energy badge, sleep-toggle all stay visible and editable exactly
+     like any other block. Black instead of the old blue-gray, so a
+     passed block only ever reads as "shadowed/dimmed," never as a
+     different-hued box. */
+  .ruler-block .fill-overlay { background: rgba(197,164,110,0.5); }
+  .ruler-block .fill-overlay.elapsed { background: rgba(0,0,0,0.4); }
   .progress-pct { color: var(--rd-gold); }
   .span-markers .marker-start, .span-markers .marker-mid, .span-markers .marker-end { color: var(--rd-muted); }
 
@@ -1709,6 +2056,11 @@
     padding: 0.7rem 0.8rem;
     resize: vertical;
   }
+  .block-detail-view-date {
+    font-size: 11px;
+    color: var(--rd-gold);
+    margin-bottom: 0.4rem;
+  }
   .block-detail-view-energy {
     font-size: 13px;
     color: var(--rd-gold);
@@ -1745,6 +2097,7 @@
   .block-detail-past-date { color: var(--rd-gold); }
   .block-detail-past-notes { font-size: 12px; color: var(--rd-text); white-space: pre-wrap; }
   .block-detail-past-empty { font-size: 12px; color: var(--rd-muted); font-style: italic; }
+  .block-detail-past-actions { display: flex; gap: 0.5rem; margin-top: 0.4rem; }
 
   /* ---- Shared accents pulled into the new palette ---- */
   .section-label { color: var(--rd-gold); }
@@ -1769,7 +2122,6 @@
     flex-wrap: wrap;
   }
   .ledgers-header-row .tab-title { margin: 0; }
-  .ledgers-tradingview-btn { font-size: 12px; padding: 0.5rem 0.9rem; white-space: nowrap; }
   .tab-title {
     max-width: 1100px;
     margin: 0 auto 1.5rem auto;
@@ -1782,6 +2134,68 @@
     border-bottom: 1px solid var(--rd-edge);
     padding-bottom: 0.6rem;
   }
+
+  /* ---- SETTINGS tab: one page for everything that used to live
+     behind scattered per-feature gear icons. Same box language as
+     Musts/Weekly/Tackle (dark-blue panel, gold section label), just
+     wrapped in a flex grid so sections wrap cleanly at any width. */
+  .settings-grid {
+    max-width: 1100px;
+    margin: 0 auto 2rem auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+  }
+  .settings-section {
+    flex: 1 1 380px;
+    box-sizing: border-box;
+    background: var(--rd-panel);
+    border: 1px solid var(--rd-edge);
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+  }
+  .settings-section > *:not(:last-child) { margin-bottom: 0.6rem; }
+  .settings-section-note { font-size: 11px; color: var(--rd-muted); line-height: 1.4; }
+  .settings-actions { display: flex; gap: 0.6rem; margin-top: 0.4rem; }
+
+  /* GM/GN — Telegram runs noticeably taller than the other Settings
+     boxes (4 stacked fields); tightened footprint to ~2/3 of that:
+     smaller padding/margins throughout, a shorter Chat IDs box, and
+     GM/GN Message placed side by side instead of stacked (the single
+     biggest saving — one row of height instead of two). */
+  .settings-section-compact { padding: 0.7rem 0.85rem; }
+  .settings-section-compact > *:not(:last-child) { margin-bottom: 0.35rem; }
+  .settings-section-compact .telegram-field-label { margin: 0.4rem 0 0.2rem 0; }
+  .settings-section-compact input, .settings-section-compact textarea { padding: 0.4rem 0.55rem; font-size: 12px; }
+  .telegram-gmgn-row { display: flex; gap: 0.5rem; }
+  .telegram-gmgn-col { flex: 1; min-width: 0; }
+  .settings-link-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+  .settings-link-row .settings-link-label-input { flex: 0 0 120px; }
+  .settings-link-row .settings-link-url-input { flex: 1; min-width: 0; }
+  .score-weight-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-size: 12px;
+    color: var(--rd-text);
+  }
+  .score-weight-row input[type="number"] {
+    width: 56px;
+    text-align: center;
+  }
+  .score-weight-total {
+    font-size: 12px;
+    font-weight: bold;
+    color: var(--rd-gold);
+  }
+  .score-weight-total.score-weight-total-error { color: #B33A52; }
 
   /* ---- LIFE tab ---- */
   .life-section { max-width: 1100px; margin: 0 auto 2rem auto; }
@@ -1949,6 +2363,20 @@
     color: var(--rd-gold);
     pointer-events: none;
     z-index: 1;
+  }
+  /* Opposite corner from the label — same sticky-overlay technique,
+     unlike the label this one needs pointer-events since it's
+     interactive. */
+  .vision-day-done {
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    z-index: 1;
+    width: 11px;
+    height: 11px;
+    margin: 0;
+    accent-color: var(--rd-gold);
+    cursor: pointer;
   }
   /* !important on background/border/color: this is a <textarea>, and
      the later "Form controls" theme sweep forces every bare textarea
@@ -2264,7 +2692,7 @@
   }
   .accomplish-line:focus { outline: 1px solid var(--rd-gold); border-left-color: var(--rd-gold); }
 
-  /* ---- FORGE ALPHA tab: "improvement chamber" ----
+  /* ---- TRACK ALPHA tab: "improvement chamber" ----
      Clinical/premium/futuristic-edge treatment, deliberately more
      intense than the rest of the app's softer ambient glow: one
      persistent .alpha-chamber wrapper around the ENTIRE tab (title,
@@ -2279,16 +2707,16 @@
      .alpha-question-card are the shared "answer this, then continue"
      primitives reused by the gender gate, the create flow, and by
      each questionnaire module as it's built. */
-  /* Forge Alpha tab is pure black — darker than the rest of the app's body
+  /* Track Alpha tab is pure black — darker than the rest of the app's body
      (which keeps its faint carbon-weave + navy glow) — the moment
-     Forge Alpha is the active tab, so it reads as its own lit space,
+     Track Alpha is the active tab, so it reads as its own lit space,
      not a panel sitting on the app. Reverts the instant another tab
      is active (.active is the existing tab-nav toggle, untouched). */
   body:has(#tab-insights.active) {
     background: #000;
   }
   .alpha-chamber {
-    /* Forge Alpha palette: pure black cockpit, electric blue primary,
+    /* Track Alpha palette: pure black cockpit, electric blue primary,
        gold dialed down to a minimal line accent — no more ambient
        gold wash/pulse. --alpha-blue/--alpha-blue-dim are hardcoded,
        unconditional — this used to also expose a gender-tone dial
@@ -2298,7 +2726,7 @@
        "yellow/gold glow" bug reported across this feature's build —
        not the decorative gold accents, the "blue" glow itself was
        silently going gold. Retired entirely rather than patched
-       again: every color in Forge Alpha now reads from a fixed
+       again: every color in Track Alpha now reads from a fixed
        variable, gender no longer touches color at all. */
     --alpha-blue: #2FD8FF;
     --alpha-blue-dim: rgba(47,216,255,0.35);
@@ -2325,21 +2753,49 @@
     box-shadow: none;
     padding: 2.2rem 0.4rem 0.4rem 0.4rem;
   }
+  /* Tagline top-left (free to wrap/stack onto a second line — no
+     nowrap), question top-center. 3-column grid (empty trailing
+     column included) so the question centers on the header's full
+     width rather than just the leftover space next to the tagline —
+     same technique as the Today tab's clock row. */
+  .alpha-chamber-header {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: start;
+    column-gap: 1rem;
+    margin: 0 0 1.6rem 0;
+  }
   .alpha-chamber-title {
+    grid-column: 2;
     text-align: center;
-    margin: 0 0 0.4rem 0;
-    letter-spacing: 0.08em;
+    margin: 0;
+    /* Cancels the divider line/padding .tab-title normally draws under
+       every other tab's title — this phrase sits directly above the
+       browser content with nothing under it. */
+    border-bottom: none;
+    padding-bottom: 0;
+    font-size: 22px;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+    color: var(--alpha-blue);
+    text-shadow: 0 0 16px var(--alpha-blue-dim);
   }
   .alpha-tagline {
-    text-align: center;
+    grid-column: 1;
+    text-align: left;
     font-size: 15px;
     font-style: italic;
     letter-spacing: 0.05em;
     color: var(--rd-gold-bright);
     text-shadow: 0 0 16px rgba(197,164,110,0.45);
-    margin: 0 0 1.6rem 0;
-    padding-bottom: 1.3rem;
-    border-bottom: 1px solid var(--rd-edge);
+    margin: 0;
+  }
+  @media (max-width: 700px) {
+    .alpha-chamber-header { grid-template-columns: 1fr; row-gap: 0.5rem; }
+    .alpha-chamber-title, .alpha-tagline { grid-column: 1; text-align: center; }
+    /* Safety net for very narrow phones — shrink further and allow a
+       wrap rather than risk the nowrap line overflowing the screen. */
+    .alpha-chamber-title { font-size: 18px; white-space: normal; }
   }
 
   .alpha-browser { max-width: 700px; margin: 0 auto; }
@@ -2347,7 +2803,7 @@
   .alpha-gate-card { max-width: 480px; margin: 0 auto; text-align: center; }
   .alpha-gate-card .alpha-choice-row { justify-content: center; }
 
-  /* ---- Forge Alpha: four STATIONARY scopes, the internal reticle
+  /* ---- Track Alpha: four STATIONARY scopes, the internal reticle
      mechanics track the cursor ----
      The circles never move — each sits at a fixed spot (a static
      ellipse scatter, computed once per tile at build time, not a
@@ -2636,7 +3092,7 @@
   /* HUD-style numeric readout — deliberately scoped !important
      exception to the app-wide Space Grotesk sweep (see the wildcard
      "Total typographic unification" rule): only the two live numeric
-     readouts in Forge Alpha get the monospace/technical treatment,
+     readouts in Track Alpha get the monospace/technical treatment,
      nothing else in the app changes font. */
   .alpha-scope-tile-count, .alpha-stat-value {
     font-family: 'Courier New', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important;
@@ -3052,7 +3508,35 @@
   .todays-mission-text, .block-detail-view-notes, .block-detail-past-notes,
   .yearly-focus-text, .entry-text, .entry-history-version,
   .yearly-week-pulled-focus, .vision-month-focus-display, .member-modal-text, .alpha-session-notes,
-  .must-label, .must-note {
+  .must-label {
+    font-family: 'OCRA', 'Courier New', monospace !important;
+  }
+  /* Track Alpha: OCRA applied universally within this one tab, per
+     direct request — a broader rule than the general app-wide scoping
+     above (which deliberately leaves labels/titles in Space Grotesk).
+     #tab-insights * is an ID-level selector, so it also cleanly wins
+     over the earlier .alpha-scope-tile-count/.alpha-stat-value Courier
+     New exception (higher specificity even before !important is
+     weighed) — everything in this tab unifies on OCRA, no carve-outs.
+     .clock-value/.daily-score-value are included too, per direct
+     request, even though they actually live in the Today tab's
+     header, not inside #tab-insights — flagging that in case it
+     wasn't intended, since nothing else in this rule reaches outside
+     Track Alpha. Expanded per direct request to every clock and every
+     numeric-value display app-wide: clock sub-parts (.clock-value-time/
+     -ampm inherit anyway, listed for clarity), the Legion member clocks,
+     the Ruler Alignment formula line, block minutes/energy badge and
+     in-progress time, day-progress %, weekly/yearly numbers, journal
+     entry dates, past-entry dates/energy, the energy-level digit
+     buttons (Quick Energy, Save modal, Musts score), and the Ruler
+     scale's hour ticks. */
+  #tab-insights, #tab-insights *,
+  .clock-value, .clock-value-time, .clock-value-ampm, .ruler-alignment-formula,
+  .clan-member-clock-value, .daily-score-value, .weekly-score-summary-value,
+  .progress-pct, .weekly-day-num, .weekly-day-score, .yearly-month-num,
+  .entry-date, .block-mins, .block-energy-badge, .cb-time,
+  .todays-mission-progress, .block-detail-view-date, .block-detail-past-date, .block-detail-past-energy,
+  .energy-btn, .must-score-btn, .ruler-tick-label {
     font-family: 'OCRA', 'Courier New', monospace !important;
   }
 
@@ -3069,7 +3553,7 @@
   .clans-locked, .member-modal, .weekly-box, .tackle-box, .yearly-box,
   .member-modal-time-row, .clan-member, .entry-edit-form, .entry-history,
   .yearly-month, .accomplish-line, .block-detail,
-  .sunrise-forecast-card, .telegram-modal, .energy-modal {
+  .settings-section, .energy-modal, .send-modal, .inbox-item, .contacts-section, .clan-chat-panel {
     background-color: rgba(14,19,30,0.55) !important;
     backdrop-filter: blur(16px) !important;
     -webkit-backdrop-filter: blur(16px) !important;
@@ -3086,7 +3570,7 @@
      carry their own meaningful color (a ruler timeline segment, a
      data row), so a glass-blur treatment would look like a rendering
      glitch rather than cohesion. Same visual family, scaled to fit. ---- */
-  .ruler-block, .weekly-day-row, .must-item, .category-select, .crawler-track {
+  .ruler-block, .weekly-day-row, .must-item, .category-select {
     border-radius: 6px !important;
     box-shadow: 0 0 10px rgba(197,164,110,0.18) !important;
   }
@@ -3106,7 +3590,7 @@
 
   /* ---- Form controls: dark red fields, gold text ---- */
   textarea, select,
-  input[type="text"], input[type="email"], input[type="password"], input[type="date"],
+  input[type="text"], input[type="email"], input[type="password"], input[type="date"], input[type="number"],
   .category-select, .weekly-day-input, .entry-edit-textarea, .yearly-week-box,
   .accomplish-line, .todays-mission-input, .auth-bar input {
     background: var(--rd-field) !important;
@@ -3117,13 +3601,13 @@
   ::placeholder { color: #7a6338 !important; opacity: 1; }
 
   /* ---- Text: gold, never gray ---- */
-  body, .header p, .current-block-info .cb-time, .must-note, .must-label,
+  body, .header p, .current-block-info .cb-time, .must-label,
   .block-mins, .entry-text, .entry-edited, .clan-meta, .clan-member-name,
   .clan-member-clock-value, .clan-member-clock-label, .clans-locked p,
   .journal-image-paste-hint, .journal-images-locked, .export-row-label,
   .export-to, .weekly-col-header-days,
-  .weekly-col-header-done, .weekly-col-header-score, .weekly-focus-label,
-  .must-score-label,
+  .weekly-col-header-score, .weekly-focus-label,
+  .musts-header-score,
   .span-markers, .member-modal-text, .member-modal-musts-row,
   .auth-bar, .auth-bar .auth-status, .clans-msg, .export-checkbox-group,
   .entry-history-ts, .must-add-row input {
@@ -3220,6 +3704,16 @@
 </head>
 <body>
 
+<!-- Live-updating list of whichever sections are currently toggled
+     "Share with Legion" (Whiteboard, Weekly Visualization, Musts &
+     In-between, Ruler, the Accomplish-This-Month goals, Yearly
+     Visualization) — plain text, no box, fixed to the viewport's
+     top-left corner so it's visible on every tab, not just one.
+     Rendered by renderSharedSectionsList() in the JS, called whenever
+     any of those share checkboxes change. Empty (no placeholder text)
+     when nothing is shared. -->
+<div class="shared-sections-list" id="sharedSectionsList"></div>
+
 <div class="auth-bar" id="authBar">
   <!-- Filled in by JS depending on logged-in/out state -->
 </div>
@@ -3234,11 +3728,19 @@
 <!-- ==== 3-tab navigation. Tab 1 (Ruler) is fully built out below;
      Journal + Clans reuse the existing sections, regrouped. ==== -->
 <nav class="tab-nav" id="tabNav">
-  <button class="tab-btn" data-tab="tab-insights">Forge Alpha</button>
-  <button class="tab-btn" data-tab="tab-life">Vision</button>
-  <button class="tab-btn active" data-tab="tab-ruler">Ruler</button>
+  <!-- .tab-nav-spacer is an invisible mirror of the Settings button
+       (same element/classes/content, just hidden) sitting on the far
+       left — it exists purely so the 5 real tabs still center as their
+       own symmetric group with Today exactly in the middle, while
+       Settings itself stays in normal flow right next to Legions
+       instead of being pulled out to the row's outer edge. -->
+  <span class="tab-btn tab-nav-spacer" aria-hidden="true">⚙</span>
+  <button class="tab-btn" data-tab="tab-insights">Track Alpha</button>
+  <button class="tab-btn" data-tab="tab-life">Plans</button>
+  <button class="tab-btn active" data-tab="tab-ruler">Today</button>
   <button class="tab-btn" data-tab="tab-journal">Ledgers</button>
-  <button class="tab-btn" data-tab="tab-clans">Legions</button>
+  <button class="tab-btn" data-tab="tab-clans">Legions<span class="inbox-unread-badge" id="inboxUnreadBadge" style="display:none;"></span></button>
+  <button class="tab-btn tab-btn-settings" data-tab="tab-settings" title="Settings">⚙</button>
 </nav>
 
 <!-- ============================ TAB 1: RULER ============================ -->
@@ -3247,10 +3749,12 @@
 <div class="page-wrap">
   <div class="header-row">
     <div class="weekly-wrap">
-      <div class="sunrise-forecast-card" id="sunriseForecastCard">
-        <span class="sunrise-forecast-title">Sunrise Forecast</span>
-        <div id="sunriseForecastBody">Loading…</div>
-      </div>
+      <!-- Just a label now — the actual forecast (tomorrow + day-after
+           sunrise) moved to sit under the center clock, above the
+           Daily Score, so the sunrise card's border/padding no longer
+           eats vertical space here; Weekly Visualization gets that
+           room back instead. -->
+      <span class="sunrise-label">Sunrise</span>
       <div class="weekly-box">
         <span class="section-label">Weekly Visualization</span>
         <div class="weekly-focus-row">
@@ -3267,7 +3771,6 @@
           <span class="weekly-col-header-days">Days</span>
           <span class="weekly-col-header-details">Missions</span>
           <span class="weekly-col-header-score">Score</span>
-          <span class="weekly-col-header-done">Done</span>
         </div>
         <div id="weeklyDaysList"></div>
         <div class="section-share-row" id="weeklyShareRow" style="display:none;">
@@ -3278,38 +3781,63 @@
     </div>
 
     <div class="header">
-      <div class="clocks-row">
-        <div class="clock-item">
+      <!-- Header grid — a real CSS grid (not nested flex columns) so
+           specific elements can share a grid row and land at the exact
+           same vertical position regardless of what else is stacked
+           above them in their own column: row 1 is UTC / Ruler
+           Alignment / Local Time; row 2 is Sunrise Tomorrow (center
+           only); row 3 is the Quick Links (3 per side) centered with
+           Daily Score — that's the row that guarantees the link
+           buttons align with the score rather than drifting toward
+           the clocks; row 4 is GM/GN. Sunrise rendered by
+           renderSunriseForecast() in the JS; #sunrisePreviewTomorrow is
+           its one mount point. #quickLinksLeft/#quickLinksRight are
+           renderQuickLinks()'s two mount points. -->
+      <div class="header-grid">
+        <div class="clock-item hg-utc">
           <span class="clock-label">UTC</span>
           <span class="clock-value" id="utcClock">—</span>
         </div>
-        <div class="clock-item clock-item-main">
+        <div class="clock-item clock-item-main hg-ruler">
           <span class="clock-label">Ruler Alignment</span>
           <span class="clock-value" id="blockClock">—</span>
           <span class="ruler-alignment-formula">12 <span class="formula-op">×</span> 120 = 1440m</span>
         </div>
-        <div class="clock-item">
+        <div class="clock-item hg-local">
           <span class="clock-label">Local Time</span>
           <span class="clock-value" id="localClock">—</span>
         </div>
-      </div>
-      <div class="daily-score">
-        <span class="daily-score-label">Daily Score</span>
-        <span class="daily-score-value" id="dailyScoreValue">0/10</span>
-      </div>
 
-      <!-- GM/GN: dispatch a customized message to the user's own
-           configured Telegram bot/chats, nothing else. Bot token +
-           chat IDs + message templates live in localStorage only —
-           never sent anywhere but api.telegram.org. -->
-      <div class="gmgn-row">
-        <button type="button" class="gmgn-btn gmgn-btn-gm" id="logAwakeBtn" title="Good Morning — sends your GM message to Telegram">GM</button>
-        <button type="button" class="gmgn-settings-btn" id="telegramSettingsBtn" title="Telegram settings">⚙</button>
-        <button type="button" class="gmgn-btn gmgn-btn-gn" id="logSleepBtn" title="Good Night — sends your GN message to Telegram">GN</button>
+        <span class="sunrise-preview-item hg-sunrise" id="sunrisePreviewTomorrow"></span>
+
+        <div class="quick-links-col hg-links-left" id="quickLinksLeft"></div>
+        <div class="daily-score hg-score">
+          <span class="daily-score-label">Daily Score</span>
+          <span class="daily-score-value" id="dailyScoreValue">0/10</span>
+        </div>
+        <div class="quick-links-col hg-links-right" id="quickLinksRight"></div>
+
+        <!-- GM/GN: dispatch a customized message to the user's own
+             configured Telegram bot/chats, nothing else. Bot token +
+             chat IDs + message templates live in localStorage only —
+             never sent anywhere but api.telegram.org. -->
+        <div class="gmgn-row hg-gmgn">
+          <button type="button" class="gmgn-btn gmgn-btn-gm" id="logAwakeBtn" title="Good Morning — sends your GM message to Telegram">GM</button>
+          <button type="button" class="gmgn-btn gmgn-btn-gn" id="logSleepBtn" title="Good Night — sends your GN message to Telegram">GN</button>
+        </div>
       </div>
 
       <div id="todaysMission" class="todays-mission">
         <div class="todays-mission-header-row">
+          <!-- Marks today's mission done — synced with whichever
+               Vision day box represents today (Plans tab), if that
+               week happens to be the one currently open there. See
+               renderTodaysMission()/buildDayBox() in the JS; both
+               read/write the same Daily Archive record for today's
+               date, so this is the one on-screen place a "Done"
+               checkbox lives now (removed from Weekly Visualization's
+               own row, per direct request). -->
+          <input type="checkbox" id="todaysMissionDone" class="todays-mission-done" title="Mark today's mission complete">
           <span class="todays-mission-label">Today's Mission</span>
           <span class="todays-mission-progress" id="dayProgress">0% elapsed</span>
         </div>
@@ -3322,7 +3850,13 @@
   <div class="tackle-wrap">
     <div class="tackle-box">
       <span class="section-label">Tackle — Whiteboard</span>
-      <textarea id="tackleArea" placeholder="Jot a quick reminder..."></textarea>
+      <!-- Task list, not free text — check a task off (strikethrough,
+           stays visible) rather than deleting it. renderTackleList()
+           in the JS owns this container entirely. -->
+      <div class="tackle-list" id="tackleList"></div>
+      <div class="tackle-add-row">
+        <input type="text" id="tackleNewTaskInput" class="tackle-add-input" placeholder="Add a task...">
+      </div>
       <div class="tackle-share-row">
         <input type="checkbox" id="tackleShare">
         <label for="tackleShare">Share</label>
@@ -3339,6 +3873,26 @@
     </div>
   </div>
   <div class="ruler-track" id="rulerTrack"></div>
+  <!-- Static ruler-scale strip: 13 ticks on the FIXED 12x120min grid
+       (same grid the Time Crawler rides, not the user's resizable
+       block widths) — 6 AM through +24h in 2-hour steps, 12-hour
+       format. Never changes, so it's plain hardcoded markup rather
+       than JS-generated. -->
+  <div class="ruler-scale">
+    <span class="ruler-tick" style="left:0%"><span class="ruler-tick-mark"></span><span class="ruler-tick-label">6</span></span>
+    <span class="ruler-tick" style="left:8.3333%"><span class="ruler-tick-mark"></span><span class="ruler-tick-label">8</span></span>
+    <span class="ruler-tick" style="left:16.6667%"><span class="ruler-tick-mark"></span><span class="ruler-tick-label">10</span></span>
+    <span class="ruler-tick" style="left:25%"><span class="ruler-tick-mark"></span><span class="ruler-tick-label">12</span></span>
+    <span class="ruler-tick" style="left:33.3333%"><span class="ruler-tick-mark"></span><span class="ruler-tick-label">2</span></span>
+    <span class="ruler-tick" style="left:41.6667%"><span class="ruler-tick-mark"></span><span class="ruler-tick-label">4</span></span>
+    <span class="ruler-tick" style="left:50%"><span class="ruler-tick-mark"></span><span class="ruler-tick-label">6</span></span>
+    <span class="ruler-tick" style="left:58.3333%"><span class="ruler-tick-mark"></span><span class="ruler-tick-label">8</span></span>
+    <span class="ruler-tick" style="left:66.6667%"><span class="ruler-tick-mark"></span><span class="ruler-tick-label">10</span></span>
+    <span class="ruler-tick" style="left:75%"><span class="ruler-tick-mark"></span><span class="ruler-tick-label">12</span></span>
+    <span class="ruler-tick" style="left:83.3333%"><span class="ruler-tick-mark"></span><span class="ruler-tick-label">2</span></span>
+    <span class="ruler-tick" style="left:91.6667%"><span class="ruler-tick-mark"></span><span class="ruler-tick-label">4</span></span>
+    <span class="ruler-tick" style="left:100%"><span class="ruler-tick-mark"></span><span class="ruler-tick-label">6</span></span>
+  </div>
   <div class="span-markers">
     <span class="marker-start">Sunrise<span class="marker-sub">6:00 AM</span></span>
     <span class="marker-mid">Sunset<span class="marker-sub">≈ Block 5</span></span>
@@ -3375,60 +3929,18 @@
   </div>
 </div>
 
-<!-- Telegram settings: bot token + chat IDs + GM/GN message
-     templates, all localStorage-only, never synced to Supabase or
-     anywhere but api.telegram.org when a message is actually sent. -->
-<div class="telegram-modal-overlay" id="telegramModalOverlay" style="display:none;">
-  <div class="telegram-modal">
-    <div class="telegram-modal-header">
-      <span class="section-label">Telegram Settings</span>
-      <button type="button" class="secondary" id="telegramModalClose">Close</button>
+<!-- Send Entry modal: shared by the composer's Send button and every
+     past entry's Send button. Step content (choose Individual/Legion,
+     then the matching dropdown) is rendered dynamically into
+     #sendModalBody by renderSendModalStep() in the JS, since it needs
+     to reset per-open depending on which entry is being sent. -->
+<div class="send-modal-overlay" id="sendModalOverlay" style="display:none;">
+  <div class="send-modal">
+    <div class="send-modal-header">
+      <span class="section-label">Send Entry</span>
+      <button type="button" class="secondary" id="sendModalClose">Close</button>
     </div>
-    <p class="telegram-modal-note">Stored only on this device. Sent only to your own bot's messages API — never to any server this app runs.</p>
-
-    <label class="telegram-field-label" for="telegramBotToken">Bot Token</label>
-    <input type="password" id="telegramBotToken" placeholder="123456789:AAExampleTokenFromBotFather" autocomplete="off">
-
-    <label class="telegram-field-label" for="telegramChatIds">Chat / Group IDs (one per line)</label>
-    <textarea id="telegramChatIds" placeholder="-1001234567890&#10;987654321" rows="3"></textarea>
-
-    <label class="telegram-field-label" for="telegramGmMessage">GM Message</label>
-    <textarea id="telegramGmMessage" placeholder="Good morning! Starting the day strong. ☀️" rows="2"></textarea>
-
-    <label class="telegram-field-label" for="telegramGnMessage">GN Message</label>
-    <textarea id="telegramGnMessage" placeholder="Good night. Wrapping up for today. 🌙" rows="2"></textarea>
-
-    <div class="telegram-modal-actions">
-      <button type="button" id="telegramSaveBtn">Save</button>
-      <button type="button" class="secondary" id="telegramTestBtn">Send Test Message</button>
-    </div>
-  </div>
-</div>
-
-<!-- TradingView webhook settings: shows the user's own webhook URL
-     (needs the Edge Function deployed — see
-     supabase/functions/tradingview-webhook — this modal can't deploy
-     it, only configure the secret and display the URL to paste into
-     TradingView), a shared secret, and a reachability test. -->
-<div class="telegram-modal-overlay" id="tradingviewModalOverlay" style="display:none;">
-  <div class="telegram-modal">
-    <div class="telegram-modal-header">
-      <span class="section-label">TradingView Webhook</span>
-      <button type="button" class="secondary" id="tradingviewModalClose">Close</button>
-    </div>
-    <p class="telegram-modal-note">Requires signing in (the webhook URL is tied to your account) and the Edge Function deployed separately — this only configures the secret and shows the URL, it doesn't deploy anything.</p>
-
-    <label class="telegram-field-label" for="tradingviewWebhookUrl">Your Webhook URL</label>
-    <input type="text" id="tradingviewWebhookUrl" readonly placeholder="Sign in to see your webhook URL">
-
-    <label class="telegram-field-label" for="tradingviewSecret">Webhook Secret</label>
-    <input type="password" id="tradingviewSecret" placeholder="Paste this same value into your TradingView alert JSON" autocomplete="off">
-    <button type="button" class="secondary" id="tradingviewGenerateBtn">Generate Random Secret</button>
-
-    <div class="telegram-modal-actions">
-      <button type="button" id="tradingviewSaveBtn">Save</button>
-      <button type="button" class="secondary" id="tradingviewTestBtn">Test Connectivity</button>
-    </div>
+    <div id="sendModalBody"></div>
   </div>
 </div>
 
@@ -3439,7 +3951,7 @@
 <div class="ruler-detail-row">
   <div class="block-detail" id="blockDetail" style="display:none;">
     <div class="block-detail-header">
-      <span class="block-detail-title" id="blockDetailTitle">Block Details</span>
+      <span class="block-detail-title" id="blockDetailTitle">Block Entries</span>
       <button class="secondary" id="blockDetailClose">Close</button>
     </div>
     <div id="blockDetailEditor">
@@ -3447,6 +3959,7 @@
     </div>
 
     <div id="blockDetailView" style="display:none;">
+      <div class="block-detail-view-date" id="blockDetailViewDate">—</div>
       <div class="block-detail-view-energy" id="blockDetailViewEnergy">Energy: —</div>
       <div class="block-detail-view-notes" id="blockDetailViewNotes">No notes logged yet.</div>
     </div>
@@ -3463,7 +3976,10 @@
   </div>
 
   <div class="ruler-col-musts">
-    <span class="section-label">Musts &amp; In-between</span>
+    <div class="musts-header">
+      <span class="section-label">Musts &amp; In-between</span>
+      <span class="musts-header-score">Score</span>
+    </div>
     <div class="musts-box" id="mustsBox"></div>
     <div class="section-share-row" id="mustsShareRow" style="display:none;">
       <input type="checkbox" id="mustsShare">
@@ -3476,7 +3992,7 @@
 
 <!-- ============================ TAB 2: LIFE ============================ -->
 <div class="tab-panel" id="tab-life">
-  <h2 class="tab-title">Vision</h2>
+  <h2 class="tab-title">Plans</h2>
 
   <!-- Musts & In-between moved to the Ruler tab, alongside Block Detail. -->
   <!-- This Month (left half) + the Week/Day panel (right half), side by
@@ -3551,13 +4067,11 @@
 <div class="tab-panel" id="tab-journal">
   <div class="ledgers-header-row">
     <h2 class="tab-title">Ledgers</h2>
-    <button type="button" class="secondary ledgers-tradingview-btn" id="tradingviewSettingsBtn">⚙ TradingView Webhook</button>
   </div>
 
   <div class="journal-split">
     <!-- Left 2/3: the writing box + 3 controls (Add Image, Category, Save) -->
     <div class="journal-write-col">
-      <span class="section-label">Journal Notes</span>
       <textarea id="workArea" placeholder="Write your day here..."></textarea>
       <div class="journal-controls-row">
         <label class="journal-image-add-btn" id="journalImageAddLabel" style="display:none;">
@@ -3566,6 +4080,13 @@
         </label>
         <select id="categorySelect" class="category-select"></select>
         <button id="saveBtn">Save Entry</button>
+        <!-- Independent of Save Entry — sends whatever is currently
+             written (+ selected category) as a DM, without needing to
+             save it to the ledger first. Save Entry = your ledger;
+             Send = active DM push; the Share checkbox on saved past
+             entries below is a third, separate thing (passive profile
+             visibility). -->
+        <button type="button" id="composerSendBtn" class="secondary" title="Send as DM">✈ Send</button>
       </div>
       <div class="journal-images-row" id="journalImagesRow" style="display:none;">
         <div class="journal-image-thumbs" id="journalImageThumbs"></div>
@@ -3597,8 +4118,8 @@
         <div class="export-row">
           <span class="export-row-label">Tabs</span>
           <div class="export-tab-group" id="exportTabGroup">
-            <button type="button" class="export-tab-btn" data-tab="ruler">Ruler</button>
-            <button type="button" class="export-tab-btn" data-tab="life">Vision</button>
+            <button type="button" class="export-tab-btn" data-tab="ruler">Today</button>
+            <button type="button" class="export-tab-btn" data-tab="life">Plans</button>
             <button type="button" class="export-tab-btn" data-tab="journal">Ledgers</button>
             <button type="button" class="export-tab-btn" data-tab="clans">Legions</button>
           </div>
@@ -3612,7 +4133,7 @@
         <div class="export-controls">
           <button id="exportCsvBtn" class="secondary">Export as CSV (.zip)</button>
           <button id="exportBookBtn">Export as PDF Report</button>
-          <button id="snapshotNowBtn" class="secondary" title="Save today's Ruler as a permanent daily record right now, instead of waiting for the automatic capture">Save Today's Snapshot</button>
+          <button id="snapshotNowBtn" class="secondary" title="Save your current blocks as a permanent daily record right now, instead of waiting for the automatic capture">Save Today's Snapshot</button>
         </div>
         <div class="export-msg" id="exportMsg"></div>
       </div>
@@ -3627,9 +4148,30 @@
 </div><!-- ============================ /TAB 3: JOURNAL ============================ -->
 
 <!-- ============================ TAB 4: CLANS ============================ -->
+<!-- Three sections: Inbox + Contacts stacked on the left; Legions list
+     + the selected Legion's live chat room stacked on the right.
+     Clicking a Legion card (renderOneClanCard, JS) loads its chat
+     below the list and subscribes to it via Supabase Realtime
+     (postgres_changes on clan_messages) — same channel-per-card
+     pattern this file already uses for live-updating shared Ruler
+     data, just applied to chat instead. -->
 <div class="tab-panel" id="tab-clans">
-<div class="bottom-row">
-  <div class="clans-col">
+<div class="legions-split">
+  <div class="legions-inbox-col">
+    <span class="section-label">Inbox</span>
+    <div class="inbox-list" id="inboxList"></div>
+
+    <!-- Flat, deduped roster of everyone across every Legion the user
+         is in — same underlying fetchMyLegionsWithMembers() the Send
+         modal's Individual picker uses. Read-only directory, no
+         actions of its own. -->
+    <div class="contacts-section" id="contactsSection">
+      <span class="section-label">Contacts</span>
+      <div id="contactsList"></div>
+    </div>
+  </div>
+
+  <div class="legions-right-col">
     <div class="clans-section" id="clansSection" style="display:none;">
       <div class="clans-header-row">
         <span class="section-label">Legions</span>
@@ -3645,25 +4187,146 @@
 
     <div class="clans-locked" id="clansLocked">
       <span class="section-label">Legions</span>
-      <p>Sign in above to join or create a Legion and see your team's Rulers.</p>
+      <p>Sign in above to join or create a Legion and see your team's shared data.</p>
+    </div>
+
+    <!-- Chat room for whichever Legion was last clicked in the list
+         above — empty/prompt state until one is picked. Populated by
+         selectClanForChat()/loadAndRenderClanChatMessages() in the JS. -->
+    <div class="clan-chat-panel" id="clanChatPanel">
+      <div class="clan-chat-header">
+        <span class="section-label" id="clanChatTitle">Chat — pick a Legion above</span>
+      </div>
+      <div class="clan-chat-messages" id="clanChatMessages"></div>
+      <div class="clan-chat-input-row" id="clanChatInputRow" style="display:none;">
+        <input type="text" id="clanChatInput" placeholder="Message your Legion...">
+        <button id="clanChatSendBtn">Send</button>
+      </div>
     </div>
   </div>
-</div><!-- /bottom-row -->
+</div><!-- /legions-split -->
 </div><!-- ============================ /TAB 4: CLANS ============================ -->
 
-<!-- ============================ TAB 5: FORGE ALPHA ============================ -->
+<!-- ============================ TAB: SETTINGS ============================ -->
+<!-- Single place to configure the whole Command Center — link slots,
+     Telegram GM/GN, Daily Score weights, TradingView webhook, and the
+     affiliate link all used to live behind their own scattered gear
+     icons (Today, Ledgers). Those triggers are gone; the same
+     underlying fields/functions now render inline here instead. -->
+<div class="tab-panel" id="tab-settings">
+  <h2 class="tab-title">Settings</h2>
+  <div class="settings-grid">
+
+    <div class="settings-section">
+      <span class="section-label">Link Setup</span>
+      <p class="settings-section-note">Up to 6 quick-access buttons shown on Today, flanking the Daily Score. Leave a slot blank to hide it.</p>
+      <div id="settingsLinkRows"></div>
+    </div>
+
+    <div class="settings-section settings-section-compact">
+      <span class="section-label">GM / GN — Telegram</span>
+      <p class="settings-section-note">Stored only on this device. Sent only to your own bot's messages API — never to any server this app runs.</p>
+
+      <label class="telegram-field-label" for="telegramBotToken">Bot Token</label>
+      <input type="password" id="telegramBotToken" placeholder="123456789:AAExampleTokenFromBotFather" autocomplete="off">
+
+      <label class="telegram-field-label" for="telegramChatIds">Chat / Group IDs (one per line)</label>
+      <textarea id="telegramChatIds" placeholder="-1001234567890&#10;987654321" rows="2"></textarea>
+
+      <div class="telegram-gmgn-row">
+        <div class="telegram-gmgn-col">
+          <label class="telegram-field-label" for="telegramGmMessage">GM Message</label>
+          <textarea id="telegramGmMessage" placeholder="Good morning! ☀️" rows="2"></textarea>
+        </div>
+        <div class="telegram-gmgn-col">
+          <label class="telegram-field-label" for="telegramGnMessage">GN Message</label>
+          <textarea id="telegramGnMessage" placeholder="Good night. 🌙" rows="2"></textarea>
+        </div>
+      </div>
+
+      <div class="settings-actions">
+        <button type="button" id="telegramSaveBtn">Save</button>
+        <button type="button" class="secondary" id="telegramTestBtn">Send Test Message</button>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <span class="section-label">Daily Score Weights</span>
+      <p class="settings-section-note">Max points each category can contribute to today's Daily Score. Must total 10.</p>
+
+      <div class="score-weight-row">
+        <label for="weightAlpha">Track Alpha</label>
+        <input type="number" id="weightAlpha" min="0" max="10" step="1">
+      </div>
+      <div class="score-weight-row">
+        <label for="weightMission">Today's Mission</label>
+        <input type="number" id="weightMission" min="0" max="10" step="1">
+      </div>
+      <div class="score-weight-row">
+        <label for="weightMusts">Musts &amp; In-between</label>
+        <input type="number" id="weightMusts" min="0" max="10" step="1">
+      </div>
+      <div class="score-weight-row">
+        <label for="weightLedger">Ledger</label>
+        <input type="number" id="weightLedger" min="0" max="10" step="1">
+      </div>
+      <div class="score-weight-row">
+        <label for="weightLegion">Legion</label>
+        <input type="number" id="weightLegion" min="0" max="10" step="1">
+      </div>
+      <div class="score-weight-total" id="scoreWeightTotal">Total: 10 / 10</div>
+
+      <div class="settings-actions">
+        <button type="button" id="scoreWeightSaveBtn">Save</button>
+        <button type="button" class="secondary" id="scoreWeightResetBtn">Reset to Default</button>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <span class="section-label">TradingView Webhook</span>
+      <p class="settings-section-note">Requires signing in (the webhook URL is tied to your account) and the Edge Function deployed separately — this only configures the secret and shows the URL, it doesn't deploy anything.</p>
+
+      <label class="telegram-field-label" for="tradingviewWebhookUrl">Your Webhook URL</label>
+      <input type="text" id="tradingviewWebhookUrl" readonly placeholder="Sign in to see your webhook URL">
+
+      <label class="telegram-field-label" for="tradingviewSecret">Webhook Secret</label>
+      <input type="password" id="tradingviewSecret" placeholder="Paste this same value into your TradingView alert JSON" autocomplete="off">
+      <button type="button" class="secondary" id="tradingviewGenerateBtn">Generate Random Secret</button>
+
+      <div class="settings-actions">
+        <button type="button" id="tradingviewSaveBtn">Save</button>
+        <button type="button" class="secondary" id="tradingviewTestBtn">Test Connectivity</button>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <span class="section-label">Affiliate Link</span>
+      <p class="settings-section-note">Your personal referral link. Stored only on this device.</p>
+      <input type="text" id="affiliateLinkInput" placeholder="https://...">
+      <div class="settings-actions">
+        <button type="button" id="affiliateLinkSaveBtn">Save</button>
+        <button type="button" class="secondary" id="affiliateLinkCopyBtn">Copy</button>
+      </div>
+    </div>
+
+  </div>
+</div><!-- ============================ /TAB: SETTINGS ============================ -->
+
+<!-- ============================ TAB 5: TRACK ALPHA ============================ -->
 <div class="tab-panel" id="tab-insights">
   <!-- The whole tab is one "chamber": title, tagline, and the dynamic
        flow (gender gate -> create flow -> improvements list -> profile
        detail, all rendered by renderAlphaBrowser() and its helpers in
-       the Forge Alpha JS block) share a single persistent glow wrapper,
+       the Track Alpha JS block) share a single persistent glow wrapper,
        per direct request. Kept as one dynamic container inside .alpha-
        browser rather than many pre-declared show/hide divs, same
        pattern as renderYearlyViz()/renderWeeklyViz() elsewhere in this
        app: clear and rebuild, not toggle visibility. -->
   <div class="alpha-chamber">
-    <h2 class="tab-title alpha-chamber-title">Forge Alpha</h2>
-    <p class="alpha-tagline">You can’t improve what you can’t measure.</p>
+    <div class="alpha-chamber-header">
+      <p class="alpha-tagline">You can’t improve what you can’t track.</p>
+      <h2 class="tab-title alpha-chamber-title">What would you like to track?</h2>
+    </div>
     <div class="alpha-browser" id="alphaBrowser"></div>
   </div>
 </div><!-- ============================ /TAB 5: ALPHA ============================ -->
@@ -3757,6 +4420,17 @@ function captureLocalDailySnapshotIfNeeded() {
         } catch(e) {}
       }
     }
+
+    // Whiteboard: this handles the "app was closed and reopened on a
+    // later day" transition — the mirror-image case to
+    // checkDayRollover()'s "app stayed open across midnight" one,
+    // both funnel into the same rolloverTackleForNewDay(). Unlike the
+    // blocks backfill above, this always runs (not gated on
+    // !archive[lastDate]) — even if yesterday's tackleTasks were
+    // already archived live via recordToday(), the LIVE board still
+    // needs its done tasks dropped and undone ones carried forward
+    // for today.
+    if (typeof rolloverTackleForNewDay === 'function') rolloverTackleForNewDay(lastDate);
   }
 
   localStorage.setItem(LAST_SNAPSHOT_DATE_KEY, today);
@@ -3819,8 +4493,11 @@ function queryDailyRange(startDate, endDate) {
 }
 
 // Writes TODAY's full bundle into the archive. Called live (from
-// saveBlocks() and updateDailyScore()) so "today" is always current,
-// not just backfilled after the day ends.
+// saveBlocks(), updateDailyScore(), and saveTackle()) so "today" is
+// always current, not just backfilled after the day ends — this is
+// what makes the whiteboard snapshot actually capture full state
+// (including which tasks are done) as it happens, not only at
+// rollover.
 function recordToday() {
   var today = todayLocalDateString();
   var archive = loadDailyArchive();
@@ -3838,7 +4515,12 @@ function recordToday() {
     mustsAverage: averageMustsScore(),
     journalEntryCount: loadEntries().filter(function(e) {
       return (e.createdAt || '').slice(0, 10) === today;
-    }).length
+    }).length,
+    // Guarded the same way missionText/missionDone are guarded above —
+    // `tackle` (like `blocks`) is normally already loaded by the time
+    // this runs, but recordToday() is called from several different
+    // triggers and this keeps it safe regardless of call order.
+    tackleTasks: typeof tackle !== 'undefined' ? JSON.parse(JSON.stringify(tackle.tasks)) : (existing.tackleTasks || [])
   };
   saveDailyArchive(archive);
 }
@@ -4263,25 +4945,10 @@ function formatBlockTime(bt) {
 }
 
 // ---- Time Crawler ----
-// One shade per fixed 120-min block (0-11), single gold family only —
-// hierarchy comes from brightness (peaking at midday, dimmest at the
-// dead of night), not a hue shift. No orange/crimson/indigo anymore;
-// this stays in lockstep with the rest of the app's gold-only accent
-// system.
-var RULER_CRAWLER_COLORS = [
-  '#8a6a1a', // 0: 6-8am   dawn, gold rising out of black
-  '#a8841f', // 1: 8-10am  brightening
-  '#c9a227', // 2: 10-12pm rich gold
-  '#d9b23a', // 3: 12-2pm  brightest — midday peak
-  '#c9a227', // 4: 2-4pm   easing back down
-  '#a8841f', // 5: 4-6pm   dimming
-  '#8a6a1a', // 6: 6-8pm   dusk gold
-  '#6b5214', // 7: 8-10pm  fading toward black
-  '#4a3810', // 8: 10pm-12am low ember
-  '#33280c', // 9: 12-2am  near-black gold
-  '#221b08', // 10: 2-4am  deepest night, darkest point
-  '#4a3810'  // 11: 4-6am  pre-dawn, warming back up
-];
+// Flat black for every block (was a gold brightness-arc per block;
+// now just the one color, matching --rd-black, so the band reads as
+// a plain black marker floating on top of the Ruler).
+var RULER_CRAWLER_COLOR = '#0A0A0A';
 
 // "Block:Minutes" only (no seconds) — the crawler's own overlay text
 // is Ruler Alignment time in the '0:64' style, not the full clock.
@@ -4304,7 +4971,7 @@ function updateRulerCrawler(now) {
   var bandWidthPct = 100 / NUM_BLOCKS;
   var leftPct = Math.min((sinceSix / TOTAL_MIN) * 100, 100 - bandWidthPct);
   band.style.left = leftPct + '%';
-  band.style.background = RULER_CRAWLER_COLORS[bt.blockNumber];
+  band.style.background = RULER_CRAWLER_COLOR;
   band.textContent = formatCrawlerTime(bt);
 }
 
@@ -4354,55 +5021,43 @@ function computeSunriseUTC(localDate, lat, lon) {
   return new Date(Date.UTC(y, m, d, 0, 0, 0) + sunriseMin * 60000);
 }
 
-// Today's local sunrise only — narrow enough to sit stacked above
-// the Weekly Visualization box in the same column, rather than its
-// own full-width forecast row.
+// Tomorrow's sunrise ONLY — today's is deliberately dropped (per
+// direct request; the old 3-day card used to lead with it), and the
+// second "In 2 Days" mount point (that used to sit under the Local
+// Time clock) has been removed too — just one line, "Sunrise
+// Tomorrow - (time)", nested under the UTC clock.
 function renderSunriseForecast() {
-  var container = document.getElementById('sunriseForecastBody');
-  if (!container) return;
+  var tomorrowEl = document.getElementById('sunrisePreviewTomorrow');
+  if (!tomorrowEl) return;
   var loc = loadSunriseLocation();
 
   if (!loc) {
-    container.innerHTML = '<button type="button" class="secondary sunrise-forecast-enable" id="sunriseForecastEnableBtn">Enable location</button>';
+    tomorrowEl.innerHTML = '<button type="button" class="secondary sunrise-preview-enable" id="sunriseForecastEnableBtn">Enable location</button>';
     var enableBtn = document.getElementById('sunriseForecastEnableBtn');
     if (enableBtn) enableBtn.addEventListener('click', requestSunriseLocation);
     return;
   }
 
-  container.innerHTML = '';
-  var dayLabels = ['Today', 'Tomorrow', 'In 2 Days'];
-  for (var i = 0; i < 3; i++) {
-    var d = new Date();
-    d.setDate(d.getDate() + i);
-    var sunrise = computeSunriseUTC(d, loc.lat, loc.lon);
-
-    var row = document.createElement('div');
-    row.className = 'sunrise-forecast-row-item';
-    var label = document.createElement('span');
-    label.className = 'sunrise-forecast-day';
-    label.textContent = dayLabels[i];
-    var time = document.createElement('span');
-    time.className = 'sunrise-forecast-value';
-    time.textContent = sunrise ? sunrise.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '—';
-    row.appendChild(label);
-    row.appendChild(time);
-    container.appendChild(row);
-  }
+  var d = new Date();
+  d.setDate(d.getDate() + 1);
+  var sunrise = computeSunriseUTC(d, loc.lat, loc.lon);
+  var timeStr = sunrise ? sunrise.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '—';
+  tomorrowEl.textContent = 'Sunrise Tomorrow - ' + timeStr;
 }
 
 function requestSunriseLocation() {
-  var container = document.getElementById('sunriseForecastBody');
+  var tomorrowEl = document.getElementById('sunrisePreviewTomorrow');
   if (!navigator.geolocation) {
-    if (container) container.innerHTML = '<span class="sunrise-forecast-error">Location not supported</span>';
+    if (tomorrowEl) tomorrowEl.innerHTML = '<span class="sunrise-preview-error">Location not supported</span>';
     return;
   }
-  if (container) container.innerHTML = '<span class="sunrise-forecast-loading">Locating…</span>';
+  if (tomorrowEl) tomorrowEl.innerHTML = '<span class="sunrise-preview-loading">Locating…</span>';
   navigator.geolocation.getCurrentPosition(function(pos) {
     saveSunriseLocation({ lat: pos.coords.latitude, lon: pos.coords.longitude });
     renderSunriseForecast();
   }, function() {
-    if (!container) return;
-    container.innerHTML = '<span class="sunrise-forecast-error">Location denied</span><button type="button" class="secondary sunrise-forecast-enable" id="sunriseForecastRetryBtn">Retry</button>';
+    if (!tomorrowEl) return;
+    tomorrowEl.innerHTML = '<span class="sunrise-preview-error">Location denied</span><button type="button" class="secondary sunrise-preview-enable" id="sunriseForecastRetryBtn">Retry</button>';
     var retryBtn = document.getElementById('sunriseForecastRetryBtn');
     if (retryBtn) retryBtn.addEventListener('click', requestSunriseLocation);
   }, { timeout: 8000, maximumAge: 3600000 });
@@ -4534,22 +5189,17 @@ function broadcastTelegramMessage(text) {
   });
 }
 
-var telegramModalOverlay = document.getElementById('telegramModalOverlay');
 var telegramBotTokenInput = document.getElementById('telegramBotToken');
 var telegramChatIdsInput = document.getElementById('telegramChatIds');
 var telegramGmMessageInput = document.getElementById('telegramGmMessage');
 var telegramGnMessageInput = document.getElementById('telegramGnMessage');
 
-function openTelegramModal() {
+function populateTelegramFields() {
   var cfg = loadTelegramConfig();
   telegramBotTokenInput.value = cfg.botToken;
   telegramChatIdsInput.value = cfg.chatIds.join('\n');
   telegramGmMessageInput.value = cfg.gmMessage;
   telegramGnMessageInput.value = cfg.gnMessage;
-  telegramModalOverlay.style.display = 'flex';
-}
-function closeTelegramModal() {
-  telegramModalOverlay.style.display = 'none';
 }
 function readTelegramFormConfig() {
   return {
@@ -4560,15 +5210,10 @@ function readTelegramFormConfig() {
   };
 }
 
-document.getElementById('telegramSettingsBtn').addEventListener('click', openTelegramModal);
-document.getElementById('telegramModalClose').addEventListener('click', closeTelegramModal);
-telegramModalOverlay.addEventListener('click', function(e) {
-  if (e.target === telegramModalOverlay) closeTelegramModal();
-});
+populateTelegramFields();
 document.getElementById('telegramSaveBtn').addEventListener('click', function() {
   saveTelegramConfig(readTelegramFormConfig());
   showToast('Telegram settings saved.', 'success');
-  closeTelegramModal();
 });
 document.getElementById('telegramTestBtn').addEventListener('click', function() {
   var cfg = readTelegramFormConfig();
@@ -4598,6 +5243,137 @@ document.getElementById('logSleepBtn').addEventListener('click', function() {
 });
 
 // ============================================================
+// Quick Links — 6 user-programmable buttons flanking the Daily Score
+// (3 left, 3 right). Purely local: each slot is just a label + a URL
+// in localStorage, nothing sent anywhere. Clicking a configured slot
+// opens its URL in a new tab; clicking an unconfigured one points the
+// user at Settings instead of doing nothing.
+// ============================================================
+var QUICK_LINKS_KEY = 'csrAlignQuickLinks';
+var QUICK_LINKS_COUNT = 6;
+function defaultQuickLinks() {
+  var list = [];
+  for (var i = 0; i < QUICK_LINKS_COUNT; i++) list.push({ label: '', url: '' });
+  return list;
+}
+// Normalizes whatever was saved — including an older 4-slot save from
+// before this was expanded to 6 — into exactly QUICK_LINKS_COUNT
+// slots, padding with empty ones rather than discarding existing
+// links just because the count doesn't match anymore.
+function loadQuickLinks() {
+  var saved = localStorage.getItem(QUICK_LINKS_KEY);
+  if (saved) {
+    try {
+      var parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length) {
+        var normalized = parsed.slice(0, QUICK_LINKS_COUNT).map(function(l) {
+          return {
+            label: (l && typeof l.label === 'string') ? l.label : '',
+            url: (l && typeof l.url === 'string') ? l.url : ''
+          };
+        });
+        while (normalized.length < QUICK_LINKS_COUNT) normalized.push({ label: '', url: '' });
+        return normalized;
+      }
+    } catch (e) {}
+  }
+  return defaultQuickLinks();
+}
+function saveQuickLinks() {
+  localStorage.setItem(QUICK_LINKS_KEY, JSON.stringify(quickLinks));
+}
+var quickLinks = loadQuickLinks();
+
+// Custom label wins; otherwise fall back to the URL's own hostname
+// (so a configured-but-unlabeled slot still reads as something
+// meaningful instead of 4 identical buttons) and only fall back to a
+// bare slot number when nothing is set at all yet.
+function quickLinkDisplayLabel(idx) {
+  var link = quickLinks[idx];
+  if (link.label) return link.label;
+  if (link.url) {
+    try { return new URL(link.url).hostname.replace(/^www\./, ''); }
+    catch (e) { return 'Link'; }
+  }
+  return 'Link ' + (idx + 1);
+}
+
+function renderQuickLinks() {
+  var leftEl = document.getElementById('quickLinksLeft');
+  var rightEl = document.getElementById('quickLinksRight');
+  if (!leftEl || !rightEl) return;
+  leftEl.innerHTML = '';
+  rightEl.innerHTML = '';
+  for (var idx = 0; idx < QUICK_LINKS_COUNT; idx++) {
+    (function(idx) {
+      var link = quickLinks[idx];
+
+      var slot = document.createElement('div');
+      slot.className = 'quick-link-slot';
+
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'quick-link-btn';
+      btn.textContent = quickLinkDisplayLabel(idx);
+      btn.title = link.url ? ('Open ' + link.url) : 'Not set — configure in Settings → Link Setup';
+      btn.addEventListener('click', function() {
+        if (link.url) window.open(link.url, '_blank', 'noopener');
+        else showToast('Set this up in Settings → Link Setup.', 'error');
+      });
+      slot.appendChild(btn);
+
+      (idx < QUICK_LINKS_COUNT / 2 ? leftEl : rightEl).appendChild(slot);
+    })(idx);
+  }
+}
+renderQuickLinks();
+
+// Link Setup (Settings tab) — all 6 slots editable inline at once,
+// auto-saving on blur rather than a per-slot modal.
+function renderSettingsLinkRows() {
+  var wrap = document.getElementById('settingsLinkRows');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  for (var idx = 0; idx < QUICK_LINKS_COUNT; idx++) {
+    (function(idx) {
+      var row = document.createElement('div');
+      row.className = 'settings-link-row';
+
+      var labelInput = document.createElement('input');
+      labelInput.type = 'text';
+      labelInput.className = 'settings-link-label-input';
+      labelInput.placeholder = 'Label (e.g. X, Discord)';
+      labelInput.maxLength = 12;
+      labelInput.value = quickLinks[idx].label;
+
+      var urlInput = document.createElement('input');
+      urlInput.type = 'text';
+      urlInput.className = 'settings-link-url-input';
+      urlInput.placeholder = 'https://...';
+      urlInput.value = quickLinks[idx].url;
+
+      function persist() {
+        var url = urlInput.value.trim();
+        if (url && !/^https?:\/\//i.test(url)) url = 'https://' + url;
+        urlInput.value = url;
+        quickLinks[idx] = { label: labelInput.value.trim(), url: url };
+        saveQuickLinks();
+        renderQuickLinks();
+      }
+      labelInput.addEventListener('blur', persist);
+      urlInput.addEventListener('blur', persist);
+      labelInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); labelInput.blur(); } });
+      urlInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); urlInput.blur(); } });
+
+      row.appendChild(labelInput);
+      row.appendChild(urlInput);
+      wrap.appendChild(row);
+    })(idx);
+  }
+}
+renderSettingsLinkRows();
+
+// ============================================================
 // TradingView webhook — settings modal + on-login catch-up.
 // The actual receiver (Edge Function + tables) lives outside this
 // file entirely (supabase/functions/tradingview-webhook,
@@ -4623,24 +5399,19 @@ function tradingViewWebhookUrl() {
   return SUPABASE_URL + '/functions/v1/tradingview-webhook?uid=' + currentUser.id;
 }
 
-var tradingviewModalOverlay = document.getElementById('tradingviewModalOverlay');
 var tradingviewWebhookUrlInput = document.getElementById('tradingviewWebhookUrl');
 var tradingviewSecretInput = document.getElementById('tradingviewSecret');
 
-function openTradingViewModal() {
+// Was populated on-demand each time the old settings modal opened;
+// now the fields are always on-screen (Settings tab), so this is
+// called once at load and again whenever sign-in state changes (see
+// the two onAuthStateChange arms below) to keep the URL current.
+function refreshTradingViewFields() {
   tradingviewWebhookUrlInput.value = tradingViewWebhookUrl() || 'Sign in to see your webhook URL';
   tradingviewSecretInput.value = loadTradingViewSecret();
-  tradingviewModalOverlay.style.display = 'flex';
 }
-function closeTradingViewModal() {
-  tradingviewModalOverlay.style.display = 'none';
-}
+refreshTradingViewFields();
 
-document.getElementById('tradingviewSettingsBtn').addEventListener('click', openTradingViewModal);
-document.getElementById('tradingviewModalClose').addEventListener('click', closeTradingViewModal);
-tradingviewModalOverlay.addEventListener('click', function(e) {
-  if (e.target === tradingviewModalOverlay) closeTradingViewModal();
-});
 document.getElementById('tradingviewGenerateBtn').addEventListener('click', function() {
   tradingviewSecretInput.value = generateWebhookSecret();
 });
@@ -4678,6 +5449,108 @@ document.getElementById('tradingviewTestBtn').addEventListener('click', function
     });
 });
 
+// ---- Daily Score Weights (Settings tab) ----
+// Max points each of the 5 categories can contribute, user-
+// configurable here, always totaling 10: Track Alpha (logged an Alpha
+// entry today), Today's Mission, Musts & In-between, Ledger (logged a
+// Journal entry today — "Ledger" is just this app's name for that
+// tab), and Legion (currently a member of at least one Legion — see
+// currentUserInLegion below, kept updated by loadAndRenderClans()).
+// Declared here (rather than next to computeDailyScoreBreakdown()
+// further down) because this Settings UI wiring runs at script-load
+// and reads dailyScoreWeights immediately — it has to be initialized
+// before that point in execution order.
+var DAILY_SCORE_WEIGHTS_KEY = 'csrAlignDailyScoreWeights';
+var DEFAULT_DAILY_SCORE_WEIGHTS = { alpha: 2, mission: 3, musts: 2, ledger: 2, legion: 1 };
+function loadDailyScoreWeights() {
+  var saved = localStorage.getItem(DAILY_SCORE_WEIGHTS_KEY);
+  if (saved) {
+    try {
+      var parsed = JSON.parse(saved);
+      if (parsed && ['alpha', 'mission', 'musts', 'ledger', 'legion'].every(function(k) { return typeof parsed[k] === 'number'; })) {
+        return parsed;
+      }
+    } catch (e) {}
+  }
+  return Object.assign({}, DEFAULT_DAILY_SCORE_WEIGHTS);
+}
+function saveDailyScoreWeights(w) {
+  localStorage.setItem(DAILY_SCORE_WEIGHTS_KEY, JSON.stringify(w));
+}
+var dailyScoreWeights = loadDailyScoreWeights();
+
+var scoreWeightInputs = {
+  alpha: document.getElementById('weightAlpha'),
+  mission: document.getElementById('weightMission'),
+  musts: document.getElementById('weightMusts'),
+  ledger: document.getElementById('weightLedger'),
+  legion: document.getElementById('weightLegion')
+};
+var scoreWeightTotalEl = document.getElementById('scoreWeightTotal');
+
+function currentScoreWeightInputTotal() {
+  return Object.keys(scoreWeightInputs).reduce(function(sum, k) {
+    return sum + (parseFloat(scoreWeightInputs[k].value) || 0);
+  }, 0);
+}
+function updateScoreWeightTotalDisplay() {
+  var total = currentScoreWeightInputTotal();
+  scoreWeightTotalEl.textContent = 'Total: ' + total + ' / 10';
+  scoreWeightTotalEl.classList.toggle('score-weight-total-error', total !== 10);
+}
+function populateScoreWeightInputs() {
+  scoreWeightInputs.alpha.value = dailyScoreWeights.alpha;
+  scoreWeightInputs.mission.value = dailyScoreWeights.mission;
+  scoreWeightInputs.musts.value = dailyScoreWeights.musts;
+  scoreWeightInputs.ledger.value = dailyScoreWeights.ledger;
+  scoreWeightInputs.legion.value = dailyScoreWeights.legion;
+  updateScoreWeightTotalDisplay();
+}
+Object.keys(scoreWeightInputs).forEach(function(k) {
+  scoreWeightInputs[k].addEventListener('input', updateScoreWeightTotalDisplay);
+});
+populateScoreWeightInputs();
+
+document.getElementById('scoreWeightSaveBtn').addEventListener('click', function() {
+  var total = currentScoreWeightInputTotal();
+  if (total !== 10) { showToast('Weights must total exactly 10 (currently ' + total + ').', 'error'); return; }
+  dailyScoreWeights = {
+    alpha: parseFloat(scoreWeightInputs.alpha.value) || 0,
+    mission: parseFloat(scoreWeightInputs.mission.value) || 0,
+    musts: parseFloat(scoreWeightInputs.musts.value) || 0,
+    ledger: parseFloat(scoreWeightInputs.ledger.value) || 0,
+    legion: parseFloat(scoreWeightInputs.legion.value) || 0
+  };
+  saveDailyScoreWeights(dailyScoreWeights);
+  updateDailyScore();
+  showToast('Daily Score weights saved.', 'success');
+});
+document.getElementById('scoreWeightResetBtn').addEventListener('click', function() {
+  dailyScoreWeights = Object.assign({}, DEFAULT_DAILY_SCORE_WEIGHTS);
+  saveDailyScoreWeights(dailyScoreWeights);
+  populateScoreWeightInputs();
+  updateDailyScore();
+  showToast('Daily Score weights reset to default.', 'success');
+});
+
+// ---- Affiliate Link (Settings tab) ----
+var AFFILIATE_LINK_KEY = 'csrAlignAffiliateLink';
+var affiliateLinkInput = document.getElementById('affiliateLinkInput');
+affiliateLinkInput.value = localStorage.getItem(AFFILIATE_LINK_KEY) || '';
+document.getElementById('affiliateLinkSaveBtn').addEventListener('click', function() {
+  localStorage.setItem(AFFILIATE_LINK_KEY, affiliateLinkInput.value.trim());
+  showToast('Affiliate link saved.', 'success');
+});
+document.getElementById('affiliateLinkCopyBtn').addEventListener('click', function() {
+  var val = affiliateLinkInput.value.trim();
+  if (!val) { showToast('Nothing to copy yet.', 'error'); return; }
+  navigator.clipboard.writeText(val).then(function() {
+    showToast('Copied to clipboard.', 'success');
+  }, function() {
+    showToast('Could not copy — copy it manually.', 'error');
+  });
+});
+
 // Converts one trade_alerts row into a Ledgers entry. 'Trader' is
 // already one of this app's default journal categories, so no new
 // category needs adding.
@@ -4699,7 +5572,7 @@ function buildLedgerEntryFromTradeAlert(alert) {
     text: text,
     category: 'Trader',
     score: null,
-    shareWithClan: false,
+    sharedLegionIds: [],
     edited: false,
     history: [],
     imagePaths: [],
@@ -4739,14 +5612,40 @@ function findCurrentBlockIndex(sinceSix) {
   return blockEls.length - 1;
 }
 
+// Splits a locale time string like "01:44 AM" into its digits and
+// AM/PM suffix so they can be styled independently — the digits stay
+// full-size (they're the actual clock), AM/PM renders small and
+// tucked underneath rather than competing with them inline. Only UTC
+// and Local Time go through this; the center Ruler Alignment clock
+// (blockClock) is a different, non-12-hour format and is set directly
+// below, untouched.
+function setClockValue(elId, str) {
+  var el = document.getElementById(elId);
+  if (!el) return;
+  var spaceIdx = str.indexOf(' ');
+  var time = spaceIdx === -1 ? str : str.slice(0, spaceIdx);
+  var ampm = spaceIdx === -1 ? '' : str.slice(spaceIdx + 1);
+  el.innerHTML = '';
+  var timeSpan = document.createElement('span');
+  timeSpan.className = 'clock-value-time';
+  timeSpan.textContent = time;
+  el.appendChild(timeSpan);
+  if (ampm) {
+    var ampmSpan = document.createElement('span');
+    ampmSpan.className = 'clock-value-ampm';
+    ampmSpan.textContent = ampm;
+    el.appendChild(ampmSpan);
+  }
+}
+
 function updateLiveClock() {
   var now = new Date();
 
   var localStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  document.getElementById('localClock').textContent = localStr;
+  setClockValue('localClock', localStr);
 
   var utcStr = now.toLocaleTimeString('en-US', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit', hour12: true });
-  document.getElementById('utcClock').textContent = utcStr;
+  setClockValue('utcClock', utcStr);
 
   document.getElementById('blockClock').textContent = formatBlockTime(getBlockTime(now));
   updateRulerCrawler(now);
@@ -4852,7 +5751,7 @@ categorySelect.addEventListener('change', function() {
 // an `encrypted` flag (see loadEntries() below) that's always false
 // until a key-management approach is chosen. Once it is,
 // saveEntries()/loadEntries() would call encryptText()/decryptText()
-// on the `text` field only — date/category/score/shareWithClan stay
+// on the `text` field only — date/category/score/sharedLegionIds stay
 // in the clear, since list rendering, filtering, and CSV/PDF export
 // all need those without decrypting every entry up front.
 // ============================================================
@@ -4932,7 +5831,7 @@ function decryptText(encrypted, cryptoKey) {
 }
 
 // ---- Journal entries ----
-// Entry shape: { id, date, createdAt, text, category, score, shareWithClan,
+// Entry shape: { id, date, createdAt, text, category, score, sharedLegionIds,
 //                edited, history: [{ text, editedAt }], encrypted }
 function loadEntries() {
   var saved = localStorage.getItem(ENTRIES_KEY);
@@ -4950,7 +5849,12 @@ function loadEntries() {
           text: e.text,
           category: e.category || 'Miscellaneous',
           score: (typeof e.score === 'number') ? e.score : null,
-          shareWithClan: !!e.shareWithClan,
+          // Migrated from the old shareWithClan boolean (any-Legion,
+          // all-or-nothing) to per-Legion granularity. There's no safe
+          // way to know WHICH Legion an old shareWithClan:true entry
+          // meant, so this resets to unshared rather than guessing —
+          // the checkbox + dropdown just need to be re-set once.
+          sharedLegionIds: Array.isArray(e.sharedLegionIds) ? e.sharedLegionIds : [],
           edited: !!e.edited,
           history: Array.isArray(e.history) ? e.history : [],
           imagePaths: Array.isArray(e.imagePaths) ? e.imagePaths : [],
@@ -4966,6 +5870,7 @@ function loadEntries() {
 
 function saveEntries(entries) {
   localStorage.setItem(ENTRIES_KEY, JSON.stringify(entries));
+  if (typeof renderSharedSectionsList === 'function') renderSharedSectionsList();
 }
 
 function averageMustsScore() {
@@ -4975,11 +5880,9 @@ function averageMustsScore() {
   return Math.round((sum / scored.length) * 10) / 10;
 }
 
-// ---- Daily Score: Mission (0-3) + Journal (0/2) + Musts avg (0-2) + Energy avg (0-3) = 0-10 ----
-// Mission is weighted highest (3) as the day's main focus; Musts is
-// light day-to-day upkeep (2); Energy Level — previously NOT counted
-// at all, despite being a prominent daily interaction — now
-// contributes up to 3.
+// ---- Daily Score: Track Alpha + Today's Mission + Musts & In-between
+// avg + Ledger + Legion = 0-10, split per user-configurable
+// dailyScoreWeights (Settings → Daily Score Weights). ----
 function hasJournalEntryToday() {
   var todayStr = new Date().toDateString();
   return loadEntries().some(function(e) {
@@ -4987,26 +5890,26 @@ function hasJournalEntryToday() {
   });
 }
 
-// Was defined alongside the (now-removed) Insights tab's sleep/energy
-// correlation code, but this one call site — feeding the app-wide
-// Daily Score below — means it has to live on as a shared helper.
-function computeDayAvgEnergy(blocks) {
-  var energies = (blocks || []).filter(function(b) { return typeof b.energy === 'number'; }).map(function(b) { return b.energy; });
-  if (!energies.length) return null;
-  return energies.reduce(function(a, b) { return a + b; }, 0) / energies.length;
+// Mirrors hasJournalEntryToday() but for Track Alpha's own entry log
+// (alphaEntries, each stamped with the same todayLocalDateString()
+// used everywhere else in the app).
+function hasAlphaEntryToday() {
+  var today = todayLocalDateString();
+  return alphaEntries.some(function(e) { return e.date === today; });
 }
 
 function computeDailyScoreBreakdown() {
+  var w = dailyScoreWeights;
   var rec = getDayRecord(todayLocalDateString());
   var missionText = ((rec && rec.missionText) || '').trim();
-  var missionPoints = (missionText && rec && rec.missionDone) ? 3 : 0;
-  var journalPoints = hasJournalEntryToday() ? 2 : 0;
+  var missionPoints = (missionText && rec && rec.missionDone) ? w.mission : 0;
+  var ledgerPoints = hasJournalEntryToday() ? w.ledger : 0;
   var avgMusts = averageMustsScore(); // null, or 1-3
-  var mustsPoints = avgMusts === null ? 0 : Math.round((avgMusts - 1) * 1 * 10) / 10; // 1-3 -> 0-2
-  var avgEnergy = computeDayAvgEnergy(blocks); // null, or 1-3
-  var energyPoints = avgEnergy === null ? 0 : Math.round((avgEnergy - 1) * 1.5 * 10) / 10; // 1-3 -> 0-3
-  var total = Math.round(missionPoints + journalPoints + mustsPoints + energyPoints);
-  return { mission: missionPoints, journal: journalPoints, musts: mustsPoints, energy: energyPoints, total: total };
+  var mustsPoints = avgMusts === null ? 0 : Math.round((avgMusts - 1) / 2 * w.musts * 10) / 10;
+  var alphaPoints = hasAlphaEntryToday() ? w.alpha : 0;
+  var legionPoints = currentUserInLegion ? w.legion : 0;
+  var total = Math.round(missionPoints + ledgerPoints + mustsPoints + alphaPoints + legionPoints);
+  return { mission: missionPoints, ledger: ledgerPoints, musts: mustsPoints, alpha: alphaPoints, legion: legionPoints, total: total };
 }
 
 function computeDailyScore() {
@@ -5037,7 +5940,10 @@ function updateDailyScore() {
   var el = document.getElementById('dailyScoreValue');
   if (el) {
     el.textContent = score + '/10';
-    el.title = 'Mission ' + breakdown.mission + '/3 · Journal ' + breakdown.journal + '/2 · Musts ' + breakdown.musts + '/2 · Energy ' + breakdown.energy + '/3';
+    var w = dailyScoreWeights;
+    el.title = 'Track Alpha ' + breakdown.alpha + '/' + w.alpha + ' · Mission ' + breakdown.mission + '/' + w.mission +
+      ' · Musts ' + breakdown.musts + '/' + w.musts + ' · Ledger ' + breakdown.ledger + '/' + w.ledger +
+      ' · Legion ' + breakdown.legion + '/' + w.legion;
   }
 
   var today = todayLocalDateString();
@@ -5178,6 +6084,7 @@ function buildEntryElement(entry) {
         target.category = newCategory;
         target.edited = true;
         saveEntries(allEntries);
+        pushJournalEntryToSupabase(target);
         renderEntries();
         return;
       }
@@ -5196,22 +6103,75 @@ function buildEntryElement(entry) {
   var bottomRow = document.createElement('div');
   bottomRow.className = 'entry-bottom-row';
 
+  // ---- Share with Legion — passive, ongoing profile visibility.
+  // Checking it reveals a multi-select of the user's own Legions
+  // (fetched live, since membership can change) right next to it;
+  // nothing changes for the entry until at least one Legion is picked.
+  // Completely separate from the Send button below (an active,
+  // one-time DM push, not visibility). ----
   var shareLabel = document.createElement('label');
   shareLabel.className = 'entry-share-toggle';
   var shareCheckbox = document.createElement('input');
   shareCheckbox.type = 'checkbox';
-  shareCheckbox.checked = !!entry.shareWithClan;
-  shareCheckbox.addEventListener('change', function() {
+  shareCheckbox.checked = entry.sharedLegionIds.length > 0;
+
+  var legionSelect = document.createElement('select');
+  legionSelect.className = 'entry-share-legion-select';
+  legionSelect.multiple = true;
+  legionSelect.style.display = shareCheckbox.checked ? '' : 'none';
+  legionSelect.title = 'Ctrl/Cmd-click to pick more than one Legion';
+
+  function persistSharedLegionIds() {
     var allEntries = loadEntries();
     var target = allEntries.filter(function(e) { return e.id === entry.id; })[0];
-    if (target) {
-      target.shareWithClan = shareCheckbox.checked;
-      saveEntries(allEntries);
+    if (!target) return;
+    target.sharedLegionIds = Array.prototype.slice.call(legionSelect.selectedOptions).map(function(o) { return o.value; });
+    saveEntries(allEntries);
+    pushJournalEntryToSupabase(target);
+  }
+
+  function populateLegionSelect() {
+    legionSelect.innerHTML = '<option disabled>Loading…</option>';
+    fetchMyLegionsWithMembers(function(legions) {
+      legionSelect.innerHTML = '';
+      if (!legions.length) {
+        var opt = document.createElement('option');
+        opt.disabled = true;
+        opt.textContent = 'Not in any Legion yet';
+        legionSelect.appendChild(opt);
+        return;
+      }
+      legions.forEach(function(l) {
+        var opt = document.createElement('option');
+        opt.value = l.id;
+        opt.textContent = l.name;
+        opt.selected = entry.sharedLegionIds.indexOf(l.id) !== -1;
+        legionSelect.appendChild(opt);
+      });
+    });
+  }
+  if (shareCheckbox.checked) populateLegionSelect();
+
+  shareCheckbox.addEventListener('change', function() {
+    legionSelect.style.display = shareCheckbox.checked ? '' : 'none';
+    if (shareCheckbox.checked) {
+      populateLegionSelect();
+    } else {
+      var allEntries = loadEntries();
+      var target = allEntries.filter(function(e) { return e.id === entry.id; })[0];
+      if (target) {
+        target.sharedLegionIds = [];
+        saveEntries(allEntries);
+        pushJournalEntryToSupabase(target);
+      }
     }
   });
+  legionSelect.addEventListener('change', persistSharedLegionIds);
+
   shareLabel.appendChild(shareCheckbox);
   shareLabel.appendChild(document.createTextNode('Share with Legion'));
   bottomRow.appendChild(shareLabel);
+  bottomRow.appendChild(legionSelect);
 
   var editBtn = document.createElement('button');
   editBtn.className = 'entry-edit-btn';
@@ -5232,6 +6192,18 @@ function buildEntryElement(entry) {
     div.remove();
   });
   bottomRow.appendChild(deleteBtn);
+
+  // Resend — same Send modal as the composer, pre-loaded with this
+  // past entry's own text/category/date instead of the live draft.
+  var sendBtn = document.createElement('button');
+  sendBtn.type = 'button';
+  sendBtn.className = 'entry-send-btn';
+  sendBtn.title = 'Send as DM';
+  sendBtn.textContent = '✈ Send';
+  sendBtn.addEventListener('click', function() {
+    openSendModal({ text: entry.text, category: entry.category, date: entry.date });
+  });
+  bottomRow.appendChild(sendBtn);
 
   div.appendChild(bottomRow);
 
@@ -5387,19 +6359,21 @@ document.getElementById('saveBtn').addEventListener('click', function() {
     var entries = loadEntries();
     var today = new Date();
     var dateStr = today.toLocaleDateString() + ' ' + today.toLocaleTimeString();
-    entries.push({
+    var newEntry = {
       id: 'entry-' + Math.random().toString(36).slice(2) + Date.now(),
       date: dateStr,
       createdAt: today.toISOString(),
       text: workArea.value,
       category: categorySelect.value && categorySelect.value !== '__add_new__' ? categorySelect.value : 'Miscellaneous',
       score: averageMustsScore(),
-      shareWithClan: false,
+      sharedLegionIds: [],
       edited: false,
       history: [],
       imagePaths: stagedImagePaths.slice()
-    });
+    };
+    entries.push(newEntry);
     saveEntries(entries);
+    pushJournalEntryToSupabase(newEntry);
     renderEntries();
   }
   workArea.value = '';
@@ -5409,9 +6383,9 @@ document.getElementById('saveBtn').addEventListener('click', function() {
 
 // ---- Musts & In-between checklist ----
 var DEFAULT_MUSTS = [
-  { id: 'sleep', label: 'Sleep', note: 'recommended 420 min', fixed: true },
-  { id: 'sunlight', label: 'Sunlight', note: '', fixed: true },
-  { id: 'exercise', label: 'Exercise', note: '', fixed: true }
+  { id: 'sleep', label: 'Sleep', fixed: true },
+  { id: 'sunlight', label: 'Sunlight', fixed: true },
+  { id: 'exercise', label: 'Exercise', fixed: true }
 ];
 
 function loadMusts() {
@@ -5439,18 +6413,6 @@ function saveMusts() {
 var musts = loadMusts();
 var mustsBox = document.getElementById('mustsBox');
 var SCORE_LABELS = { 1: 'Poor', 2: 'Average', 3: 'Excellent' };
-
-// Example anchors shown as placeholder text in each must's open metric
-// field, to suggest what "1/2/3" means for that specific item. Purely
-// illustrative — no backend logic yet; users can type over them.
-var MUST_METRIC_PLACEHOLDERS = {
-  sleep: '1: Late night, 2: Uncomfortable sleep, 3: 420+ minutes',
-  sunlight: '1: Indoors all day, 2: Window time, 3: Outside 20+ mins',
-  exercise: '1: No movement, 2: Light activity, 3: Full workout'
-};
-function mustMetricPlaceholder(m) {
-  return MUST_METRIC_PLACEHOLDERS[m.id] || '1: Poor, 2: Average, 3: Excellent';
-}
 
 // ---- Drag-to-reorder ranking for the Musts list ----
 // Pointer-events based so it works with both mouse and touch (the app
@@ -5529,27 +6491,6 @@ function renderMusts() {
     label.textContent = m.label;
     row.appendChild(label);
 
-    if (m.note) {
-      var note = document.createElement('span');
-      note.className = 'must-note';
-      note.textContent = m.note;
-      row.appendChild(note);
-    }
-
-    var metricInput = document.createElement('input');
-    metricInput.type = 'text';
-    metricInput.className = 'must-metric-input';
-    metricInput.placeholder = mustMetricPlaceholder(m);
-    row.appendChild(metricInput);
-
-    var scoreCol = document.createElement('div');
-    scoreCol.className = 'must-score-col';
-
-    var scoreLabel = document.createElement('span');
-    scoreLabel.className = 'must-score-label';
-    scoreLabel.textContent = 'Score';
-    scoreCol.appendChild(scoreLabel);
-
     var scoreWrap = document.createElement('span');
     scoreWrap.className = 'must-score-wrap';
     [1, 2, 3].forEach(function(val) {
@@ -5564,8 +6505,7 @@ function renderMusts() {
       });
       scoreWrap.appendChild(btn);
     });
-    scoreCol.appendChild(scoreWrap);
-    row.appendChild(scoreCol);
+    row.appendChild(scoreWrap);
 
     if (!m.fixed) {
       var rm = document.createElement('button');
@@ -5593,7 +6533,7 @@ function renderMusts() {
   function addMust() {
     var val = input.value.trim();
     if (!val) return;
-    musts.push({ id: 'custom-' + Date.now(), label: val, note: '', fixed: false, score: null });
+    musts.push({ id: 'custom-' + Date.now(), label: val, fixed: false, score: null });
     saveMusts();
     renderMusts();
   }
@@ -5608,26 +6548,123 @@ function renderMusts() {
 }
 
 // ---- Tackle / Whiteboard ----
-var tackleArea = document.getElementById('tackleArea');
+// A task list, not free text: { tasks: [{text, done}], shared }.
+// Checking a task off strikes it through rather than deleting it —
+// undone tasks carry forward across the local-midnight rollover,
+// done ones get archived into that day's Daily Archive record and
+// dropped from the live board (see rolloverTackleForNewDay() and
+// captureLocalDailySnapshotIfNeeded()'s tackle branch, further down).
+var tackleListEl = document.getElementById('tackleList');
+var tackleNewTaskInput = document.getElementById('tackleNewTaskInput');
 var tackleShare = document.getElementById('tackleShare');
 
+function defaultTackle() {
+  return { tasks: [], shared: false };
+}
 function loadTackle() {
   var saved = localStorage.getItem(TACKLE_KEY);
   if (saved) {
     try {
       var parsed = JSON.parse(saved);
-      tackleArea.value = parsed.text || '';
-      tackleShare.checked = !!parsed.shared;
-    } catch(e) {}
+      if (Array.isArray(parsed.tasks)) {
+        return {
+          tasks: parsed.tasks.map(function(t) {
+            return { text: (t && t.text) || '', done: !!(t && t.done) };
+          }).filter(function(t) { return t.text; }),
+          shared: !!parsed.shared
+        };
+      }
+      // Legacy shape from before this was a task list: { text, shared }
+      // — one non-blank line becomes one undone task, so nothing
+      // already jotted down is lost in the switch.
+      if (typeof parsed.text === 'string') {
+        var legacyTasks = parsed.text.split('\n')
+          .map(function(line) { return line.trim(); })
+          .filter(Boolean)
+          .map(function(line) { return { text: line, done: false }; });
+        return { tasks: legacyTasks, shared: !!parsed.shared };
+      }
+    } catch (e) {}
   }
+  return defaultTackle();
+}
+var tackle = loadTackle();
+
+function saveTackle() {
+  localStorage.setItem(TACKLE_KEY, JSON.stringify({ tasks: tackle.tasks, shared: tackleShare.checked }));
+  sectionShareState.whiteboard = tackleShare.checked;
+  saveSectionShareState();
+  pushSharedSection('whiteboard', { tasks: tackle.tasks });
+  if (typeof recordToday === 'function') recordToday(); // keeps the Daily Archive's tackleTasks current live, not just at rollover
+}
+
+function renderTackleList() {
+  if (!tackleListEl) return;
+  tackleListEl.innerHTML = '';
+  tackle.tasks.forEach(function(task, idx) {
+    var row = document.createElement('div');
+    row.className = 'tackle-task-row' + (task.done ? ' is-done' : '');
+
+    var checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'tackle-task-checkbox';
+    checkbox.checked = task.done;
+    checkbox.title = task.done ? 'Mark as not done' : 'Mark as done';
+    checkbox.addEventListener('change', function() {
+      task.done = checkbox.checked;
+      saveTackle();
+      renderTackleList();
+    });
+    row.appendChild(checkbox);
+
+    var textSpan = document.createElement('span');
+    textSpan.className = 'tackle-task-text';
+    textSpan.textContent = task.text;
+    // Clicking the text itself also toggles — a bigger, easier target
+    // than the checkbox alone on touch devices.
+    textSpan.addEventListener('click', function() { checkbox.click(); });
+    row.appendChild(textSpan);
+
+    var deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'tackle-task-delete';
+    deleteBtn.title = 'Remove this task';
+    deleteBtn.textContent = '×';
+    deleteBtn.addEventListener('click', function() {
+      tackle.tasks.splice(idx, 1);
+      saveTackle();
+      renderTackleList();
+    });
+    row.appendChild(deleteBtn);
+
+    tackleListEl.appendChild(row);
+  });
+}
+
+function addTackleTask(text) {
+  var trimmed = text.trim();
+  if (!trimmed) return;
+  tackle.tasks.push({ text: trimmed, done: false });
+  saveTackle();
+  renderTackleList();
+}
+if (tackleNewTaskInput) {
+  tackleNewTaskInput.addEventListener('keydown', function(e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    addTackleTask(tackleNewTaskInput.value);
+    tackleNewTaskInput.value = '';
+  });
 }
 
 // Pulls the latest whiteboard content from Supabase and merges it in,
-// so messages a clan-mate left while you were logged out (or on
-// another device) actually show up. Called on login. Without this,
-// the cloud copy could silently get overwritten the next time you
-// typed anything locally, since saveTackle() always pushes local ->
-// cloud with no awareness of what changed remotely in the meantime.
+// so a task a clan-mate left on your board while you were logged out
+// (or on another device) actually shows up. Called on login. Without
+// this, the cloud copy could silently get overwritten the next time
+// you touched anything locally, since saveTackle() always pushes
+// local -> cloud with no awareness of what changed remotely in the
+// meantime. Same "adopt remote wholesale if it differs" simplicity as
+// before this was a task list — not a field-by-field merge.
 function pullTackleFromSupabase() {
   if (!supabaseClient || !currentUser) return;
   supabaseClient.from('shared_sections')
@@ -5635,22 +6672,46 @@ function pullTackleFromSupabase() {
     .eq('user_id', currentUser.id)
     .eq('section', 'whiteboard')
     .then(function(result) {
-      var remoteText = result.data && result.data[0] && result.data[0].data && result.data[0].data.text;
-      if (typeof remoteText === 'string' && remoteText !== tackleArea.value) {
-        tackleArea.value = remoteText;
-        localStorage.setItem(TACKLE_KEY, JSON.stringify({ text: remoteText, shared: tackleShare.checked }));
+      var remoteData = result.data && result.data[0] && result.data[0].data;
+      var remoteTasks = remoteData && Array.isArray(remoteData.tasks) ? remoteData.tasks : null;
+      if (remoteTasks && JSON.stringify(remoteTasks) !== JSON.stringify(tackle.tasks)) {
+        tackle.tasks = remoteTasks.map(function(t) {
+          return { text: (t && t.text) || '', done: !!(t && t.done) };
+        }).filter(function(t) { return t.text; });
+        localStorage.setItem(TACKLE_KEY, JSON.stringify({ tasks: tackle.tasks, shared: tackleShare.checked }));
+        renderTackleList();
       }
     });
 }
 
-function saveTackle() {
-  localStorage.setItem(TACKLE_KEY, JSON.stringify({ text: tackleArea.value, shared: tackleShare.checked }));
-  sectionShareState.whiteboard = tackleShare.checked;
-  saveSectionShareState();
-  pushSharedSection('whiteboard', { text: tackleArea.value });
-}
-tackleArea.addEventListener('input', saveTackle);
 tackleShare.addEventListener('change', saveTackle);
+renderTackleList();
+
+// Archives `previousDateStr`'s final tackle state (done + undone tasks
+// both preserved — see getDayRecord(previousDateStr).tackleTasks) then
+// resets the LIVE board for the new day: done tasks are dropped (not
+// lost, just archived — "users see completed tasks only in yesterday's
+// archived snapshot," per direct request), undone ones carry forward
+// unchanged so nothing typed but not finished silently disappears.
+// Local-midnight boundary, matching every other day-rollover concept
+// in this app (Daily Archive, Mission, Musts, "today" highlighting) —
+// deliberately NOT UTC, confirmed directly rather than assumed. Safe
+// to call from either rollover path (checkDayRollover(), app stayed
+// open across midnight; or captureLocalDailySnapshotIfNeeded(), app
+// was reopened on a later day) — `tackle` is always already loaded by
+// the time either call site actually runs.
+function rolloverTackleForNewDay(previousDateStr) {
+  if (!tackle.tasks.length) return;
+  var archive = loadDailyArchive();
+  var rec = archive[previousDateStr] || { date: previousDateStr };
+  rec.tackleTasks = JSON.parse(JSON.stringify(tackle.tasks));
+  archive[previousDateStr] = rec;
+  saveDailyArchive(archive);
+
+  tackle.tasks = tackle.tasks.filter(function(t) { return !t.done; });
+  saveTackle();
+  renderTackleList();
+}
 
 // ---- Weekly Visualization ----
 // Fixed Monday-Sunday calendar week, keyed by real calendar date
@@ -5769,6 +6830,9 @@ function renderTodaysMission() {
   var inputEl = document.getElementById('todaysMissionInput');
   if (!textEl || !inputEl) return;
 
+  var doneEl = document.getElementById('todaysMissionDone');
+  if (doneEl) doneEl.checked = !!(rec && rec.missionDone);
+
   if (text) {
     textEl.textContent = text;
     textEl.style.display = '';
@@ -5793,16 +6857,47 @@ function renderTodaysMission() {
   updateDailyScore();
 }
 
+// Wired once, not inside renderTodaysMission() — unlike the mission
+// text <input> (which gets cloned each render to wipe stale
+// listeners), this checkbox element is never recreated, so a single
+// listener attached at load is enough; renderTodaysMission() just
+// keeps its .checked state in sync on every render.
+function toggleTodaysMissionDone() {
+  var today = todayLocalDateString();
+  var checkbox = document.getElementById('todaysMissionDone');
+  if (!checkbox) return;
+  var rec = getDayRecord(today);
+  saveMissionForDate(today, (rec && rec.missionText) || '', checkbox.checked);
+  updateDailyScore();
+  // Mirror into Vision's day box for today (Plans tab), if that's the
+  // week currently open there — same "update the other side's DOM
+  // directly if it's on screen" pattern buildDayBox()'s own input
+  // listener already uses for mission text.
+  if (typeof visionActiveWeekIndex !== 'undefined' && typeof visionWeekIndexForToday === 'function'
+      && visionActiveWeekIndex === visionWeekIndexForToday()) {
+    var jsDay = new Date().getDay();
+    var slotIndex = jsDay === 0 ? 6 : jsDay - 1; // Monday=0..Sunday=6, same convention as getRollingWindowDates()
+    var visionDone = document.getElementById('visionDayDone-' + slotIndex);
+    if (visionDone) visionDone.checked = checkbox.checked;
+  }
+}
+var todaysMissionDoneEl = document.getElementById('todaysMissionDone');
+if (todaysMissionDoneEl) todaysMissionDoneEl.addEventListener('change', toggleTodaysMissionDone);
+
 // Detects the calendar day rolling over while the app is left open
 // (no reload, no user interaction). Without this, the rolling
 // window's "today" highlight, Today's Mission, and the Daily Score
 // all stay frozen on whatever day was "today" at last render, since
-// none of them are otherwise on a timer.
+// none of them are otherwise on a timer. Also the trigger for the
+// whiteboard's own rollover (see rolloverTackleForNewDay()) when the
+// app stays open across midnight.
 var lastKnownDateStr = todayLocalDateString();
 function checkDayRollover() {
   var dateStr = todayLocalDateString();
   if (dateStr !== lastKnownDateStr) {
+    var previousDateStr = lastKnownDateStr;
     lastKnownDateStr = dateStr;
+    if (typeof rolloverTackleForNewDay === 'function') rolloverTackleForNewDay(previousDateStr);
     renderWeeklyViz(); // cascades to renderTodaysMission() -> updateDailyScore()
   }
 }
@@ -5860,21 +6955,6 @@ function renderWeeklyViz() {
     scoreSpan.id = 'weeklyScoreValue-' + date;
     scoreSpan.textContent = (rec && typeof rec.dailyScore === 'number') ? (rec.dailyScore + '/10') : '—';
     row.appendChild(scoreSpan);
-
-    var done = document.createElement('input');
-    done.type = 'checkbox';
-    done.className = 'weekly-day-done';
-    done.checked = !!(rec && rec.missionDone);
-    done.disabled = isFuture;
-    done.title = isFuture ? "Can't mark a future day complete yet" : 'Mark mission complete';
-    (function(dateStr, isTodayRow, checkbox) {
-      checkbox.addEventListener('change', function() {
-        var currentRec = getDayRecord(dateStr);
-        saveMissionForDate(dateStr, (currentRec && currentRec.missionText) || '', checkbox.checked);
-        if (isTodayRow) updateDailyScore();
-      });
-    })(date, isToday, done);
-    row.appendChild(done);
 
     weeklyDaysList.appendChild(row);
   });
@@ -6621,6 +7701,31 @@ function renderVisionWeekDays() {
     if (date) box.title = date;
     box.appendChild(label);
 
+    // Sticky corner checkbox, opposite the label — same absolute-
+    // positioned-sibling technique, for the same reason (a <textarea>
+    // can't contain child elements). Only visually meaningful for
+    // whichever day is actually today, but every day box gets one
+    // consistently rather than singling one out; the cross-tab sync
+    // to Today's Mission (toggleTodaysMissionDone() in the JS) only
+    // fires for the box whose date genuinely is today.
+    var doneCheckbox = document.createElement('input');
+    doneCheckbox.type = 'checkbox';
+    doneCheckbox.className = 'vision-day-done';
+    doneCheckbox.id = 'visionDayDone-' + i;
+    doneCheckbox.checked = !!(rec && rec.missionDone);
+    doneCheckbox.title = 'Mark this day complete';
+    doneCheckbox.addEventListener('change', function() {
+      if (!date) return;
+      var currentRec = getDayRecord(date);
+      saveMissionForDate(date, (currentRec && currentRec.missionText) || '', doneCheckbox.checked);
+      if (date === todayLocalDateString()) {
+        var todaysDoneEl = document.getElementById('todaysMissionDone');
+        if (todaysDoneEl) todaysDoneEl.checked = doneCheckbox.checked;
+        if (typeof updateDailyScore === 'function') updateDailyScore();
+      }
+    });
+    box.appendChild(doneCheckbox);
+
     var dayInput = document.createElement('textarea');
     dayInput.className = 'vision-day-input';
     dayInput.id = 'visionDayInput-' + i;
@@ -6944,6 +8049,8 @@ function handleAuthErrorDuringSync(queueKey, payload, performFn) {
 function forceSignOutWithMessage(message) {
   currentUser = null;
   currentUserIsPaid = false;
+  currentUserInLegion = false;
+  if (typeof updateDailyScore === 'function') updateDailyScore();
   if (supabaseClient) {
     // signOut() locally only — don't let a network failure here block
     // showing the person the message they actually need to see.
@@ -7245,12 +8352,12 @@ function initAuth() {
       renderAuthBarLoggedIn(session.user.email);
       ensureProfileTimezone(session.user);
       currentUser = session.user;
-      // The Forge Alpha tab's initial renderAlphaBrowser() call (at
+      // The Track Alpha tab's initial renderAlphaBrowser() call (at
       // script load) almost always runs BEFORE this async session
       // restore resolves, so it renders as "not signed in" first.
       // Re-render now that currentUser is actually known, so an
       // already-signed-in visitor's device key starts loading
-      // immediately rather than waiting for some unrelated Forge
+      // immediately rather than waiting for some unrelated Track
       // Alpha interaction to happen to trigger a re-render.
       if (typeof renderAlphaBrowser === 'function') renderAlphaBrowser();
       refreshCurrentUserPaidStatus();
@@ -7262,15 +8369,19 @@ function initAuth() {
       if (typeof retryQueuedSyncs === 'function') retryQueuedSyncs(true);
       if (typeof processTradeAlerts === 'function') processTradeAlerts();
       if (typeof cleanupOldVisionYearShareIfNeeded === 'function') cleanupOldVisionYearShareIfNeeded();
+      if (typeof refreshTradingViewFields === 'function') refreshTradingViewFields();
+      if (typeof refreshInboxUnreadCount === 'function') refreshInboxUnreadCount();
     } else {
       renderAuthBarLoggedOut();
       showClansLocked();
+      if (typeof refreshTradingViewFields === 'function') refreshTradingViewFields();
+      if (typeof refreshInboxUnreadCount === 'function') refreshInboxUnreadCount();
     }
   });
 
   supabaseClient.auth.onAuthStateChange(function(event, session) {
     if (session && session.user) {
-      // Forge Alpha's device-bound encryption key is per (device, user) —
+      // Track Alpha's device-bound encryption key is per (device, user) —
       // only reset/reload it when the signed-in user actually changes
       // (not on every token refresh for the same user, which fires
       // this same callback periodically while already logged in).
@@ -7293,9 +8404,12 @@ function initAuth() {
       if (typeof retryQueuedSyncs === 'function') retryQueuedSyncs(true);
       if (typeof processTradeAlerts === 'function') processTradeAlerts();
       if (typeof cleanupOldVisionYearShareIfNeeded === 'function') cleanupOldVisionYearShareIfNeeded();
+      if (typeof refreshTradingViewFields === 'function') refreshTradingViewFields();
+      if (typeof refreshInboxUnreadCount === 'function') refreshInboxUnreadCount();
     } else {
       currentUser = null;
       currentUserIsPaid = false;
+      currentUserInLegion = false;
       alphaEncryptionKey = null;
       alphaKeyLoading = false;
       alphaKeyUnsupported = false;
@@ -7305,6 +8419,9 @@ function initAuth() {
       updateJournalImageUIVisibility();
       updateYearlyVizUIVisibility();
       if (typeof updateSectionShareRowsVisibility === 'function') updateSectionShareRowsVisibility();
+      if (typeof updateDailyScore === 'function') updateDailyScore();
+      if (typeof refreshTradingViewFields === 'function') refreshTradingViewFields();
+      if (typeof refreshInboxUnreadCount === 'function') refreshInboxUnreadCount();
     }
   });
 }
@@ -7353,6 +8470,11 @@ var clansSection = document.getElementById('clansSection');
 var clansLocked = document.getElementById('clansLocked');
 var clansMsgEl = document.getElementById('clansMsg');
 var clansListEl = document.getElementById('clansList');
+
+// Feeds the "Legion" category of the Daily Score (Settings → Daily
+// Score Weights) — kept in sync by loadAndRenderClans() below and
+// reset to false on sign-out (see the onAuthStateChange handlers).
+var currentUserInLegion = false;
 
 function showClansUnlocked() {
   clansSection.style.display = '';
@@ -7431,6 +8553,74 @@ function loadSectionShareState() {
 
 function saveSectionShareState() {
   localStorage.setItem(SECTION_SHARE_KEY, JSON.stringify(sectionShareState));
+  renderSharedSectionsList();
+}
+
+// ---- Journal entry sync (journal_entries table) ----
+// Pushes ONE specific entry at a time (not the whole loadEntries()
+// array) — called from the 3 spots that actually mutate a single
+// entry: new entry saved, an edit saved, and the Share checkbox/Legion
+// select changing. This is what makes a shared entry's
+// shared_legion_ids actually enforceable server-side (see
+// 0007_journal_dm.sql) instead of just a local-only flag no one else
+// could ever have read.
+registerSyncPerformer('journalEntry', function(payload) {
+  return supabaseClient.from('journal_entries').upsert(payload);
+});
+
+function pushJournalEntryToSupabase(entry) {
+  if (!supabaseClient || !currentUser) return;
+  var payload = {
+    id: entry.id,
+    user_id: currentUser.id,
+    entry_date: entry.date,
+    entry_created_at: entry.createdAt,
+    text: entry.text,
+    category: entry.category,
+    score: (typeof entry.score === 'number') ? entry.score : null,
+    shared_legion_ids: entry.sharedLegionIds || [],
+    updated_at: new Date().toISOString()
+  };
+  enqueueSync('journalEntry:' + currentUser.id + ':' + entry.id, payload, syncPerformers.journalEntry);
+}
+
+// ---- Shared-sections list (fixed, top-left, every tab) ----
+// Only the 6 sections with an actual working "Share with Legion"
+// checkbox — themeYear/monthlyFocus are retired keys still carried in
+// sectionShareState for old data but have no toggle UI, so they can
+// never actually be true and are left out here.
+var SHARE_SECTION_LABELS = {
+  whiteboard: 'Whiteboard',
+  weekly: 'Weekly Visualization',
+  musts: 'Musts & In-between',
+  ruler: 'Ruler',
+  accomplishMonth: 'What I Want To Accomplish This Month',
+  yearly: 'Yearly Visualization'
+};
+var SHARE_SECTION_ORDER = ['whiteboard', 'weekly', 'musts', 'ruler', 'accomplishMonth', 'yearly'];
+
+function renderSharedSectionsList() {
+  var el = document.getElementById('sharedSectionsList');
+  if (!el) return;
+  el.innerHTML = '';
+  SHARE_SECTION_ORDER.forEach(function(key) {
+    if (!sectionShareState[key]) return;
+    var item = document.createElement('div');
+    item.className = 'shared-sections-item';
+    item.textContent = SHARE_SECTION_LABELS[key];
+    el.appendChild(item);
+  });
+  // Ledgers past entries are shared per-entry, to specific Legion(s)
+  // (entry.sharedLegionIds), not one whole-section on/off toggle like
+  // the 6 above — so this is a single "Ledgers" line whenever at least
+  // one past entry is shared with at least one Legion. Hooked in
+  // saveEntries() so any entry's toggle updates this immediately.
+  if (loadEntries().some(function(e) { return e.sharedLegionIds && e.sharedLegionIds.length; })) {
+    var journalItem = document.createElement('div');
+    journalItem.className = 'shared-sections-item';
+    journalItem.textContent = 'Ledgers';
+    el.appendChild(journalItem);
+  }
 }
 
 document.getElementById('createClanBtn').addEventListener('click', function() {
@@ -7495,9 +8685,368 @@ document.getElementById('joinClanBtn').addEventListener('click', function() {
     });
 });
 
+// Every Legion the user belongs to, each with its OTHER members'
+// {id, name} (self excluded) — shared by the Send modal's Legion
+// picker (fan-out to a whole roster) and Individual picker (flat,
+// deduped list across every Legion) below, and by each entry's
+// Share-with-Legion multi-select. Always a fresh live query (not
+// cached) since membership/roster can change between opens.
+function fetchMyLegionsWithMembers(callback) {
+  if (!supabaseClient || !currentUser) { callback([]); return; }
+  supabaseClient.from('clan_members').select('clan_id').eq('user_id', currentUser.id).then(function(memberResult) {
+    var clanIds = (memberResult.data || []).map(function(r) { return r.clan_id; });
+    if (!clanIds.length) { callback([]); return; }
+    supabaseClient.from('clans').select('id, name').in('id', clanIds).then(function(clansResult) {
+      var clanRows = clansResult.data || [];
+      supabaseClient.from('clan_members').select('clan_id, user_id').in('clan_id', clanIds).then(function(allMembersResult) {
+        var allMembers = allMembersResult.data || [];
+        var memberIds = [];
+        allMembers.forEach(function(m) {
+          if (m.user_id !== currentUser.id && memberIds.indexOf(m.user_id) === -1) memberIds.push(m.user_id);
+        });
+        if (!memberIds.length) {
+          callback(clanRows.map(function(c) { return { id: c.id, name: c.name, members: [] }; }));
+          return;
+        }
+        supabaseClient.from('profiles').select('id, display_name').in('id', memberIds).then(function(profilesResult) {
+          var nameById = {};
+          (profilesResult.data || []).forEach(function(p) { nameById[p.id] = p.display_name || 'Member'; });
+          callback(clanRows.map(function(c) {
+            var members = allMembers
+              .filter(function(m) { return m.clan_id === c.id && m.user_id !== currentUser.id; })
+              .map(function(m) { return { id: m.user_id, name: nameById[m.user_id] || 'Member' }; });
+            return { id: c.id, name: c.name, members: members };
+          }));
+        });
+      });
+    });
+  });
+}
+
+// ============================================================
+// Send Entry — active DM push (entry_messages table), completely
+// separate from the passive Share-with-Legion visibility above.
+// One shared modal for both the composer's Send button and every
+// past entry's own Send button; sendModalEntry (set by openSendModal)
+// is whichever {text, category, date} is currently being sent.
+// ============================================================
+var sendModalOverlay = document.getElementById('sendModalOverlay');
+var sendModalBody = document.getElementById('sendModalBody');
+var sendModalEntry = null;
+
+function openSendModal(entryPayload) {
+  if (!supabaseClient || !currentUser) { showToast('Sign in first to send a message.', 'error'); return; }
+  sendModalEntry = entryPayload;
+  renderSendModalStep('choose');
+  sendModalOverlay.style.display = 'flex';
+}
+function closeSendModal() {
+  sendModalOverlay.style.display = 'none';
+  sendModalEntry = null;
+}
+document.getElementById('sendModalClose').addEventListener('click', closeSendModal);
+sendModalOverlay.addEventListener('click', function(e) {
+  if (e.target === sendModalOverlay) closeSendModal();
+});
+
+function sendModalAppendBackBtn() {
+  var backBtn = document.createElement('button');
+  backBtn.type = 'button';
+  backBtn.className = 'secondary';
+  backBtn.textContent = '← Back';
+  backBtn.addEventListener('click', function() { renderSendModalStep('choose'); });
+  sendModalBody.appendChild(backBtn);
+}
+
+function renderSendModalStep(step) {
+  sendModalBody.innerHTML = '';
+
+  if (step === 'choose') {
+    var note = document.createElement('p');
+    note.className = 'send-modal-note';
+    note.textContent = 'Send this entry as a direct message to a Legion-mate.';
+    sendModalBody.appendChild(note);
+
+    var row = document.createElement('div');
+    row.className = 'send-modal-choice-row';
+    var indivBtn = document.createElement('button');
+    indivBtn.type = 'button';
+    indivBtn.textContent = 'Individual';
+    indivBtn.addEventListener('click', function() { renderSendModalStep('individual'); });
+    var legionBtn = document.createElement('button');
+    legionBtn.type = 'button';
+    legionBtn.textContent = 'Legion';
+    legionBtn.addEventListener('click', function() { renderSendModalStep('legion'); });
+    row.appendChild(indivBtn);
+    row.appendChild(legionBtn);
+    sendModalBody.appendChild(row);
+    return;
+  }
+
+  var loading = document.createElement('p');
+  loading.className = 'send-modal-note';
+  loading.textContent = 'Loading your Legions…';
+  sendModalBody.appendChild(loading);
+
+  fetchMyLegionsWithMembers(function(legions) {
+    // The modal may have been closed (or moved to a different step)
+    // while this was in flight — bail rather than render into a stale
+    // modal state.
+    if (sendModalOverlay.style.display === 'none') return;
+    sendModalBody.innerHTML = '';
+
+    if (!legions.length) {
+      var none = document.createElement('p');
+      none.className = 'send-modal-note';
+      none.textContent = 'You\'re not in any Legion yet.';
+      sendModalBody.appendChild(none);
+      sendModalAppendBackBtn();
+      return;
+    }
+
+    if (step === 'legion') {
+      var label = document.createElement('label');
+      label.className = 'telegram-field-label';
+      label.textContent = 'Legion';
+      sendModalBody.appendChild(label);
+
+      var select = document.createElement('select');
+      legions.forEach(function(l) {
+        var opt = document.createElement('option');
+        opt.value = l.id;
+        opt.textContent = l.name + ' (' + l.members.length + ' member' + (l.members.length === 1 ? '' : 's') + ')';
+        select.appendChild(opt);
+      });
+      sendModalBody.appendChild(select);
+
+      var sendBtn = document.createElement('button');
+      sendBtn.type = 'button';
+      sendBtn.textContent = 'Send to Legion';
+      sendBtn.addEventListener('click', function() {
+        var chosen = legions.filter(function(l) { return l.id === select.value; })[0];
+        if (!chosen || !chosen.members.length) { showToast('No other members in that Legion yet.', 'error'); return; }
+        sendEntryMessages(chosen.members.map(function(m) { return m.id; }));
+      });
+      sendModalBody.appendChild(sendBtn);
+    } else {
+      // Individual — flat, deduped list of everyone across every Legion.
+      var seen = {};
+      var flat = [];
+      legions.forEach(function(l) {
+        l.members.forEach(function(m) {
+          if (!seen[m.id]) { seen[m.id] = true; flat.push(m); }
+        });
+      });
+
+      if (!flat.length) {
+        var noneP = document.createElement('p');
+        noneP.className = 'send-modal-note';
+        noneP.textContent = 'No one else is in your Legions yet.';
+        sendModalBody.appendChild(noneP);
+        sendModalAppendBackBtn();
+        return;
+      }
+
+      var label2 = document.createElement('label');
+      label2.className = 'telegram-field-label';
+      label2.textContent = 'Person';
+      sendModalBody.appendChild(label2);
+
+      var select2 = document.createElement('select');
+      flat.forEach(function(m) {
+        var opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = m.name;
+        select2.appendChild(opt);
+      });
+      sendModalBody.appendChild(select2);
+
+      var sendBtn2 = document.createElement('button');
+      sendBtn2.type = 'button';
+      sendBtn2.textContent = 'Send';
+      sendBtn2.addEventListener('click', function() {
+        sendEntryMessages([select2.value]);
+      });
+      sendModalBody.appendChild(sendBtn2);
+    }
+    sendModalAppendBackBtn();
+  });
+}
+
+function sendEntryMessages(recipientIds) {
+  if (!supabaseClient || !currentUser || !sendModalEntry) return;
+  if (!sendModalEntry.text || !sendModalEntry.text.trim()) { showToast('Nothing to send — write something first.', 'error'); return; }
+  var senderName = (currentUser.email || 'A legion-mate').split('@')[0];
+  var rows = recipientIds.map(function(rid) {
+    return {
+      sender_id: currentUser.id,
+      recipient_id: rid,
+      sender_name: senderName,
+      entry_date: sendModalEntry.date || null,
+      entry_category: sendModalEntry.category || null,
+      entry_text: sendModalEntry.text
+    };
+  });
+  supabaseClient.from('entry_messages').insert(rows).then(function(result) {
+    if (result.error) {
+      showToast('Could not send: ' + result.error.message, 'error');
+    } else {
+      showToast('Sent to ' + rows.length + ' ' + (rows.length === 1 ? 'person' : 'people') + '.', 'success');
+      closeSendModal();
+    }
+  });
+}
+
+document.getElementById('composerSendBtn').addEventListener('click', function() {
+  openSendModal({
+    text: workArea.value,
+    category: categorySelect.value && categorySelect.value !== '__add_new__' ? categorySelect.value : 'Miscellaneous',
+    date: new Date().toLocaleDateString()
+  });
+});
+
+// ============================================================
+// Inbox — received DMs (entry_messages where recipient_id = you).
+// ============================================================
+var inboxListEl = document.getElementById('inboxList');
+var inboxUnreadBadge = document.getElementById('inboxUnreadBadge');
+
+function updateInboxUnreadBadge(count) {
+  if (!inboxUnreadBadge) return;
+  if (count > 0) {
+    inboxUnreadBadge.textContent = String(count);
+    inboxUnreadBadge.style.display = '';
+  } else {
+    inboxUnreadBadge.style.display = 'none';
+  }
+}
+
+// Called on login (so the badge shows without needing to open the
+// tab) and after renderInbox() marks things read.
+function refreshInboxUnreadCount() {
+  if (!supabaseClient || !currentUser) { updateInboxUnreadBadge(0); return; }
+  supabaseClient.from('entry_messages').select('id').eq('recipient_id', currentUser.id).eq('read', false)
+    .then(function(result) { updateInboxUnreadBadge((result.data || []).length); });
+}
+
+function renderInbox() {
+  if (!inboxListEl) return;
+  if (!supabaseClient || !currentUser) {
+    inboxListEl.innerHTML = '<p class="inbox-empty">Sign in to see messages from your Legion.</p>';
+    return;
+  }
+  inboxListEl.innerHTML = '<p class="inbox-empty">Loading…</p>';
+  supabaseClient.from('entry_messages')
+    .select('*')
+    .eq('recipient_id', currentUser.id)
+    .order('created_at', { ascending: false })
+    .then(function(result) {
+      if (result.error) {
+        inboxListEl.innerHTML = '<p class="inbox-empty">Could not load your Inbox — check your connection and try refreshing.</p>';
+        return;
+      }
+      var rows = result.data || [];
+      inboxListEl.innerHTML = '';
+      if (!rows.length) {
+        inboxListEl.innerHTML = '<p class="inbox-empty">Nothing here yet — DMs a Legion-mate sends you will show up here.</p>';
+        updateInboxUnreadBadge(0);
+        return;
+      }
+      var unreadIds = [];
+      rows.forEach(function(row) {
+        var item = document.createElement('div');
+        item.className = 'inbox-item' + (row.read ? '' : ' is-unread');
+
+        var topRow = document.createElement('div');
+        topRow.className = 'inbox-item-top-row';
+        var fromSpan = document.createElement('span');
+        fromSpan.className = 'inbox-item-from';
+        fromSpan.textContent = row.sender_name;
+        var metaSpan = document.createElement('span');
+        metaSpan.textContent = (row.entry_category ? row.entry_category + ' · ' : '') +
+          (row.entry_date || new Date(row.created_at).toLocaleDateString());
+        topRow.appendChild(fromSpan);
+        topRow.appendChild(metaSpan);
+        item.appendChild(topRow);
+
+        var textDiv = document.createElement('div');
+        textDiv.className = 'inbox-item-text';
+        textDiv.textContent = row.entry_text;
+        item.appendChild(textDiv);
+
+        inboxListEl.appendChild(item);
+        if (!row.read) unreadIds.push(row.id);
+      });
+      updateInboxUnreadBadge(unreadIds.length);
+      // Marking read happens on VIEW (opening the tab), not on arrival —
+      // once rendered, the badge clears since the user has now seen them.
+      if (unreadIds.length) {
+        supabaseClient.from('entry_messages').update({ read: true }).in('id', unreadIds).then(function() {
+          updateInboxUnreadBadge(0);
+        });
+      }
+    });
+}
+
+// Inbox lives inside the Legions tab now — refresh both it and
+// Contacts whenever that tab is opened (in addition to the
+// auth-driven refresh inside loadAndRenderClans() below, which covers
+// the case where the user is already sitting on this tab at login).
+var clansTabBtn = document.querySelector('.tab-btn[data-tab="tab-clans"]');
+if (clansTabBtn) {
+  clansTabBtn.addEventListener('click', function() {
+    renderInbox();
+    renderContacts();
+  });
+}
+
+// Flat, deduped roster of everyone across every Legion the user is in
+// — read-only directory, no actions of its own (sending is done from
+// an entry's own Send button, not from here).
+function renderContacts() {
+  var el = document.getElementById('contactsList');
+  if (!el) return;
+  if (!supabaseClient || !currentUser) {
+    el.innerHTML = '<p class="contacts-empty">Sign in to see your Legion-mates.</p>';
+    return;
+  }
+  el.innerHTML = '<p class="contacts-empty">Loading…</p>';
+  fetchMyLegionsWithMembers(function(legions) {
+    el.innerHTML = '';
+    var byId = {};
+    var order = [];
+    legions.forEach(function(l) {
+      l.members.forEach(function(m) {
+        if (!byId[m.id]) { byId[m.id] = { name: m.name, legionNames: [] }; order.push(m.id); }
+        byId[m.id].legionNames.push(l.name);
+      });
+    });
+    if (!order.length) {
+      el.innerHTML = '<p class="contacts-empty">No one else is in your Legions yet.</p>';
+      return;
+    }
+    order.forEach(function(id) {
+      var contact = byId[id];
+      var row = document.createElement('div');
+      row.className = 'contacts-item';
+      var nameSpan = document.createElement('span');
+      nameSpan.className = 'contacts-item-name';
+      nameSpan.textContent = contact.name;
+      var legionSpan = document.createElement('span');
+      legionSpan.className = 'contacts-item-legion';
+      legionSpan.textContent = contact.legionNames.join(', ');
+      row.appendChild(nameSpan);
+      row.appendChild(legionSpan);
+      el.appendChild(row);
+    });
+  });
+}
+
 function loadAndRenderClans() {
   if (!supabaseClient || !currentUser) return;
 
+  renderInbox();
+  renderContacts();
   clansListEl.innerHTML = '<p style="font-size:12px;color:#666;">Loading your Legions…</p>';
 
   supabaseClient.from('clan_members')
@@ -7510,6 +9059,8 @@ function loadAndRenderClans() {
       }
       if (!memberResult.data) return;
       var clanIds = memberResult.data.map(function(r) { return r.clan_id; });
+      currentUserInLegion = clanIds.length > 0;
+      if (typeof updateDailyScore === 'function') updateDailyScore();
 
       if (!clanIds.length) {
         clansListEl.innerHTML = '<p style="font-size:12px;color:#666;">You haven\'t joined a Legion yet.</p>';
@@ -7545,17 +9096,159 @@ function cleanupClanChannels() {
   activeClanChannels = [];
 }
 
+// ============================================================
+// Legion chat — one live room per clan_id (clan_messages table).
+// selectedChatClanId tracks which Legion's chat is currently open;
+// chatChannel is that one Legion's Realtime subscription (only ever
+// one active at a time, separate from activeClanChannels above,
+// which is the per-card shared-Ruler live-update channels).
+// ============================================================
+var selectedChatClanId = null;
+var chatChannel = null;
+var clanChatTitleEl = document.getElementById('clanChatTitle');
+var clanChatMessagesEl = document.getElementById('clanChatMessages');
+var clanChatInputRowEl = document.getElementById('clanChatInputRow');
+var clanChatInputEl = document.getElementById('clanChatInput');
+
+function cleanupChatChannel() {
+  if (chatChannel) {
+    try { supabaseClient.removeChannel(chatChannel); } catch (e) {}
+    chatChannel = null;
+  }
+}
+
+function resetClanChatPanel() {
+  selectedChatClanId = null;
+  cleanupChatChannel();
+  if (clanChatTitleEl) clanChatTitleEl.textContent = 'Chat — pick a Legion above';
+  if (clanChatMessagesEl) clanChatMessagesEl.innerHTML = '';
+  if (clanChatInputRowEl) clanChatInputRowEl.style.display = 'none';
+}
+
+function selectClanForChat(clan, clickedEl) {
+  selectedChatClanId = clan.id;
+  if (clanChatTitleEl) clanChatTitleEl.textContent = clan.name + ' — Chat';
+  if (clanChatInputRowEl) clanChatInputRowEl.style.display = '';
+  // Re-highlight the active card without a full clan-list refetch.
+  Array.prototype.forEach.call(document.querySelectorAll('.clan-card'), function(card) {
+    card.classList.remove('is-chat-active');
+  });
+  var activeCard = clickedEl && clickedEl.closest('.clan-card');
+  if (activeCard) activeCard.classList.add('is-chat-active');
+  loadAndRenderClanChatMessages(clan);
+
+  cleanupChatChannel();
+  // Wrapped defensively for the same reason the shared-Ruler channel
+  // above is — one Realtime subscription failing must never break the
+  // rest of the tab.
+  try {
+    chatChannel = supabaseClient.channel('clan-chat-' + clan.id + '-' + Date.now())
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'clan_messages', filter: 'clan_id=eq.' + clan.id }, function() {
+        // Refetch (not append the raw payload) — matches the same
+        // "treat Realtime as a refresh signal, re-query for real data"
+        // approach the shared-Ruler channel above uses.
+        if (selectedChatClanId === clan.id) loadAndRenderClanChatMessages(clan);
+      })
+      .subscribe();
+    // Deliberately NOT pushed into activeClanChannels — that array is
+    // swept on every renderClansList() rebuild (login refresh, join,
+    // leave), which would silently kill this subscription on an
+    // unrelated re-render. chatChannel has its own lifecycle, torn
+    // down only by cleanupChatChannel()/resetClanChatPanel().
+  } catch (e) {
+    // Live updates won't arrive, but the messages already loaded above
+    // still show, and Send still works — just no push updates.
+  }
+}
+
+function loadAndRenderClanChatMessages(clan) {
+  if (!clanChatMessagesEl) return;
+  clanChatMessagesEl.innerHTML = '<p class="clan-chat-empty">Loading…</p>';
+  supabaseClient.from('clan_messages')
+    .select('*')
+    .eq('clan_id', clan.id)
+    .order('created_at', { ascending: true })
+    .then(function(result) {
+      // The user may have switched to a different Legion (or left this
+      // tab) while this was in flight.
+      if (selectedChatClanId !== clan.id) return;
+      if (result.error) {
+        clanChatMessagesEl.innerHTML = '<p class="clan-chat-empty">Could not load this chat — try again.</p>';
+        return;
+      }
+      var rows = result.data || [];
+      clanChatMessagesEl.innerHTML = '';
+      if (!rows.length) {
+        clanChatMessagesEl.innerHTML = '<p class="clan-chat-empty">No messages yet — say hello.</p>';
+        return;
+      }
+      rows.forEach(function(m) {
+        var item = document.createElement('div');
+        item.className = 'clan-chat-message' + (m.sender_id === currentUser.id ? ' is-own' : '');
+        var meta = document.createElement('div');
+        meta.className = 'clan-chat-message-meta';
+        meta.textContent = m.sender_name + ' · ' + new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        var text = document.createElement('div');
+        text.className = 'clan-chat-message-text';
+        text.textContent = m.text;
+        item.appendChild(meta);
+        item.appendChild(text);
+        clanChatMessagesEl.appendChild(item);
+      });
+      clanChatMessagesEl.scrollTop = clanChatMessagesEl.scrollHeight;
+    });
+}
+
+function sendClanChatMessage() {
+  if (!clanChatInputEl || !selectedChatClanId || !supabaseClient || !currentUser) return;
+  var text = clanChatInputEl.value.trim();
+  if (!text) return;
+  var senderName = (currentUser.email || 'A legion-mate').split('@')[0];
+  clanChatInputEl.disabled = true;
+  supabaseClient.from('clan_messages').insert({
+    clan_id: selectedChatClanId,
+    sender_id: currentUser.id,
+    sender_name: senderName,
+    text: text
+  }).then(function(result) {
+    clanChatInputEl.disabled = false;
+    if (result.error) {
+      showToast('Could not send: ' + result.error.message, 'error');
+      return;
+    }
+    clanChatInputEl.value = '';
+    clanChatInputEl.focus();
+    // Not appending locally — the Realtime subscription above fires
+    // for our own insert too (we're a member of the clan we just
+    // posted to) and refetches, so this would otherwise double up.
+  });
+}
+if (document.getElementById('clanChatSendBtn')) {
+  document.getElementById('clanChatSendBtn').addEventListener('click', sendClanChatMessage);
+}
+if (clanChatInputEl) {
+  clanChatInputEl.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); sendClanChatMessage(); }
+  });
+}
+
 function renderClansList(clanRows) {
   cleanupClanChannels();
   clansListEl.innerHTML = '';
   clanRows.forEach(function(clan) {
     renderOneClanCard(clan);
   });
+  // The previously-open chat's Legion might no longer exist in this
+  // fresh list (left/disbanded) — reset rather than keep showing a
+  // chat room the user can no longer actually be a part of.
+  if (selectedChatClanId && !clanRows.some(function(c) { return c.id === selectedChatClanId; })) {
+    resetClanChatPanel();
+  }
 }
 
 function renderOneClanCard(clan) {
   var card = document.createElement('div');
-  card.className = 'clan-card';
+  card.className = 'clan-card' + (clan.id === selectedChatClanId ? ' is-chat-active' : '');
 
   var header = document.createElement('div');
   header.className = 'clan-card-header';
@@ -7563,6 +9256,8 @@ function renderOneClanCard(clan) {
   var nameEl = document.createElement('div');
   nameEl.className = 'clan-name';
   nameEl.textContent = clan.name;
+  nameEl.title = 'Open this Legion\'s chat';
+  nameEl.addEventListener('click', function(e) { selectClanForChat(clan, e.currentTarget); });
 
   var metaEl = document.createElement('div');
   metaEl.className = 'clan-meta';
@@ -7692,7 +9387,7 @@ function renderClanMembers(container, profiles, rulerMap, clan) {
     var legionTitle = getLegionTitle(profile, clan);
     var memberDiv = document.createElement('div');
     memberDiv.className = 'clan-member';
-    memberDiv.title = 'Click to view ' + profile.display_name + (profile.id === currentUser.id ? '' : "'s") + ' Ruler';
+    memberDiv.title = 'Click to view ' + profile.display_name + (profile.id === currentUser.id ? '' : "'s") + ' Today';
 
     var row = document.createElement('div');
     row.className = 'clan-member-row';
@@ -7815,20 +9510,50 @@ function loadMemberDetailContent(profile, body) {
 
     // Whiteboard — content display now respects the member's own
     // share toggle (tackleShare). When off, leaders see "Whiteboard
-    // not shared" instead of the text. The write box is a separate
-    // concern from viewing — paid viewers can always leave a message
-    // regardless of the toggle, since that's how clan-mates reach
-    // someone even when their board is otherwise private.
+    // not shared" instead of the task list. The write box is a
+    // separate concern from viewing — paid viewers can always leave a
+    // message regardless of the toggle, since that's how clan-mates
+    // reach someone even when their board is otherwise private. Read-
+    // only here (checkboxes disabled) — this is someone else's board,
+    // not yours to check off.
     var whiteboardSection = document.createElement('div');
     whiteboardSection.className = 'member-modal-section';
     whiteboardSection.innerHTML = '<h4>Whiteboard</h4>';
     var whiteboardShared = !!(sections.whiteboard && sections.whiteboard.is_shared);
     var whiteboardData = (sections.whiteboard && sections.whiteboard.data) || {};
+
+    function renderMemberWhiteboardTasks(tasks) {
+      var existing = whiteboardSection.querySelector('.member-modal-tackle-list');
+      if (existing) existing.remove();
+      var list = document.createElement('div');
+      list.className = 'member-modal-tackle-list';
+      if (!tasks || !tasks.length) {
+        var emptyP = document.createElement('p');
+        emptyP.className = 'member-modal-text';
+        emptyP.textContent = '(nothing on their board yet)';
+        list.appendChild(emptyP);
+      } else {
+        tasks.forEach(function(task) {
+          var row = document.createElement('div');
+          row.className = 'tackle-task-row' + (task.done ? ' is-done' : '');
+          var checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.className = 'tackle-task-checkbox';
+          checkbox.checked = !!task.done;
+          checkbox.disabled = true;
+          row.appendChild(checkbox);
+          var textSpan = document.createElement('span');
+          textSpan.className = 'tackle-task-text';
+          textSpan.textContent = task.text || '';
+          row.appendChild(textSpan);
+          list.appendChild(row);
+        });
+      }
+      whiteboardSection.insertBefore(list, whiteboardSection.querySelector('.member-modal-write-row') || null);
+    }
+
     if (whiteboardShared) {
-      var whiteboardP = document.createElement('p');
-      whiteboardP.className = 'member-modal-text';
-      whiteboardP.textContent = whiteboardData.text || '(nothing written yet)';
-      whiteboardSection.appendChild(whiteboardP);
+      renderMemberWhiteboardTasks(Array.isArray(whiteboardData.tasks) ? whiteboardData.tasks : []);
     } else {
       var whiteboardHidden = document.createElement('p');
       whiteboardHidden.className = 'member-modal-not-shared';
@@ -7837,7 +9562,7 @@ function loadMemberDetailContent(profile, body) {
     }
 
     // Only PAID viewers can write a message onto someone else's
-    // whiteboard. It's always appended as a new line, never
+    // whiteboard. It's always added as a new (undone) task, never
     // overwriting what's already there. Available regardless of the
     // owner's share toggle — writing isn't the same as reading.
     if (currentUserIsPaid && profile.id !== currentUser.id) {
@@ -7852,10 +9577,8 @@ function loadMemberDetailContent(profile, body) {
         var msg = writeInput.value.trim();
         if (!msg) return;
         writeBtn.disabled = true;
-        appendToMemberWhiteboard(profile, currentUser, msg, function(newText) {
-          if (whiteboardShared) {
-            whiteboardSection.querySelector('.member-modal-text').textContent = newText;
-          }
+        appendToMemberWhiteboard(profile, currentUser, msg, function(newTasks) {
+          if (whiteboardShared) renderMemberWhiteboardTasks(newTasks);
           writeInput.value = '';
           writeBtn.disabled = false;
         });
@@ -7875,7 +9598,7 @@ function loadMemberDetailContent(profile, body) {
     // per row) rather than the old cramped proportional timeline.
     var rulerSection = document.createElement('div');
     rulerSection.className = 'member-modal-section';
-    rulerSection.innerHTML = '<h4>Ruler</h4>';
+    rulerSection.innerHTML = '<h4>Today</h4>';
     if (rulerShared) {
       var list = document.createElement('div');
       list.className = 'member-modal-ruler-list';
@@ -7896,7 +9619,7 @@ function loadMemberDetailContent(profile, body) {
     } else {
       var rulerHidden = document.createElement('p');
       rulerHidden.className = 'member-modal-not-shared';
-      rulerHidden.textContent = 'Ruler not shared';
+      rulerHidden.textContent = 'Today not shared';
       rulerSection.appendChild(rulerHidden);
     }
     body.appendChild(rulerSection);
@@ -8026,11 +9749,11 @@ function escapeHtml(str) {
 }
 
 // Appends a message from a paid clan-mate onto another member's
-// whiteboard, as a new line. Reads the current text first, adds the
-// new line, then writes the combined result back — this is what
-// makes it "append" rather than "overwrite": we're not patching a
-// single field, we're submitting a whole new text value that
-// includes everything that was there before, plus the new line.
+// whiteboard, as a new undone task. Reads the current task list
+// first, adds the new task, then writes the combined array back —
+// this is what makes it "append" rather than "overwrite": we're not
+// patching a single field, we're submitting a whole new tasks array
+// that includes everything that was there before, plus the new one.
 function appendToMemberWhiteboard(targetProfile, fromUser, message, onComplete) {
   if (!supabaseClient) return;
 
@@ -8039,13 +9762,14 @@ function appendToMemberWhiteboard(targetProfile, fromUser, message, onComplete) 
     .eq('user_id', targetProfile.id)
     .eq('section', 'whiteboard')
     .then(function(result) {
-      var existingText = (result.data && result.data[0] && result.data[0].data && result.data[0].data.text) || '';
+      var existingData = result.data && result.data[0] && result.data[0].data;
+      var existingTasks = (existingData && Array.isArray(existingData.tasks)) ? existingData.tasks : [];
       var fromName = (fromUser.email || 'A legion-mate').split('@')[0];
-      var newLine = '[' + fromName + ']: ' + message;
-      var combinedText = existingText ? (existingText + '\n' + newLine) : newLine;
+      var newTask = { text: '[' + fromName + ']: ' + message, done: false };
+      var combinedTasks = existingTasks.concat([newTask]);
 
       supabaseClient.from('shared_sections')
-        .update({ data: { text: combinedText }, updated_at: new Date().toISOString() })
+        .update({ data: { tasks: combinedTasks }, updated_at: new Date().toISOString() })
         .eq('user_id', targetProfile.id)
         .eq('section', 'whiteboard')
         .then(function(updateResult) {
@@ -8053,7 +9777,7 @@ function appendToMemberWhiteboard(targetProfile, fromUser, message, onComplete) 
             window.alert('Could not send message: ' + updateResult.error.message);
             return;
           }
-          if (typeof onComplete === 'function') onComplete(combinedText);
+          if (typeof onComplete === 'function') onComplete(combinedTasks);
         });
     });
 }
@@ -8088,7 +9812,7 @@ function showExportMsg(text, isError) {
 // Ruler/Life category lists are fixed; Journal's is dynamic (built
 // from journalCategories, same source as the app's own category
 // picker, so it stays in sync automatically). Clans has nothing to
-// export yet (it's shared/social data, not really "yours"). Forge
+// export yet (it's shared/social data, not really "yours"). Track
 // Alpha isn't exportable either — its data lives in its own Supabase
 // tables (see 0003_alpha_profiles.sql), not this pipeline.
 var EXPORT_CATEGORY_DEFS = {
@@ -8303,7 +10027,10 @@ function gatherExportData(filters, callback) {
       var savedTackle = localStorage.getItem(TACKLE_KEY);
       if (savedTackle) {
         var parsedTackle = JSON.parse(savedTackle);
-        tackleText = parsedTackle.text || '';
+        var exportTasks = Array.isArray(parsedTackle.tasks) ? parsedTackle.tasks : [];
+        tackleText = exportTasks.map(function(t) {
+          return '[' + (t.done ? 'x' : ' ') + '] ' + (t.text || '');
+        }).join('\n');
       }
     } catch(e) {}
   }
@@ -8520,7 +10247,7 @@ function buildJournalCsv(entries) {
       csvEscape(e.category),
       csvEscape(e.score),
       csvEscape(e.edited ? 'Yes' : 'No'),
-      csvEscape(e.shareWithClan ? 'Yes' : 'No'),
+      csvEscape((e.sharedLegionIds && e.sharedLegionIds.length) ? 'Yes' : 'No'),
       csvEscape(wordCount(e.text)),
       csvEscape(e.text)
     ].join(','));
@@ -8560,7 +10287,7 @@ function downloadFile(filename, content, mimeType) {
 
 document.getElementById('snapshotNowBtn').addEventListener('click', function() {
   snapshotTodayNow();
-  showExportMsg('Saved today\'s Ruler as a permanent daily record.');
+  showExportMsg('Saved today\'s data as a permanent daily record.');
 });
 
 document.getElementById('exportCsvBtn').addEventListener('click', function() {
@@ -8577,7 +10304,7 @@ document.getElementById('exportCsvBtn').addEventListener('click', function() {
     var fileCount = 0;
 
     if ((filters.includeRulerBlocks || filters.includeRulerEnergy) && bundle.snapshots.length) {
-      zip.file('ruler-blocks.csv', buildRulerCsv(bundle.snapshots, filters.includeRulerEnergy));
+      zip.file('today-blocks.csv', buildRulerCsv(bundle.snapshots, filters.includeRulerEnergy));
       fileCount++;
     }
     if (filters.includeJournal && bundle.entries.length) {
@@ -8630,7 +10357,7 @@ document.getElementById('exportCsvBtn').addEventListener('click', function() {
       URL.revokeObjectURL(url);
       showExportMsg(
         'Exported ' + fileCount + ' file(s): ' + bundle.entries.length + ' journal entries, ' +
-        bundle.snapshots.length + ' daily Ruler snapshots.' +
+        bundle.snapshots.length + ' daily snapshots.' +
         (filters.wasClipped ? ' (Free tier: limited to the last ' + FREE_TIER_EXPORT_DAYS + ' days. Upgrade for full history.)' : '')
       );
     });
@@ -8651,7 +10378,7 @@ document.getElementById('exportBookBtn').addEventListener('click', function() {
   gatherExportData(filters, function(bundle) {
     buildPdfReport(bundle, function() {
       showExportMsg(
-        'PDF report generated with ' + bundle.entries.length + ' entries and ' + bundle.snapshots.length + ' daily Rulers.' +
+        'PDF report generated with ' + bundle.entries.length + ' entries and ' + bundle.snapshots.length + ' daily snapshots.' +
         (filters.wasClipped ? ' (Free tier: limited to the last ' + FREE_TIER_EXPORT_DAYS + ' days. Upgrade for full history.)' : '')
       );
     });
@@ -8999,9 +10726,10 @@ function updateSectionShareRowsVisibility() {
   accomplishMonthShareRow.style.display = loggedIn ? '' : 'none';
 }
 updateSectionShareRowsVisibility();
+renderSharedSectionsList();
 
 // ============================================================
-// Forge Alpha — multi-profile measurement system, built encryption-first.
+// Track Alpha — multi-profile measurement system, built encryption-first.
 //
 // Structure: three fixed categories (Health/Relationships/Finances).
 // Health goes one level deeper than the other two (category ->
@@ -9031,14 +10759,14 @@ updateSectionShareRowsVisibility();
 // (alphaEncryptionKey) is a device-bound, non-extractable CryptoKey
 // generated once per (device, signed-in user) and stored in
 // IndexedDB (alphaGetOrCreateDeviceKey()) — no passphrase, unlocks
-// automatically the first time Forge Alpha is opened after sign-in.
+// automatically the first time Track Alpha is opened after sign-in.
 // Deliberately NOT derived from the Supabase session/access token: a
 // key derivable from something the auth server itself issues would
 // be recoverable by the server (or anyone with service_role access)
 // too, which would defeat the point of end-to-end encryption. See
 // SECURITY.md for the full model, including the device-bound
 // tradeoff (no cross-device access without a future export/import
-// path). Every Forge Alpha payload leaving the device routes through these
+// path). Every Track Alpha payload leaving the device routes through these
 // four functions specifically so future key-management upgrades
 // (hardware keys, threshold crypto, multi-device sync) stay a small,
 // localized change:
@@ -9198,7 +10926,7 @@ var ALPHA_QUESTIONNAIRE_MODULES = {
 //
 // Only relevant once signed in — pushAlphaProfileToSupabase/
 // pushAlphaEntryToSupabase already no-op without a currentUser, so a
-// local-only (not signed in) visitor never needs a key at all; Forge
+// local-only (not signed in) visitor never needs a key at all; Track
 // Alpha still works fully locally, just without cloud sync, same as
 // every other feature in this app.
 var alphaEncryptionKey = null;      // null until auto-unlocked (or permanently, if not signed in / unsupported)
@@ -9237,7 +10965,7 @@ function alphaStoreDeviceKey(db, keyId, key) {
 // so two different accounts on the same browser never share a key.
 function alphaGetOrCreateDeviceKey(userId) {
   if (typeof indexedDB === 'undefined' || !window.crypto || !window.crypto.subtle) {
-    return Promise.reject(new Error('This browser doesn\'t support the storage/crypto APIs Forge Alpha encryption needs.'));
+    return Promise.reject(new Error('This browser doesn\'t support the storage/crypto APIs Track Alpha encryption needs.'));
   }
   var keyId = 'alphaDeviceKey:' + userId;
   return alphaOpenKeyDb().then(function(db) {
@@ -9329,7 +11057,7 @@ var alphaProfiles = loadAlphaProfiles();
 var alphaEntries = loadAlphaEntries();
 
 // ---- Gate + navigation state ----
-// Gender gates entry to the rest of Forge Alpha. It USED TO also set
+// Gender gates entry to the rest of Track Alpha. It USED TO also set
 // an --alpha-accent color tone (.alpha-tone-warm) on the reticle
 // system, but that mechanism was the confirmed root cause of a
 // recurring "yellow glow" bug (see the comment on .alpha-chamber) and
@@ -9337,7 +11065,7 @@ var alphaEntries = loadAlphaEntries();
 // one-time checkpoint (persisted locally, asked once), not a
 // personalization input. Local-only: this isn't synced to Supabase or
 // folded into any profile's account-wide `profiles` row, since it's
-// scoped to the Forge Alpha experience specifically, not the account.
+// scoped to the Track Alpha experience specifically, not the account.
 var ALPHA_GENDER_KEY = 'csrAlignAlphaGender';
 var alphaGender = localStorage.getItem(ALPHA_GENDER_KEY) || null;
 
@@ -9433,7 +11161,7 @@ function saveAlphaEntry(profileId, data) {
 
 // ---- Voice memos (used by the Relationships module) ----
 // Records via MediaRecorder, encrypts the resulting audio with the
-// SAME AES-GCM session key as everything else in Forge Alpha
+// SAME AES-GCM session key as everything else in Track Alpha
 // (alphaEncryptBlob), and uploads CIPHERTEXT bytes to the
 // alpha-voice-notes bucket — see 0006_alpha_voice_notes_bucket.sql.
 // {path, iv, mimeType} then lives inside the entry's own
@@ -10252,17 +11980,17 @@ function renderAlphaGenderGate(container) {
 function renderAlphaKeyLoading(container) {
   var note = document.createElement('p');
   note.className = 'alpha-placeholder-note';
-  note.textContent = 'Unlocking your encrypted Forge Alpha data…';
+  note.textContent = 'Unlocking your encrypted Track Alpha data…';
   container.appendChild(note);
 }
 // Shown if IndexedDB/WebCrypto genuinely aren't available (very old
-// browser, privacy mode blocking IndexedDB, etc.) — Forge Alpha still
+// browser, privacy mode blocking IndexedDB, etc.) — Track Alpha still
 // works fully locally without a key, this just explains why cloud
 // sync specifically won't happen on this device.
 function renderAlphaKeyUnsupportedNote(container) {
   var note = document.createElement('p');
   note.className = 'alpha-placeholder-note';
-  note.textContent = 'This browser doesn’t support the encryption Forge Alpha needs to sync to the cloud — everything you create here still saves locally on this device, it just won’t back up to your account.';
+  note.textContent = 'This browser doesn’t support the encryption Track Alpha needs to sync to the cloud — everything you create here still saves locally on this device, it just won’t back up to your account.';
   container.appendChild(note);
 }
 
@@ -10957,7 +12685,7 @@ renderAlphaBrowser();
 
 // ============================================================
 // Tab navigation — five panels (Ruler / Life / Journal / Clans /
-// Forge Alpha), only one visible at a time. Everything stays in the DOM
+// Track Alpha), only one visible at a time. Everything stays in the DOM
 // (just hidden), so all existing init/render/sync logic is untouched.
 // ============================================================
 (function() {
@@ -10989,6 +12717,7 @@ var blockDetailTitle = document.getElementById('blockDetailTitle');
 var blockDetailNotes = document.getElementById('blockDetailNotes');
 var blockDetailEditor = document.getElementById('blockDetailEditor');
 var blockDetailView = document.getElementById('blockDetailView');
+var blockDetailViewDate = document.getElementById('blockDetailViewDate');
 var blockDetailViewEnergy = document.getElementById('blockDetailViewEnergy');
 var blockDetailViewNotes = document.getElementById('blockDetailViewNotes');
 var blockDetailSaveBtn = document.getElementById('blockDetailSaveBtn');
@@ -11049,15 +12778,37 @@ function getPastBlockEntries(blockName, limit) {
   for (var i = 0; i < dates.length && results.length < limit; i++) {
     var dayBlocks = archive[dates[i]] && archive[dates[i]].blocks;
     if (!Array.isArray(dayBlocks)) continue;
-    var match = null;
+    var matchIdx = -1;
     for (var j = 0; j < dayBlocks.length; j++) {
-      if (dayBlocks[j] && dayBlocks[j].name === blockName) { match = dayBlocks[j]; break; }
+      if (dayBlocks[j] && dayBlocks[j].name === blockName) { matchIdx = j; break; }
     }
-    if (match && hasLoggedBlockEntry(match)) {
-      results.push({ date: dates[i], energy: match.energy, notes: match.notes || '' });
+    if (matchIdx !== -1 && hasLoggedBlockEntry(dayBlocks[matchIdx])) {
+      results.push({ date: dates[i], blockIndex: matchIdx, energy: dayBlocks[matchIdx].energy, notes: dayBlocks[matchIdx].notes || '' });
     }
   }
   return results;
+}
+
+// Both operate on the archived (non-today) copy of a block's entry —
+// today's own entry is edited/cleared through the normal Save/Edit
+// flow above, not through these.
+function updatePastBlockEntry(date, blockIndex, notes, energy) {
+  var archive = loadDailyArchive();
+  var day = archive[date];
+  if (!day || !Array.isArray(day.blocks) || !day.blocks[blockIndex]) return;
+  day.blocks[blockIndex].notes = notes;
+  if (typeof energy === 'number') day.blocks[blockIndex].energy = energy;
+  else delete day.blocks[blockIndex].energy;
+  saveDailyArchive(archive);
+}
+
+function deletePastBlockEntry(date, blockIndex) {
+  var archive = loadDailyArchive();
+  var day = archive[date];
+  if (!day || !Array.isArray(day.blocks) || !day.blocks[blockIndex]) return;
+  day.blocks[blockIndex].notes = '';
+  delete day.blocks[blockIndex].energy;
+  saveDailyArchive(archive);
 }
 
 function renderPastBlockEntries(blockName) {
@@ -11091,6 +12842,92 @@ function renderPastBlockEntries(blockName) {
     notes.textContent = entry.notes || 'No notes.';
     item.appendChild(notes);
 
+    // ---- Inline edit form (hidden until Edit is clicked) ----
+    var editForm = document.createElement('div');
+    editForm.className = 'entry-edit-form';
+    editForm.style.display = 'none';
+
+    var editEnergyVal = typeof entry.energy === 'number' ? entry.energy : null;
+    var editEnergyRow = document.createElement('div');
+    editEnergyRow.className = 'quick-energy-btns';
+    [1, 2, 3].forEach(function(val) {
+      var energyOptBtn = document.createElement('button');
+      energyOptBtn.type = 'button';
+      energyOptBtn.className = 'energy-btn' + (editEnergyVal === val ? ' active' : '');
+      energyOptBtn.textContent = val;
+      energyOptBtn.setAttribute('data-energy', val);
+      energyOptBtn.addEventListener('click', function() {
+        editEnergyVal = val;
+        Array.prototype.forEach.call(editEnergyRow.querySelectorAll('.energy-btn'), function(b) {
+          b.classList.toggle('active', parseInt(b.getAttribute('data-energy'), 10) === val);
+        });
+      });
+      editEnergyRow.appendChild(energyOptBtn);
+    });
+
+    var editTextarea = document.createElement('textarea');
+    editTextarea.className = 'entry-edit-textarea';
+    editTextarea.value = entry.notes || '';
+
+    var editBtnRow = document.createElement('div');
+    editBtnRow.className = 'btn-row';
+    var saveEditBtn = document.createElement('button');
+    saveEditBtn.type = 'button';
+    saveEditBtn.textContent = 'Save Changes';
+    saveEditBtn.className = 'combo-btn';
+    var cancelEditBtn = document.createElement('button');
+    cancelEditBtn.type = 'button';
+    cancelEditBtn.textContent = 'Cancel';
+    cancelEditBtn.className = 'secondary';
+    editBtnRow.appendChild(saveEditBtn);
+    editBtnRow.appendChild(cancelEditBtn);
+
+    editForm.appendChild(editEnergyRow);
+    editForm.appendChild(editTextarea);
+    editForm.appendChild(editBtnRow);
+    item.appendChild(editForm);
+
+    // ---- Edit / Delete actions ----
+    var actionsRow = document.createElement('div');
+    actionsRow.className = 'block-detail-past-actions';
+
+    var editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.className = 'entry-edit-btn';
+    editBtn.textContent = 'Edit';
+    editBtn.addEventListener('click', function() {
+      editForm.style.display = '';
+      notes.style.display = 'none';
+      row.style.display = 'none';
+      actionsRow.style.display = 'none';
+      editTextarea.focus();
+    });
+    actionsRow.appendChild(editBtn);
+
+    var deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'entry-delete-btn';
+    deleteBtn.textContent = 'Delete';
+    deleteBtn.addEventListener('click', function() {
+      if (!confirm('Delete this past entry for ' + blockName + ' on ' + entry.date + '?')) return;
+      deletePastBlockEntry(entry.date, entry.blockIndex);
+      renderPastBlockEntries(blockName);
+    });
+    actionsRow.appendChild(deleteBtn);
+
+    item.appendChild(actionsRow);
+
+    saveEditBtn.addEventListener('click', function() {
+      updatePastBlockEntry(entry.date, entry.blockIndex, editTextarea.value, editEnergyVal);
+      renderPastBlockEntries(blockName);
+    });
+    cancelEditBtn.addEventListener('click', function() {
+      editForm.style.display = 'none';
+      notes.style.display = '';
+      row.style.display = '';
+      actionsRow.style.display = '';
+    });
+
     blockDetailPastList.appendChild(item);
   });
 }
@@ -11098,7 +12935,7 @@ function renderPastBlockEntries(blockName) {
 function renderBlockDetail() {
   if (selectedBlockIdx == null || !blocks[selectedBlockIdx]) { closeBlockDetail(); return; }
   var block = blocks[selectedBlockIdx];
-  blockDetailTitle.textContent = block.name + ' — Block Details';
+  blockDetailTitle.textContent = block.name + ' — Block Entries';
 
   if (blockDetailEditing) {
     blockDetailEditor.style.display = '';
@@ -11113,6 +12950,7 @@ function renderBlockDetail() {
     blockDetailSaveBtn.style.display = 'none';
     blockDetailEditBtn.style.display = '';
 
+    blockDetailViewDate.textContent = todayLocalDateString();
     blockDetailViewEnergy.textContent = 'Energy: ' + (typeof block.energy === 'number' ? block.energy : '—');
     blockDetailViewNotes.textContent = (block.notes && block.notes.trim()) ? block.notes : 'No notes logged yet.';
   }
@@ -11186,7 +13024,6 @@ syncDailyAndWeeklyArchive();
 loadTodayDraft();
 renderEntries();
 renderMusts();
-loadTackle();
 migrateVisionDaysToDailyArchiveIfNeeded(); // before any render reads the Daily Archive
 renderWeeklyViz();
 renderYearlyViz();
