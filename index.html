@@ -5119,6 +5119,7 @@ function loadSunriseLocation() {
 
 function saveSunriseLocation(loc) {
   localStorage.setItem(scopedKey(SUNRISE_LOCATION_KEY), JSON.stringify(loc));
+  pushSharedSection('sunriseLocation', loc);
 }
 
 function computeSunriseUTC(localDate, lat, lon) {
@@ -5408,6 +5409,7 @@ function loadQuickLinks() {
 }
 function saveQuickLinks() {
   localStorage.setItem(scopedKey(QUICK_LINKS_KEY), JSON.stringify(quickLinks));
+  pushSharedSection('quickLinks', quickLinks);
 }
 var quickLinks = loadQuickLinks();
 
@@ -5603,6 +5605,7 @@ function loadDailyScoreWeights() {
 }
 function saveDailyScoreWeights(w) {
   localStorage.setItem(scopedKey(DAILY_SCORE_WEIGHTS_KEY), JSON.stringify(w));
+  pushSharedSection('dailyScoreWeights', w);
 }
 var dailyScoreWeights = loadDailyScoreWeights();
 
@@ -5665,7 +5668,9 @@ var AFFILIATE_LINK_KEY = 'csrAlignAffiliateLink';
 var affiliateLinkInput = document.getElementById('affiliateLinkInput');
 affiliateLinkInput.value = localStorage.getItem(scopedKey(AFFILIATE_LINK_KEY)) || '';
 document.getElementById('affiliateLinkSaveBtn').addEventListener('click', function() {
-  localStorage.setItem(scopedKey(AFFILIATE_LINK_KEY), affiliateLinkInput.value.trim());
+  var link = affiliateLinkInput.value.trim();
+  localStorage.setItem(scopedKey(AFFILIATE_LINK_KEY), link);
+  pushSharedSection('affiliateLink', link);
   showToast('Affiliate link saved.', 'success');
 });
 document.getElementById('affiliateLinkCopyBtn').addEventListener('click', function() {
@@ -5823,6 +5828,7 @@ function loadCategories() {
 
 function saveCategories(cats) {
   localStorage.setItem(scopedKey(JOURNAL_CATEGORIES_KEY), JSON.stringify(cats));
+  pushSharedSection('journalCategories', cats);
 }
 
 var journalCategories = loadCategories();
@@ -8815,6 +8821,43 @@ function pullAllUserDataFromSupabase(onComplete) {
 
   tasks.push(pullSection('ruler', function(data, isShared) {
     sectionShareState.ruler = isShared;
+  }));
+
+  // 5 personal settings with no security rationale for staying local
+  // (unlike the Telegram bot token, which stays local-only on
+  // purpose — see SECURITY.md) — none of these carry an is_shared
+  // toggle, so the second callback arg is unused here.
+  tasks.push(pullSection('quickLinks', function(data) {
+    localStorage.setItem(scopedKey(QUICK_LINKS_KEY), JSON.stringify(data));
+  }));
+  tasks.push(pullSection('sunriseLocation', function(data) {
+    localStorage.setItem(scopedKey(SUNRISE_LOCATION_KEY), JSON.stringify(data));
+  }));
+  tasks.push(pullSection('dailyScoreWeights', function(data) {
+    localStorage.setItem(scopedKey(DAILY_SCORE_WEIGHTS_KEY), JSON.stringify(data));
+  }));
+  tasks.push(pullSection('affiliateLink', function(data) {
+    localStorage.setItem(scopedKey(AFFILIATE_LINK_KEY), data);
+  }));
+  tasks.push(pullSection('journalCategories', function(data) {
+    localStorage.setItem(scopedKey(JOURNAL_CATEGORIES_KEY), JSON.stringify(data));
+  }));
+
+  // TradingView webhook secret — pushed to webhook_secrets on save
+  // (tradingviewSaveBtn's click handler) but, until now, never pulled
+  // back. Without this, the field shows blank after every login even
+  // though the real secret still works server-side — a real risk if
+  // that blank field nudges someone into clicking "Generate" again,
+  // silently overwriting the working secret and breaking whatever
+  // they already configured in TradingView's alert JSON.
+  tasks.push(new Promise(function(resolve) {
+    supabaseClient.from('webhook_secrets').select('tradingview_secret').eq('user_id', uid).then(function(result) {
+      var row = result.data && result.data[0];
+      if (row && row.tradingview_secret) {
+        localStorage.setItem(scopedKey(TRADINGVIEW_SECRET_KEY), row.tradingview_secret);
+      }
+      resolve();
+    });
   }));
 
   // Live Ruler blocks — the cross-device mirror lives in
