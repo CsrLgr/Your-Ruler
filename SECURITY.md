@@ -24,13 +24,27 @@ decision, and what still needs a manual step outside this codebase
     running it, especially around `find_clan_by_invite_code()` if
     that RPC already exists in some form.
 - **Content-Security-Policy** — a `<meta>` tag in `index.html`.
-  `frame-ancestors 'none'` covers clickjacking. `script-src`/
-  `style-src` include `'unsafe-inline'` as a known, deliberate
-  trade-off — the whole app is one inline `<script>`/`<style>` block
-  with no build step, so nonce/hash-based CSP isn't achievable
-  without a much larger refactor. `connect-src` is scoped to exact
-  origins only (Supabase https+wss, Sentry, `api.telegram.org` for
-  the GM/GN feature below) — never a wildcard.
+  `script-src`/`style-src` include `'unsafe-inline'` as a known,
+  deliberate trade-off — the whole app is one inline `<script>`/
+  `<style>` block with no build step, so nonce/hash-based CSP isn't
+  achievable without a much larger refactor. `connect-src` is scoped
+  to exact origins only (Supabase https+wss, Sentry, `api.telegram.org`
+  for the GM/GN feature below, plus `cdnjs.cloudflare.com` and
+  `browser.sentry-cdn.com` so DevTools can fetch jsPDF's/Sentry's
+  `.map` sourcemaps without a console warning — both origins already
+  execute full JS via `script-src`, so allowing a plain `.map` GET from
+  the same origin adds no new capability) — never a wildcard.
+  **CORRECTION:** this previously claimed `frame-ancestors 'none'`
+  covered clickjacking. It didn't — confirmed via a live browser
+  console warning ("The Content Security Policy directive
+  'frame-ancestors' is ignored when delivered via a `<meta>` element"),
+  which matches the CSP3 spec: `frame-ancestors` is HTTP-header-only,
+  never honored from a meta tag. The directive has been removed from
+  the policy (it did nothing but log that warning on every page load).
+  **This app currently has no clickjacking protection** — see the
+  Cloudflare manual-step item below, which is the only way to actually
+  get one (a real response header, which needs something in front of
+  GitHub Pages to set it).
 - **Telegram GM/GN broadcast** — each user enters their *own* bot
   token + chat IDs + message templates in a local settings modal;
   all of it lives in `localStorage` only, keyed to that device, never
@@ -133,14 +147,54 @@ decision, and what still needs a manual step outside this codebase
   fully clears `currentUser`/paid-status/UI state on sign-out.
 - **Crypto helper utility** — AES-256-GCM + PBKDF2 via the browser's
   native Web Crypto API (no external library). **Not wired into
-  journal save/load yet.** Journal entry *text* never reaches
-  Supabase today regardless (only journal images and the whiteboard
-  sync there) — this is about encrypting data at rest in
-  localStorage, and the open question is key management (derived
-  from the session? a separate passphrase? what's the recovery
-  story?), which is a product decision, not a crypto one. The entry
-  data model already carries an `encrypted` flag (always `false`
-  today) so wiring this in later doesn't require another migration.
+  journal save/load yet.** The entry data model already carries an
+  `encrypted` flag (always `false` today) so wiring this in later
+  doesn't require another migration.
+  **CORRECTION (found during a security audit pass):** this section
+  previously claimed journal entry *text* never reaches Supabase. That
+  was true when written, but is no longer true — the Ledgers
+  Send-as-DM feature (`journal_entries`/`entry_messages`,
+  `supabase/migrations/0007_journal_dm.sql`) pushes entry text to
+  Supabase in plaintext whenever an entry is Legion-shared or sent as
+  a DM, and Legion group chat (`clan_messages`,
+  `0008_clan_messages.sql`) does the same for chat messages. Neither
+  is encrypted. This is now the single biggest gap in this document —
+  fixing it (or explicitly downgrading the privacy claim for those two
+  features) is the next thing to do here, before anything else in this
+  file.
+- **Per-user localStorage namespacing** — every local key (Journal
+  entries, Ruler blocks, Track Alpha's local cache, the Telegram bot
+  token, the TradingView webhook secret, etc.) is wrapped through
+  `scopedKey()` (`index.html`, right after `currentUser` is declared),
+  which prefixes the key with the signed-in user's id (or a `guest`
+  bucket while signed out). Previously every key was a bare global
+  string, so a second Supabase account signing in on the same
+  shared/borrowed device inherited whatever the first account had
+  cached — including the two literal credentials above. A handful of
+  one-time legacy-migration source keys are deliberately left
+  unscoped (see the comment above `scopedKey()`) since they only ever
+  read pre-existing data from before this scheme existed.
+  `ensureCorrectUserScope()` forces a full page reload whenever the
+  signed-in identity actually changes (guarded by a sessionStorage
+  marker so it can't loop), since every piece of local state is loaded
+  synchronously at script start, before Supabase's async session check
+  can possibly resolve — reload is what guarantees everything re-loads
+  from the correct bucket rather than requiring ~30 separate pieces of
+  state to be manually re-synced in place.
+- **Subresource Integrity on all 5 externally-loaded scripts**
+  (`supabase-js`, `jspdf`, `jspdf-autotable`, `jszip`, Sentry) — each
+  `<script>` tag now carries an `integrity="sha384-…"` hash computed
+  directly against that exact file's bytes, plus `crossorigin="anonymous"`.
+  CSP's `script-src` already restricted *which hosts* could serve
+  script; this closes the gap where one of those hosts (or a
+  compromised CDN edge) could still serve tampered bytes and have them
+  execute anyway. `supabase-js` is also now pinned to an exact version
+  (`2.110.7`) instead of the previous unpinned `@2`, so what's hashed
+  here is deterministic rather than whatever jsdelivr resolves `@2` to
+  on a given day. **If any of these libraries are intentionally
+  upgraded, the new file's hash must be recomputed and the `src`/
+  `integrity` updated together — the browser will otherwise refuse to
+  load it.**
 - **Sentry** — SDK loads via CDN, `Sentry.init()` is guarded against
   an unreplaced DSN placeholder so local dev never breaks or reports
   against a fake project. Session replay is off on purpose — this app
@@ -189,17 +243,29 @@ decision, and what still needs a manual step outside this codebase
    variables > Actions) once a Sentry project exists — optional; the
    site works without it, just without error reporting.
 4. **Enable passkeys in Supabase Auth** (dashboard toggle). The
-   client currently loads `supabase-js@2` unpinned from jsdelivr;
-   passkey/WebAuthn support needs verifying against whatever version
-   that resolves to, and the client code needs the actual sign-in
-   call added once the provider's on — that wasn't built this pass
-   since it depends on the dashboard state first.
-5. **Cloudflare**, once the domain routes through it:
+   client now loads `supabase-js@2.110.7` pinned (was unpinned `@2`
+   from jsdelivr — see the Subresource Integrity item below);
+   passkey/WebAuthn support needs verifying against that exact
+   version, and the client code needs the actual sign-in call added
+   once the provider's on — that wasn't built this pass since it
+   depends on the dashboard state first.
+5. **Verify `0004_fix_rls_policy_bypasses.sql` is actually applied** —
+   flagged during a security audit pass as unverifiable from this
+   environment (no DB connection). Run in the SQL Editor:
+   `select policyname from pg_policies where tablename in
+   ('profiles','clan_members','shared_rulers');` — if any of the four
+   stale policy names named in that migration's header are still
+   present, run the migration now; it's idempotent.
+6. **Cloudflare**, once the domain routes through it:
    - Full (strict) SSL/TLS mode, "Always Use HTTPS" on.
    - Security headers via Transform Rules or a Worker — this is where
-     HSTS, `X-Content-Type-Options`, and `Referrer-Policy` actually
-     get set as real HTTP headers (the meta-tag CSP in `index.html`
-     cannot set any of these). If Cloudflare also sets its own CSP,
+     HSTS, `X-Content-Type-Options`, `Referrer-Policy`, and
+     `X-Frame-Options` (or a header-delivered `frame-ancestors`)
+     actually get set as real HTTP headers (the meta-tag CSP in
+     `index.html` cannot set any of these — `frame-ancestors`
+     specifically is silently ignored via `<meta>`, so clickjacking
+     protection does not exist until this step is done). If Cloudflare
+     also sets its own CSP,
      decide which one wins — a page with two conflicting CSPs doesn't
      merge cleanly, it can just break unexpectedly. Simplest path:
      leave CSP as this repo's meta tag and use Cloudflare only for
@@ -207,7 +273,7 @@ decision, and what still needs a manual step outside this codebase
    - WAF managed rules + rate limiting, particularly on the auth
      endpoints (`signInWithOtp`, `signInWithPassword`) and Legion
      join-by-code, since both are realistic brute-force/abuse targets.
-6. **Journal encryption is still unwired** (`encryptText`/
+7. **Journal encryption is still unwired** (`encryptText`/
    `decryptText` are not called from `saveEntries()`/`loadEntries()`
    yet) — but the key-management question that blocked it is now
    answered by precedent: Alpha's device-bound non-extractable-key

@@ -9,9 +9,20 @@
   Content-Security-Policy — a meta-tag CSP, not an HTTP header, so it
   can't set X-Frame-Options/X-Content-Type-Options/HSTS at all (those
   need Cloudflare or another proxy in front of GitHub Pages, which
-  cannot inject response headers on its own). frame-ancestors 'none'
-  below is the CSP-native, meta-tag-compatible equivalent of
-  X-Frame-Options: DENY, so clickjacking protection still applies.
+  cannot inject response headers on its own).
+
+  CORRECTED (previously claimed otherwise here): frame-ancestors is
+  NOT enforced via a <meta> element — the CSP3 spec restricts it (and
+  sandbox, report-uri/report-to) to HTTP-header delivery only, and
+  browsers silently ignore it in a meta tag (confirmed via a live
+  console warning: "The Content Security Policy directive
+  'frame-ancestors' is ignored when delivered via a <meta> element.").
+  This app currently has NO clickjacking protection — the directive
+  was removed from the policy below since it did nothing but produce
+  that console warning on every page load. Real protection requires
+  an actual X-Frame-Options or CSP frame-ancestors HTTP response
+  header, which needs Cloudflare (or similar) in front of GitHub
+  Pages — see SECURITY.md's Cloudflare manual-step item.
 
   'unsafe-inline' on script-src and style-src is a known, deliberate
   trade-off: this entire app is one inline <script>/<style> block with
@@ -23,9 +34,20 @@
 
   connect-src whitelists this project's own Supabase URL by exact
   origin (both https and wss, since Legion live-updates use realtime
-  websockets) rather than a wildcard.
+  websockets) rather than a wildcard. cdnjs.cloudflare.com and
+  browser.sentry-cdn.com are also listed here (in addition to
+  script-src, where they already load the actual libraries) purely so
+  DevTools can fetch jsPDF's and Sentry's .map sourcemap files without
+  a CSP violation — minified bundles reference these via a trailing
+  "//# sourceMappingURL=...map" comment, and Chrome fetches them under
+  connect-src (not script-src) whenever DevTools is open, for
+  pretty-printing stack traces. This grants no new capability: both
+  origins are already trusted enough to execute arbitrary JS via
+  script-src, so permitting a plain .map GET from the same origin is
+  strictly less trust than that. Purely cosmetic — nothing was broken
+  functionally before this, jsPDF/Sentry both loaded and ran fine.
 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://browser.sentry-cdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://dctsxztgwwgbedeyqpee.supabase.co wss://dctsxztgwwgbedeyqpee.supabase.co https://*.ingest.sentry.io https://*.sentry.io https://api.telegram.org; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://browser.sentry-cdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://dctsxztgwwgbedeyqpee.supabase.co wss://dctsxztgwwgbedeyqpee.supabase.co https://*.ingest.sentry.io https://*.sentry.io https://api.telegram.org https://cdnjs.cloudflare.com https://browser.sentry-cdn.com; base-uri 'self'; form-action 'self'; object-src 'none';">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0a0808">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -36,14 +58,25 @@
      out at 700 (no black/900 cut exists for this family), so headings
      use 700 rather than a heavier synthetic-bold fake. -->
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<!-- Subresource Integrity on all 5 externally-loaded scripts: CSP's
+     script-src already restricts WHICH hosts can serve script here,
+     but integrity= is what stops a compromised/tampered CDN response
+     from running at all — the browser refuses to execute if the
+     fetched bytes don't hash to exactly this. supabase-js is pinned
+     to an exact version (was "@2", a moving target) rather than left
+     to auto-resolve, so what's audited here is what actually runs.
+     Hashes computed directly against each URL's served bytes
+     (sha384, base64) — if any of these libraries are intentionally
+     upgraded later, the new file's hash must be recomputed too, or
+     the browser will block it from loading. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.7/dist/umd/supabase.min.js" integrity="sha384-BmlQlKlDvXvKoxkn5OQuUo/aJQCTXeB+Kls6EccBmG4Kf8AXvp89RtO9MtPxP/r5" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" integrity="sha384-fCAW/rDWORTbQXSiB7mOg0QtQ5c+r0f544y6XoKjuVva0nMBlCpNUjiFeG5iMdS3" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous"></script>
 <!-- Sentry Browser SDK — init is guarded in the main script against
      an unreplaced DSN placeholder, so local dev (where no build step
      runs) never breaks or spams a fake project. -->
-<script src="https://browser.sentry-cdn.com/7.120.3/bundle.min.js" crossorigin="anonymous"></script>
+<script src="https://browser.sentry-cdn.com/7.120.3/bundle.min.js" integrity="sha384-QhNWP5Exx8ZPPgZF2s+nKw/cl8cah1/6MVdZfR8a22f2KO0OsBNonujHvYJlrWIP" crossorigin="anonymous"></script>
 <style>
   * { box-sizing: border-box; }
   body {
@@ -86,28 +119,12 @@
 
   /* Sunrise — real astronomical sunrise (computed locally, no external
      API — offline-friendly like the rest of the app) for the user's
-     location. The old bordered forecast card is gone; this is just a
-     small far-left label sitting where it used to, right above the
-     Weekly Visualization box — the actual forecast values now nest
-     directly under the UTC and Local Time clocks instead (see
-     .sunrise-preview-item below), so this label carries no data of
-     its own. */
-  .sunrise-label {
-    display: block;
-    font-size: 9px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--rd-gold);
-    margin-bottom: 0.4rem;
-  }
-  /* Nests inside .clock-item (UTC only, not the center Ruler
-     Alignment clock or Local Time) — .clock-item is already
-     flex-column + centered, so this just sits below that clock's own
-     value, centered to match, no row of its own to take extra
-     vertical space. Single line now: "Sunrise Tomorrow - (time)". */
+     location. Sits inside .weekly-wrap, directly below the Weekly
+     Visualization box and above the Ruler timeline further down the
+     page. Single line: "Sunrise Tomorrow - (time)". */
   .sunrise-preview-item {
     display: block;
-    margin-top: 0.3rem;
+    margin-top: 0.6rem;
     color: var(--rd-text);
     font-variant-numeric: tabular-nums;
     font-size: 11px;
@@ -171,7 +188,13 @@
     flex-direction: column;
     justify-content: flex-start;
     align-self: stretch;
-    gap: 1.75rem;
+    /* Bigger gap (not a bigger box) keeps Today's Mission down near
+       the Ruler/Time Crawler section below. Reduced from 6rem now
+       that Links/Score/GM-GN (see .hg-* margin-top above) were
+       pushed down within the grid itself — without this reduction,
+       lowering them there would just re-widen the gap to Mission and
+       cancel out the "bring them closer to it" request. */
+    gap: 3rem;
   }
   .header h1 { font-size: 28px; margin: 0; color: var(--rd-text); }
   .header p { font-size: 14px; color: #999; margin-top: 0.4rem; }
@@ -1001,11 +1024,12 @@
     background: #111722;
     border: 1px solid #3a3327;
     border-radius: 8px;
-    padding: 0.75rem;
+    /* A bit taller overall — there's empty room below it before the
+       Ruler timeline starts further down the page, per direct request. */
+    padding: 1.1rem 0.75rem;
     box-shadow: 0 6px 18px rgba(0,0,0,0.45);
   }
   .weekly-box .section-label { font-size: 11px; margin-bottom: 0.4rem; display: block; text-align: center; }
-
   .weekly-focus-row {
     display: flex;
     align-items: flex-end;
@@ -1060,9 +1084,11 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.25rem 0.3rem;
+    /* Slightly roomier per row (×7 rows adds up) — part of the same
+       "give Weekly Visualization a bit more length" request. */
+    padding: 0.4rem 0.3rem;
     border-radius: 4px;
-    margin-bottom: 2px;
+    margin-bottom: 4px;
   }
   .weekly-day-row.is-today {
     background: rgba(192,181,165,0.15);
@@ -1179,6 +1205,17 @@
     white-space: nowrap;
   }
   .export-checkbox-group input[type="checkbox"] { accent-color: #C5A46E; cursor: pointer; }
+  .export-snipe-dropdown-wrap { flex-basis: 100%; margin-top: 0.2rem; }
+  .export-snipe-select {
+    background: #131A26;
+    border: 1px solid #333;
+    border-radius: 6px;
+    color: var(--rd-text);
+    font-family: Georgia, serif;
+    font-size: 12px;
+    padding: 0.4rem 0.6rem;
+  }
+  .export-snipe-select:focus { outline: 1px solid #C5A46E; }
   .export-controls {
     display: flex;
     align-items: center;
@@ -1777,17 +1814,18 @@
   .hg-utc { grid-column: 1; grid-row: 1; }
   .hg-ruler { grid-column: 2; grid-row: 1; }
   .hg-local { grid-column: 3; grid-row: 1; }
-  .hg-sunrise { grid-column: 2; grid-row: 2; }
-  /* Pulled up closer to Sunrise Tomorrow than the grid's normal
-     row-gap would give it (negative margin, shared across all 3 of
-     row 3's items so they move up together and stay aligned with each
-     other) — Daily Score reads as directly under the sunrise line,
-     while the gap below it, before GM/GN, stays at the normal rhythm. */
-  .hg-links-left, .hg-score, .hg-links-right { grid-row: 3; margin-top: -0.5rem; }
+  /* Links pushed down away from the clocks (extra margin-top on top
+     of the grid's normal row-gap) so they sit lower, closer to
+     Today's Mission below — the clocks themselves stay put. */
+  .hg-links-left, .hg-links-right { grid-row: 2; margin-top: 1.5rem; }
   .hg-links-left { grid-column: 1; }
-  .hg-score { grid-column: 2; }
   .hg-links-right { grid-column: 3; }
-  .hg-gmgn { grid-column: 2; grid-row: 4; }
+  /* Daily Score pulled back up, closer to the Ruler Alignment
+     formula ("12 x 120 = 1440m") directly above it — deliberately NOT
+     matching the links' margin-top, per direct request to move just
+     the score label higher while the links stay lower. */
+  .hg-score { grid-column: 2; grid-row: 2; margin-top: -1rem; }
+  .hg-gmgn { grid-column: 2; grid-row: 3; margin-top: 1.5rem; }
   /* Narrow screens: collapse to a single centered column, everything
      in natural (DOM) order, rather than squeezing 3 fixed columns
      into too little width. */
@@ -1926,6 +1964,14 @@
     border-radius: 12px;
     background: rgba(14,19,30,0.7);
     box-shadow: 0 0 26px rgba(197,164,110,0.55);
+  }
+  .todays-mission-date {
+    display: block;
+    text-align: center;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    color: var(--rd-gold);
+    margin-bottom: 0.5rem;
   }
   .todays-mission-header-row {
     display: flex;
@@ -3536,7 +3582,7 @@
   .progress-pct, .weekly-day-num, .weekly-day-score, .yearly-month-num,
   .entry-date, .block-mins, .block-energy-badge, .cb-time,
   .todays-mission-progress, .block-detail-view-date, .block-detail-past-date, .block-detail-past-energy,
-  .energy-btn, .must-score-btn, .ruler-tick-label {
+  .energy-btn, .must-score-btn, .ruler-tick-label, .todays-mission-date {
     font-family: 'OCRA', 'Courier New', monospace !important;
   }
 
@@ -3749,12 +3795,6 @@
 <div class="page-wrap">
   <div class="header-row">
     <div class="weekly-wrap">
-      <!-- Just a label now — the actual forecast (tomorrow + day-after
-           sunrise) moved to sit under the center clock, above the
-           Daily Score, so the sunrise card's border/padding no longer
-           eats vertical space here; Weekly Visualization gets that
-           room back instead. -->
-      <span class="sunrise-label">Sunrise</span>
       <div class="weekly-box">
         <span class="section-label">Weekly Visualization</span>
         <div class="weekly-focus-row">
@@ -3778,6 +3818,10 @@
           <label for="weeklyShare">Share with Legion</label>
         </div>
       </div>
+
+      <!-- Below Weekly Visualization, above the Ruler timeline further
+           down the page. Rendered by renderSunriseForecast() in the JS. -->
+      <span class="sunrise-preview-item" id="sunrisePreviewTomorrow"></span>
     </div>
 
     <div class="header">
@@ -3785,13 +3829,13 @@
            specific elements can share a grid row and land at the exact
            same vertical position regardless of what else is stacked
            above them in their own column: row 1 is UTC / Ruler
-           Alignment / Local Time; row 2 is Sunrise Tomorrow (center
-           only); row 3 is the Quick Links (3 per side) centered with
-           Daily Score — that's the row that guarantees the link
-           buttons align with the score rather than drifting toward
-           the clocks; row 4 is GM/GN. Sunrise rendered by
-           renderSunriseForecast() in the JS; #sunrisePreviewTomorrow is
-           its one mount point. #quickLinksLeft/#quickLinksRight are
+           Alignment / Local Time; row 2 is the Quick Links (3 per
+           side) centered with Daily Score — that's the row that
+           guarantees the link buttons align with the score rather
+           than drifting toward the clocks; row 3 is GM/GN. Sunrise
+           Tomorrow moved out of this grid entirely — it now lives
+           under Weekly Visualization instead (see .weekly-wrap
+           above). #quickLinksLeft/#quickLinksRight are
            renderQuickLinks()'s two mount points. -->
       <div class="header-grid">
         <div class="clock-item hg-utc">
@@ -3807,8 +3851,6 @@
           <span class="clock-label">Local Time</span>
           <span class="clock-value" id="localClock">—</span>
         </div>
-
-        <span class="sunrise-preview-item hg-sunrise" id="sunrisePreviewTomorrow"></span>
 
         <div class="quick-links-col hg-links-left" id="quickLinksLeft"></div>
         <div class="daily-score hg-score">
@@ -3828,6 +3870,7 @@
       </div>
 
       <div id="todaysMission" class="todays-mission">
+        <span class="todays-mission-date" id="todaysMissionDate"></span>
         <div class="todays-mission-header-row">
           <!-- Marks today's mission done — synced with whichever
                Vision day box represents today (Plans tab), if that
@@ -4118,8 +4161,9 @@
         <div class="export-row">
           <span class="export-row-label">Tabs</span>
           <div class="export-tab-group" id="exportTabGroup">
-            <button type="button" class="export-tab-btn" data-tab="ruler">Today</button>
+            <button type="button" class="export-tab-btn" data-tab="insights">Track Alpha</button>
             <button type="button" class="export-tab-btn" data-tab="life">Plans</button>
+            <button type="button" class="export-tab-btn" data-tab="ruler">Today</button>
             <button type="button" class="export-tab-btn" data-tab="journal">Ledgers</button>
             <button type="button" class="export-tab-btn" data-tab="clans">Legions</button>
           </div>
@@ -4350,6 +4394,87 @@ var BLOCK_CLOCK_SIZE = 120;
 var currentUser = null;
 var currentUserIsPaid = false;
 
+// ---- Per-user localStorage namespacing ----
+// Every localStorage key below is wrapped through scopedKey() at the
+// point of use, so two different Supabase accounts signing in on the
+// same shared/borrowed device never see (or overwrite) each other's
+// local data — previously every key was a static global string, so
+// signing out and a different person signing in inherited whatever
+// the first person had cached (Journal entries, Track Alpha profiles,
+// even the Telegram bot token / TradingView webhook secret). Falls
+// back to a single 'guest' bucket while signed out, matching how the
+// app already works for logged-out visitors.
+//
+// Two categories of key are DELIBERATELY left unscoped (never passed
+// through scopedKey): the one-time legacy migration SOURCE keys
+// (LOCAL_SNAPSHOTS_KEY, YEARLY_VIZ_KEY, and the two raw legacy
+// removeItem calls near VISION_YEAR_LOCAL_CLEANUP_KEY) — these only
+// ever read pre-existing data written before this scoping scheme
+// existed, so scoping them would just make every one-time migration
+// silently find nothing and stop working, not protect anything (the
+// data they migrate FROM is retired immediately after).
+function scopedKey(baseKey) {
+  return 'u:' + (currentUser ? currentUser.id : 'guest') + ':' + baseKey;
+}
+
+// A signed-in identity change (first session restore, sign-out, or
+// switching accounts) means every in-memory var loaded from a
+// scopedKey()'d localStorage entry earlier this page-load was read
+// under the WRONG bucket (loads happen synchronously at script start,
+// before Supabase's async auth check can possibly resolve). Rather
+// than hunt down and manually reload/re-render the ~30 separate
+// pieces of state this would otherwise require, force a full reload
+// once the real identity is known — guaranteed correct, since every
+// top-level load runs fresh from the right bucket after. Guarded by
+// sessionStorage (not scopedKey'd — it's a reload marker, not user
+// data, and must survive the very reload it's guarding against) so
+// this can't loop: it only reloads when the identity actually differs
+// from the last one this tab already reloaded for.
+//
+// Whenever the PREVIOUS identity was a real signed-in user (marker is
+// non-empty), that user is leaving this tab's scope — either signing
+// out, or another account taking over — so this is also the one spot
+// that's guaranteed to run exactly once per sign-out: wipe their
+// local cache here (wipeAllLocalUserData(), defined further down —
+// hoisted, so the declaration order doesn't matter) rather than just
+// namespacing it out of view. USER_DATA_PULLED_KEY is cleared too, so
+// if that same person signs back in later this tab session, the
+// cloud repopulation in pullOnceIfNeeded() runs again instead of
+// finding an already-wiped, never-refilled local cache.
+//
+// Returns true if it just triggered a reload (caller should bail out
+// immediately rather than keep running this pass against state that
+// was loaded under the wrong bucket).
+var USER_SCOPE_RELOAD_GUARD_KEY = 'csrAlignLastScopedUser';
+var USER_DATA_PULLED_KEY = 'csrAlignPulledForUser';
+function ensureCorrectUserScope(userIdOrNull) {
+  var marker = sessionStorage.getItem(USER_SCOPE_RELOAD_GUARD_KEY) || '';
+  var identity = userIdOrNull || '';
+  if (marker === identity) return false;
+  if (marker) wipeAllLocalUserData(marker);
+  sessionStorage.removeItem(USER_DATA_PULLED_KEY);
+  sessionStorage.setItem(USER_SCOPE_RELOAD_GUARD_KEY, identity);
+  location.reload();
+  return true;
+}
+
+// Runs pullAllUserDataFromSupabase() exactly once per (tab session,
+// signed-in identity) — call this after ensureCorrectUserScope() has
+// confirmed no reload is needed, i.e. once the current pass is
+// actually running under the correct, stable scope. Reloads again
+// once the pull finishes writing fresh data into localStorage, same
+// reasoning as ensureCorrectUserScope itself: guaranteed-correct
+// re-render of every affected UI piece beats manually re-triggering
+// ~30 separate render functions in place.
+function pullOnceIfNeeded(userId) {
+  if (!userId) return;
+  if (sessionStorage.getItem(USER_DATA_PULLED_KEY) === userId) return;
+  sessionStorage.setItem(USER_DATA_PULLED_KEY, userId);
+  pullAllUserDataFromSupabase(function() {
+    location.reload();
+  });
+}
+
 var STORAGE_KEY = 'csrAlignBlocks';
 var ENTRIES_KEY = 'csrAlignEntries';
 var TODAY_KEY = 'csrAlignTodayEntry';
@@ -4398,7 +4523,7 @@ function todayLocalDateString() {
 }
 
 function captureLocalDailySnapshotIfNeeded() {
-  var lastDate = localStorage.getItem(LAST_SNAPSHOT_DATE_KEY);
+  var lastDate = localStorage.getItem(scopedKey(LAST_SNAPSHOT_DATE_KEY));
   var today = todayLocalDateString();
 
   if (lastDate === today) return; // already checked today, nothing to do
@@ -4412,7 +4537,7 @@ function captureLocalDailySnapshotIfNeeded() {
   if (lastDate) {
     var archive = loadDailyArchive();
     if (!archive[lastDate]) {
-      var existingBlocks = localStorage.getItem(STORAGE_KEY);
+      var existingBlocks = localStorage.getItem(scopedKey(STORAGE_KEY));
       if (existingBlocks) {
         try {
           archive[lastDate] = { date: lastDate, blocks: JSON.parse(existingBlocks) };
@@ -4433,7 +4558,7 @@ function captureLocalDailySnapshotIfNeeded() {
     if (typeof rolloverTackleForNewDay === 'function') rolloverTackleForNewDay(lastDate);
   }
 
-  localStorage.setItem(LAST_SNAPSHOT_DATE_KEY, today);
+  localStorage.setItem(scopedKey(LAST_SNAPSHOT_DATE_KEY), today);
 }
 
 // ============================================================
@@ -4455,7 +4580,7 @@ function captureLocalDailySnapshotIfNeeded() {
 // ============================================================
 
 function loadDailyArchive() {
-  var saved = localStorage.getItem(DAILY_ARCHIVE_KEY);
+  var saved = localStorage.getItem(scopedKey(DAILY_ARCHIVE_KEY));
   if (saved) {
     try { return JSON.parse(saved); } catch(e) { return {}; }
   }
@@ -4463,7 +4588,8 @@ function loadDailyArchive() {
 }
 
 function saveDailyArchive(archive) {
-  localStorage.setItem(DAILY_ARCHIVE_KEY, JSON.stringify(archive));
+  localStorage.setItem(scopedKey(DAILY_ARCHIVE_KEY), JSON.stringify(archive));
+  pushSharedSection('dailyArchiveFull', archive);
 }
 
 // One-time migration from the old blocks-only snapshot key, so
@@ -4536,7 +4662,7 @@ function isoWeekKey(date) {
 }
 
 function loadWeeklyArchive() {
-  var saved = localStorage.getItem(WEEKLY_ARCHIVE_KEY);
+  var saved = localStorage.getItem(scopedKey(WEEKLY_ARCHIVE_KEY));
   if (saved) {
     try { return JSON.parse(saved); } catch(e) { return {}; }
   }
@@ -4544,7 +4670,8 @@ function loadWeeklyArchive() {
 }
 
 function saveWeeklyArchive(archive) {
-  localStorage.setItem(WEEKLY_ARCHIVE_KEY, JSON.stringify(archive));
+  localStorage.setItem(scopedKey(WEEKLY_ARCHIVE_KEY), JSON.stringify(archive));
+  pushSharedSection('weeklyArchiveFull', archive);
 }
 
 function getWeekRecord(weekKey) {
@@ -4671,7 +4798,7 @@ function snapshotTodayNow() {
 // ---- Load or initialize block data ----
 // Each block: { name, minutes, sleep: true/false }
 function loadBlocks() {
-  var saved = localStorage.getItem(STORAGE_KEY);
+  var saved = localStorage.getItem(scopedKey(STORAGE_KEY));
   if (saved) {
     try {
       var parsed = JSON.parse(saved);
@@ -4696,7 +4823,7 @@ function loadBlocks() {
 }
 
 function saveBlocks() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(blocks));
+  localStorage.setItem(scopedKey(STORAGE_KEY), JSON.stringify(blocks));
   // If logged in, push the update live so clan members see it instantly.
   if (typeof pushMyRulerToSupabase === 'function') pushMyRulerToSupabase();
   if (typeof syncDailyAndWeeklyArchive === 'function') syncDailyAndWeeklyArchive();
@@ -4985,13 +5112,13 @@ function updateRulerCrawler(now) {
 var SUNRISE_LOCATION_KEY = 'csrAlignSunriseLocation';
 
 function loadSunriseLocation() {
-  var saved = localStorage.getItem(SUNRISE_LOCATION_KEY);
+  var saved = localStorage.getItem(scopedKey(SUNRISE_LOCATION_KEY));
   if (saved) { try { return JSON.parse(saved); } catch (e) { return null; } }
   return null;
 }
 
 function saveSunriseLocation(loc) {
-  localStorage.setItem(SUNRISE_LOCATION_KEY, JSON.stringify(loc));
+  localStorage.setItem(scopedKey(SUNRISE_LOCATION_KEY), JSON.stringify(loc));
 }
 
 function computeSunriseUTC(localDate, lat, lon) {
@@ -5129,7 +5256,7 @@ Array.prototype.forEach.call(document.getElementById('quickEnergyBtns').querySel
 var TELEGRAM_CONFIG_KEY = 'csrAlignTelegramConfig';
 
 function loadTelegramConfig() {
-  var saved = localStorage.getItem(TELEGRAM_CONFIG_KEY);
+  var saved = localStorage.getItem(scopedKey(TELEGRAM_CONFIG_KEY));
   var defaults = {
     botToken: '',
     chatIds: [],
@@ -5149,7 +5276,7 @@ function loadTelegramConfig() {
 }
 
 function saveTelegramConfig(cfg) {
-  localStorage.setItem(TELEGRAM_CONFIG_KEY, JSON.stringify(cfg));
+  localStorage.setItem(scopedKey(TELEGRAM_CONFIG_KEY), JSON.stringify(cfg));
 }
 
 function sendTelegramMessage(botToken, chatId, text) {
@@ -5261,7 +5388,7 @@ function defaultQuickLinks() {
 // slots, padding with empty ones rather than discarding existing
 // links just because the count doesn't match anymore.
 function loadQuickLinks() {
-  var saved = localStorage.getItem(QUICK_LINKS_KEY);
+  var saved = localStorage.getItem(scopedKey(QUICK_LINKS_KEY));
   if (saved) {
     try {
       var parsed = JSON.parse(saved);
@@ -5280,7 +5407,7 @@ function loadQuickLinks() {
   return defaultQuickLinks();
 }
 function saveQuickLinks() {
-  localStorage.setItem(QUICK_LINKS_KEY, JSON.stringify(quickLinks));
+  localStorage.setItem(scopedKey(QUICK_LINKS_KEY), JSON.stringify(quickLinks));
 }
 var quickLinks = loadQuickLinks();
 
@@ -5386,7 +5513,7 @@ renderSettingsLinkRows();
 var TRADINGVIEW_SECRET_KEY = 'csrAlignTradingViewSecret';
 
 function loadTradingViewSecret() {
-  return localStorage.getItem(TRADINGVIEW_SECRET_KEY) || '';
+  return localStorage.getItem(scopedKey(TRADINGVIEW_SECRET_KEY)) || '';
 }
 
 function generateWebhookSecret() {
@@ -5420,7 +5547,7 @@ document.getElementById('tradingviewSaveBtn').addEventListener('click', function
   if (!currentUser) { showToast('Sign in first — the webhook is tied to your account.', 'error'); return; }
   var secret = tradingviewSecretInput.value.trim();
   if (!secret) { showToast('Generate or enter a secret first.', 'error'); return; }
-  localStorage.setItem(TRADINGVIEW_SECRET_KEY, secret);
+  localStorage.setItem(scopedKey(TRADINGVIEW_SECRET_KEY), secret);
   if (!supabaseClient) { showToast('Saved locally, but not synced — Supabase unavailable.', 'error'); return; }
   supabaseClient.from('webhook_secrets')
     .upsert({ user_id: currentUser.id, tradingview_secret: secret, updated_at: new Date().toISOString() })
@@ -5463,7 +5590,7 @@ document.getElementById('tradingviewTestBtn').addEventListener('click', function
 var DAILY_SCORE_WEIGHTS_KEY = 'csrAlignDailyScoreWeights';
 var DEFAULT_DAILY_SCORE_WEIGHTS = { alpha: 2, mission: 3, musts: 2, ledger: 2, legion: 1 };
 function loadDailyScoreWeights() {
-  var saved = localStorage.getItem(DAILY_SCORE_WEIGHTS_KEY);
+  var saved = localStorage.getItem(scopedKey(DAILY_SCORE_WEIGHTS_KEY));
   if (saved) {
     try {
       var parsed = JSON.parse(saved);
@@ -5475,7 +5602,7 @@ function loadDailyScoreWeights() {
   return Object.assign({}, DEFAULT_DAILY_SCORE_WEIGHTS);
 }
 function saveDailyScoreWeights(w) {
-  localStorage.setItem(DAILY_SCORE_WEIGHTS_KEY, JSON.stringify(w));
+  localStorage.setItem(scopedKey(DAILY_SCORE_WEIGHTS_KEY), JSON.stringify(w));
 }
 var dailyScoreWeights = loadDailyScoreWeights();
 
@@ -5536,9 +5663,9 @@ document.getElementById('scoreWeightResetBtn').addEventListener('click', functio
 // ---- Affiliate Link (Settings tab) ----
 var AFFILIATE_LINK_KEY = 'csrAlignAffiliateLink';
 var affiliateLinkInput = document.getElementById('affiliateLinkInput');
-affiliateLinkInput.value = localStorage.getItem(AFFILIATE_LINK_KEY) || '';
+affiliateLinkInput.value = localStorage.getItem(scopedKey(AFFILIATE_LINK_KEY)) || '';
 document.getElementById('affiliateLinkSaveBtn').addEventListener('click', function() {
-  localStorage.setItem(AFFILIATE_LINK_KEY, affiliateLinkInput.value.trim());
+  localStorage.setItem(scopedKey(AFFILIATE_LINK_KEY), affiliateLinkInput.value.trim());
   showToast('Affiliate link saved.', 'success');
 });
 document.getElementById('affiliateLinkCopyBtn').addEventListener('click', function() {
@@ -5684,7 +5811,7 @@ var JOURNAL_CATEGORIES_KEY = 'csrAlignCategories';
 var DEFAULT_CATEGORIES = ['Trader', 'Personal', 'Projects', 'Miscellaneous'];
 
 function loadCategories() {
-  var saved = localStorage.getItem(JOURNAL_CATEGORIES_KEY);
+  var saved = localStorage.getItem(scopedKey(JOURNAL_CATEGORIES_KEY));
   if (saved) {
     try {
       var parsed = JSON.parse(saved);
@@ -5695,7 +5822,7 @@ function loadCategories() {
 }
 
 function saveCategories(cats) {
-  localStorage.setItem(JOURNAL_CATEGORIES_KEY, JSON.stringify(cats));
+  localStorage.setItem(scopedKey(JOURNAL_CATEGORIES_KEY), JSON.stringify(cats));
 }
 
 var journalCategories = loadCategories();
@@ -5834,7 +5961,7 @@ function decryptText(encrypted, cryptoKey) {
 // Entry shape: { id, date, createdAt, text, category, score, sharedLegionIds,
 //                edited, history: [{ text, editedAt }], encrypted }
 function loadEntries() {
-  var saved = localStorage.getItem(ENTRIES_KEY);
+  var saved = localStorage.getItem(scopedKey(ENTRIES_KEY));
   if (saved) {
     try {
       var parsed = JSON.parse(saved);
@@ -5869,7 +5996,7 @@ function loadEntries() {
 }
 
 function saveEntries(entries) {
-  localStorage.setItem(ENTRIES_KEY, JSON.stringify(entries));
+  localStorage.setItem(scopedKey(ENTRIES_KEY), JSON.stringify(entries));
   if (typeof renderSharedSectionsList === 'function') renderSharedSectionsList();
 }
 
@@ -6213,11 +6340,11 @@ function buildEntryElement(entry) {
 var workArea = document.getElementById('workArea');
 
 function loadTodayDraft() {
-  var saved = localStorage.getItem(TODAY_KEY);
+  var saved = localStorage.getItem(scopedKey(TODAY_KEY));
   if (saved) workArea.value = saved;
 }
 function saveTodayDraft() {
-  localStorage.setItem(TODAY_KEY, workArea.value);
+  localStorage.setItem(scopedKey(TODAY_KEY), workArea.value);
 }
 
 workArea.addEventListener('input', saveTodayDraft);
@@ -6377,7 +6504,7 @@ document.getElementById('saveBtn').addEventListener('click', function() {
     renderEntries();
   }
   workArea.value = '';
-  localStorage.removeItem(TODAY_KEY);
+  localStorage.removeItem(scopedKey(TODAY_KEY));
   clearStagedImages();
 });
 
@@ -6389,7 +6516,7 @@ var DEFAULT_MUSTS = [
 ];
 
 function loadMusts() {
-  var saved = localStorage.getItem(MUSTS_KEY);
+  var saved = localStorage.getItem(scopedKey(MUSTS_KEY));
   if (saved) {
     try {
       var parsed = JSON.parse(saved);
@@ -6406,7 +6533,7 @@ function loadMusts() {
 }
 
 function saveMusts() {
-  localStorage.setItem(MUSTS_KEY, JSON.stringify(musts));
+  localStorage.setItem(scopedKey(MUSTS_KEY), JSON.stringify(musts));
   pushSharedSection('musts', musts);
 }
 
@@ -6562,7 +6689,7 @@ function defaultTackle() {
   return { tasks: [], shared: false };
 }
 function loadTackle() {
-  var saved = localStorage.getItem(TACKLE_KEY);
+  var saved = localStorage.getItem(scopedKey(TACKLE_KEY));
   if (saved) {
     try {
       var parsed = JSON.parse(saved);
@@ -6591,7 +6718,7 @@ function loadTackle() {
 var tackle = loadTackle();
 
 function saveTackle() {
-  localStorage.setItem(TACKLE_KEY, JSON.stringify({ tasks: tackle.tasks, shared: tackleShare.checked }));
+  localStorage.setItem(scopedKey(TACKLE_KEY), JSON.stringify({ tasks: tackle.tasks, shared: tackleShare.checked }));
   sectionShareState.whiteboard = tackleShare.checked;
   saveSectionShareState();
   pushSharedSection('whiteboard', { tasks: tackle.tasks });
@@ -6678,7 +6805,7 @@ function pullTackleFromSupabase() {
         tackle.tasks = remoteTasks.map(function(t) {
           return { text: (t && t.text) || '', done: !!(t && t.done) };
         }).filter(function(t) { return t.text; });
-        localStorage.setItem(TACKLE_KEY, JSON.stringify({ tasks: tackle.tasks, shared: tackleShare.checked }));
+        localStorage.setItem(scopedKey(TACKLE_KEY), JSON.stringify({ tasks: tackle.tasks, shared: tackleShare.checked }));
         renderTackleList();
       }
     });
@@ -6787,7 +6914,7 @@ function buildRollingWindowSnapshot() {
 // runs before any user interaction is possible. Everything already
 // reading WeeklyArchive.focusText (Yearly Viz's pulled-focus display,
 // CSV/PDF export) is unaffected — only the input source changed.
-var weeklyFocusText = localStorage.getItem(WEEKLY_FOCUS_KEY) || '';
+var weeklyFocusText = localStorage.getItem(scopedKey(WEEKLY_FOCUS_KEY)) || '';
 var weeklyFocusValueAtFocus = weeklyFocusText;
 var weeklyFocusInputEl = document.getElementById('weeklyFocusInput');
 var goal1InputEl = null;
@@ -6799,7 +6926,7 @@ if (weeklyFocusInputEl) {
   });
   weeklyFocusInputEl.addEventListener('input', function() {
     weeklyFocusText = weeklyFocusInputEl.value;
-    localStorage.setItem(WEEKLY_FOCUS_KEY, weeklyFocusText);
+    localStorage.setItem(scopedKey(WEEKLY_FOCUS_KEY), weeklyFocusText);
     if (typeof recordCurrentWeek === 'function') recordCurrentWeek();
     if (goal1InputEl && document.activeElement !== goal1InputEl) {
       goal1InputEl.value = weeklyFocusText;
@@ -6816,6 +6943,18 @@ if (weeklyFocusInputEl) {
   });
 }
 
+// "Mon 7/15" — abbreviated weekday + day/month, no year. Re-rendered
+// whenever renderTodaysMission() runs, which already fires on load
+// and on day rollover (see checkDayRollover()), so this never needs
+// its own timer.
+function renderTodaysMissionDate() {
+  var el = document.getElementById('todaysMissionDate');
+  if (!el) return;
+  var now = new Date();
+  var weekday = now.toLocaleDateString([], { weekday: 'short' });
+  el.textContent = weekday + ' ' + (now.getMonth() + 1) + '/' + now.getDate();
+}
+
 // Renders the "Today's Mission" component, which mirrors the rolling
 // window's row for today (via the same Daily Archive record). If
 // today already has mission text, display it as a read-only label.
@@ -6823,6 +6962,7 @@ if (weeklyFocusInputEl) {
 // saveMissionForDate() and re-renders the weekly viz too, so both
 // components always reflect the same underlying data.
 function renderTodaysMission() {
+  renderTodaysMissionDate();
   var today = todayLocalDateString();
   var rec = getDayRecord(today);
   var text = (rec && rec.missionText) || '';
@@ -7066,12 +7206,12 @@ function migrateLegacyYearlyViz() {
       }
     }
   } catch(e) {}
-  if (Object.keys(data).length) localStorage.setItem(YEARLY_DATA_KEY, JSON.stringify(data));
+  if (Object.keys(data).length) localStorage.setItem(scopedKey(YEARLY_DATA_KEY), JSON.stringify(data));
   return data;
 }
 
 function loadYearlyData() {
-  var saved = localStorage.getItem(YEARLY_DATA_KEY);
+  var saved = localStorage.getItem(scopedKey(YEARLY_DATA_KEY));
   if (saved) {
     try { return JSON.parse(saved); } catch(e) { return {}; }
   }
@@ -7079,7 +7219,7 @@ function loadYearlyData() {
 }
 
 function saveYearlyData(data) {
-  localStorage.setItem(YEARLY_DATA_KEY, JSON.stringify(data));
+  localStorage.setItem(scopedKey(YEARLY_DATA_KEY), JSON.stringify(data));
   pushSharedSection('yearly', data);
 }
 
@@ -7117,7 +7257,7 @@ function logYearlyWeekNoteEdit(year, monthIdx, weekIdx, previousText) {
 // Weekly Focus texts, editable/overridable per month, with the same
 // edit-history pattern. ----
 function loadMonthlyArchive() {
-  var saved = localStorage.getItem(MONTHLY_ARCHIVE_KEY);
+  var saved = localStorage.getItem(scopedKey(MONTHLY_ARCHIVE_KEY));
   if (saved) {
     try { return JSON.parse(saved); } catch(e) { return {}; }
   }
@@ -7125,7 +7265,7 @@ function loadMonthlyArchive() {
 }
 
 function saveMonthlyArchive(archive) {
-  localStorage.setItem(MONTHLY_ARCHIVE_KEY, JSON.stringify(archive));
+  localStorage.setItem(scopedKey(MONTHLY_ARCHIVE_KEY), JSON.stringify(archive));
   pushSharedSection('monthlyFocus', archive);
 }
 
@@ -7237,7 +7377,7 @@ function renderYearlyViz() {
   // overwriting .value while the user is mid-keystroke here (this
   // function also re-runs on year-nav clicks) would fight their typing.
   if (yearlyFocusDisplayEl && document.activeElement !== yearlyFocusDisplayEl) {
-    yearlyFocusDisplayEl.value = localStorage.getItem(THEME_YEAR_KEY) || '';
+    yearlyFocusDisplayEl.value = localStorage.getItem(scopedKey(THEME_YEAR_KEY)) || '';
     renderYearlyFocusMode();
   }
 
@@ -7382,16 +7522,16 @@ function renderYearlyViz() {
 // treatment inside initAuth() below, once currentUser is known —
 // can't reach Supabase from here, before auth resolves.
 var VISION_YEAR_LOCAL_CLEANUP_KEY = 'csrAlignVisionYearLocalCleanupDone';
-if (!localStorage.getItem(VISION_YEAR_LOCAL_CLEANUP_KEY)) {
+if (!localStorage.getItem(scopedKey(VISION_YEAR_LOCAL_CLEANUP_KEY))) {
   localStorage.removeItem('csrAlignAccomplish'); // old ACCOMPLISH_KEY's value — the 4-goal list
   localStorage.removeItem('csrAlignThemeYear');  // old THEME_YEAR_KEY's value — Yearly Focus starts fresh in its new box
-  localStorage.setItem(VISION_YEAR_LOCAL_CLEANUP_KEY, '1');
+  localStorage.setItem(scopedKey(VISION_YEAR_LOCAL_CLEANUP_KEY), '1');
 }
 var VISION_YEAR_REMOTE_CLEANUP_KEY = 'csrAlignVisionYearRemoteCleanupDone';
 function cleanupOldVisionYearShareIfNeeded() {
-  if (localStorage.getItem(VISION_YEAR_REMOTE_CLEANUP_KEY)) return;
+  if (localStorage.getItem(scopedKey(VISION_YEAR_REMOTE_CLEANUP_KEY))) return;
   if (!supabaseClient || !currentUser) return;
-  localStorage.setItem(VISION_YEAR_REMOTE_CLEANUP_KEY, '1');
+  localStorage.setItem(scopedKey(VISION_YEAR_REMOTE_CLEANUP_KEY), '1');
   // No replacement for the goal list — delete its shared row outright
   // rather than upserting empty data through a feature that no longer
   // has any UI to ever touch it again.
@@ -7412,7 +7552,7 @@ var ACCOMPLISH_MONTH_KEY = 'csrAlignAccomplishMonth';
 var accomplishMonthBox = document.getElementById('accomplishMonthBox');
 
 function loadAccomplishMonth() {
-  var saved = localStorage.getItem(ACCOMPLISH_MONTH_KEY);
+  var saved = localStorage.getItem(scopedKey(ACCOMPLISH_MONTH_KEY));
   if (saved) {
     try {
       var parsed = JSON.parse(saved);
@@ -7427,7 +7567,7 @@ function loadAccomplishMonth() {
 }
 
 function saveAccomplishMonth() {
-  localStorage.setItem(ACCOMPLISH_MONTH_KEY, JSON.stringify(accomplishMonthGoals));
+  localStorage.setItem(scopedKey(ACCOMPLISH_MONTH_KEY), JSON.stringify(accomplishMonthGoals));
   pushSharedSection('accomplishMonth', accomplishMonthGoals);
 }
 
@@ -7474,7 +7614,7 @@ function renderAccomplishMonth() {
         // bound box from the first render rather than whatever was
         // last saved independently to WEEKLY_FOCUS_KEY.
         weeklyFocusText = el.value;
-        localStorage.setItem(WEEKLY_FOCUS_KEY, weeklyFocusText);
+        localStorage.setItem(scopedKey(WEEKLY_FOCUS_KEY), weeklyFocusText);
         if (weeklyFocusInputEl) weeklyFocusInputEl.value = weeklyFocusText;
 
         var goal1ValueAtFocus = el.value;
@@ -7483,7 +7623,7 @@ function renderAccomplishMonth() {
         });
         el.addEventListener('input', function() {
           weeklyFocusText = el.value;
-          localStorage.setItem(WEEKLY_FOCUS_KEY, weeklyFocusText);
+          localStorage.setItem(scopedKey(WEEKLY_FOCUS_KEY), weeklyFocusText);
           if (weeklyFocusInputEl && document.activeElement !== weeklyFocusInputEl) {
             weeklyFocusInputEl.value = weeklyFocusText;
           }
@@ -7521,7 +7661,7 @@ function defaultVisionMonthWeeks() {
   ];
 }
 function loadVisionMonthWeeks() {
-  var saved = localStorage.getItem(VISION_MONTH_WEEKS_KEY);
+  var saved = localStorage.getItem(scopedKey(VISION_MONTH_WEEKS_KEY));
   if (saved) {
     try {
       var parsed = JSON.parse(saved);
@@ -7548,7 +7688,7 @@ function loadVisionMonthWeeks() {
   return defaultVisionMonthWeeks();
 }
 function saveVisionMonthWeeks() {
-  localStorage.setItem(VISION_MONTH_WEEKS_KEY, JSON.stringify(visionMonthWeeks));
+  localStorage.setItem(scopedKey(VISION_MONTH_WEEKS_KEY), JSON.stringify(visionMonthWeeks));
 }
 
 var visionMonthWeeks = loadVisionMonthWeeks();
@@ -7558,13 +7698,13 @@ var visionMonthWeeks = loadVisionMonthWeeks();
 // above instead).
 var VISION_ACTIVE_WEEK_KEY = 'csrAlignVisionActiveWeekIndex';
 var visionActiveWeekIndex = (function() {
-  var saved = localStorage.getItem(VISION_ACTIVE_WEEK_KEY);
+  var saved = localStorage.getItem(scopedKey(VISION_ACTIVE_WEEK_KEY));
   var idx = saved === null ? NaN : parseInt(saved, 10);
   return (idx >= 0 && idx <= 3) ? idx : null;
 })();
 function saveVisionActiveWeekIndex() {
-  if (visionActiveWeekIndex === null) localStorage.removeItem(VISION_ACTIVE_WEEK_KEY);
-  else localStorage.setItem(VISION_ACTIVE_WEEK_KEY, String(visionActiveWeekIndex));
+  if (visionActiveWeekIndex === null) localStorage.removeItem(scopedKey(VISION_ACTIVE_WEEK_KEY));
+  else localStorage.setItem(scopedKey(VISION_ACTIVE_WEEK_KEY), String(visionActiveWeekIndex));
 }
 var visionWeekButtonsEl = document.getElementById('visionWeekButtons');
 var visionWeekDaysEl = document.getElementById('visionWeekDays');
@@ -7576,8 +7716,8 @@ var visionWeekDaysEl = document.getElementById('visionWeekDays');
 // fills in blanks.
 var VISION_DAYS_MIGRATION_KEY = 'csrAlignVisionDaysMigratedToDailyArchive';
 function migrateVisionDaysToDailyArchiveIfNeeded() {
-  if (localStorage.getItem(VISION_DAYS_MIGRATION_KEY)) return;
-  localStorage.setItem(VISION_DAYS_MIGRATION_KEY, '1');
+  if (localStorage.getItem(scopedKey(VISION_DAYS_MIGRATION_KEY))) return;
+  localStorage.setItem(scopedKey(VISION_DAYS_MIGRATION_KEY), '1');
   var changed = false;
   for (var w = 0; w < 4; w++) {
     var week = visionMonthWeeks[w];
@@ -7805,7 +7945,7 @@ var yearlyFocusTextEl = document.getElementById('yearlyFocusText');
 var yearlyFocusEditBtn = document.getElementById('yearlyFocusEditBtn');
 
 function saveThemeYear(text) {
-  localStorage.setItem(THEME_YEAR_KEY, text);
+  localStorage.setItem(scopedKey(THEME_YEAR_KEY), text);
   pushSharedSection('themeYear', text);
 }
 
@@ -7815,7 +7955,7 @@ function saveThemeYear(text) {
 // empty box never collapses into an unclickable blank view.
 function renderYearlyFocusMode() {
   if (!yearlyFocusDisplayEl || !yearlyFocusViewEl) return;
-  var text = localStorage.getItem(THEME_YEAR_KEY) || '';
+  var text = localStorage.getItem(scopedKey(THEME_YEAR_KEY)) || '';
   if (text) {
     yearlyFocusDisplayEl.style.display = 'none';
     yearlyFocusViewEl.style.display = '';
@@ -7827,7 +7967,7 @@ function renderYearlyFocusMode() {
 }
 
 if (yearlyFocusDisplayEl) {
-  yearlyFocusDisplayEl.value = localStorage.getItem(THEME_YEAR_KEY) || '';
+  yearlyFocusDisplayEl.value = localStorage.getItem(scopedKey(THEME_YEAR_KEY)) || '';
   yearlyFocusDisplayEl.addEventListener('input', function() {
     saveThemeYear(yearlyFocusDisplayEl.value);
   });
@@ -7937,14 +8077,14 @@ var SYNC_QUEUE_KEY = 'csrAlignSyncQueue';
 
 function loadSyncQueue() {
   try {
-    return JSON.parse(localStorage.getItem(SYNC_QUEUE_KEY) || '{}');
+    return JSON.parse(localStorage.getItem(scopedKey(SYNC_QUEUE_KEY)) || '{}');
   } catch (e) {
     return {};
   }
 }
 
 function saveSyncQueue(queue) {
-  localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(queue));
+  localStorage.setItem(scopedKey(SYNC_QUEUE_KEY), JSON.stringify(queue));
 }
 
 // queueKey: a stable string identifying WHAT this write is (e.g.
@@ -8134,8 +8274,8 @@ function retryQueuedSyncs(force) {
 // reports normally rather than being silently swallowed forever.
 var STALE_SECTION_QUEUE_CLEANUP_KEY = 'csrAlignStaleSectionQueueCleanupDone';
 function clearStaleConstraintQueueEntriesIfNeeded() {
-  if (localStorage.getItem(STALE_SECTION_QUEUE_CLEANUP_KEY)) return;
-  localStorage.setItem(STALE_SECTION_QUEUE_CLEANUP_KEY, '1');
+  if (localStorage.getItem(scopedKey(STALE_SECTION_QUEUE_CLEANUP_KEY))) return;
+  localStorage.setItem(scopedKey(STALE_SECTION_QUEUE_CLEANUP_KEY), '1');
   var queue = loadSyncQueue();
   var changed = false;
   Object.keys(queue).forEach(function(queueKey) {
@@ -8348,10 +8488,12 @@ function initAuth() {
 
   supabaseClient.auth.getSession().then(function(result) {
     var session = result.data && result.data.session;
+    if (ensureCorrectUserScope(session && session.user ? session.user.id : null)) return;
     if (session && session.user) {
       renderAuthBarLoggedIn(session.user.email);
       ensureProfileTimezone(session.user);
       currentUser = session.user;
+      pullOnceIfNeeded(currentUser.id);
       // The Track Alpha tab's initial renderAlphaBrowser() call (at
       // script load) almost always runs BEFORE this async session
       // restore resolves, so it renders as "not signed in" first.
@@ -8380,6 +8522,7 @@ function initAuth() {
   });
 
   supabaseClient.auth.onAuthStateChange(function(event, session) {
+    if (ensureCorrectUserScope(session && session.user ? session.user.id : null)) return;
     if (session && session.user) {
       // Track Alpha's device-bound encryption key is per (device, user) —
       // only reset/reload it when the signed-in user actually changes
@@ -8389,6 +8532,7 @@ function initAuth() {
       renderAuthBarLoggedIn(session.user.email);
       ensureProfileTimezone(session.user);
       currentUser = session.user;
+      pullOnceIfNeeded(currentUser.id);
       if (isDifferentAlphaUser) {
         alphaEncryptionKey = null;
         alphaKeyLoading = false;
@@ -8543,8 +8687,227 @@ function pushSharedSection(section, data) {
   enqueueSync('section:' + currentUser.id + ':' + section, payload, syncPerformers.section);
 }
 
+// Generic pull counterpart to pushSharedSection — every section
+// (musts/whiteboard/weekly/yearly/monthlyFocus/themeYear/
+// accomplishMonth/dailyArchiveFull/weeklyArchiveFull) is pushed the
+// same way, so they can all be pulled back the same way too. Used by
+// pullAllUserDataFromSupabase() below. callback(data, isShared) —
+// data is whatever shape that section pushes (null if nothing's been
+// synced yet); isShared comes straight from the row's own is_shared
+// column, which is also the authoritative source for rebuilding
+// sectionShareState after a wipe (rather than a separate local-only
+// key, which would itself be gone).
+function pullSharedSection(section, callback) {
+  if (!supabaseClient || !currentUser) { callback(null, false); return; }
+  supabaseClient.from('shared_sections')
+    .select('data, is_shared')
+    .eq('user_id', currentUser.id)
+    .eq('section', section)
+    .then(function(result) {
+      var row = result.data && result.data[0];
+      callback(row ? row.data : null, row ? !!row.is_shared : false);
+    });
+}
+
+// ============================================================
+// Full local-data wipe (logout) + cloud repopulation (login)
+// ============================================================
+// On logout: erase this browser's ENTIRE local cache for that user —
+// a genuine deletion, not just scopedKey() making it inaccessible
+// while a different user is signed in. Namespacing (scopedKey) still
+// matters as defense-in-depth (protects the brief window before a
+// wipe completes, and any key this list misses), but the actual
+// privacy guarantee for a shared/borrowed device is this: nothing of
+// that user's plaintext survives past their own sign-out.
+//
+// On login: rebuild the local cache from scratch by pulling every
+// synced data type back down from Supabase, so a freshly-wiped (or
+// brand new) device ends up identical to one that had been used all
+// along. Both are wired into ensureCorrectUserScope()/
+// pullOnceIfNeeded() below.
+var ALL_SCOPED_STORAGE_KEYS = [
+  STORAGE_KEY, ENTRIES_KEY, TODAY_KEY, MUSTS_KEY, TACKLE_KEY,
+  LAST_SNAPSHOT_DATE_KEY, SECTION_SHARE_KEY, DAILY_ARCHIVE_KEY,
+  WEEKLY_ARCHIVE_KEY, WEEKLY_FOCUS_KEY, MONTHLY_ARCHIVE_KEY,
+  YEARLY_DATA_KEY, SUNRISE_LOCATION_KEY, TELEGRAM_CONFIG_KEY,
+  QUICK_LINKS_KEY, TRADINGVIEW_SECRET_KEY, DAILY_SCORE_WEIGHTS_KEY,
+  AFFILIATE_LINK_KEY, JOURNAL_CATEGORIES_KEY, THEME_YEAR_KEY,
+  VISION_YEAR_LOCAL_CLEANUP_KEY, VISION_YEAR_REMOTE_CLEANUP_KEY,
+  ACCOMPLISH_MONTH_KEY, VISION_MONTH_WEEKS_KEY, VISION_ACTIVE_WEEK_KEY,
+  VISION_DAYS_MIGRATION_KEY, SYNC_QUEUE_KEY,
+  STALE_SECTION_QUEUE_CLEANUP_KEY, ALPHA_PROFILES_KEY,
+  ALPHA_ENTRIES_KEY, ALPHA_GENDER_KEY
+];
+
+// Note: any sync queued but not yet sent when logout happens is
+// dropped along with everything else — accepted tradeoff, since the
+// whole point of this wipe is "nothing of this user's local state
+// survives sign-out," and the next login re-fetches the server's
+// (already-synced) state as ground truth anyway. If you sign out
+// while offline with an edit that never made it to Supabase, that
+// edit does not survive — same as it wouldn't on any other device
+// that never received it either.
+function wipeAllLocalUserData(userId) {
+  if (!userId) return;
+  ALL_SCOPED_STORAGE_KEYS.forEach(function(key) {
+    localStorage.removeItem('u:' + userId + ':' + key);
+  });
+}
+
+// Pulls every cloud-synced data type for the signed-in user and
+// overwrites the local cache with it. Track Alpha's profile/entry
+// data is ciphertext server-side — decrypting it needs this device's
+// key, which is normally fetched lazily the first time the Alpha tab
+// renders (see renderAlphaBrowser()); fetched directly here instead
+// so repopulation doesn't depend on the user happening to open that
+// tab first.
+function pullAllUserDataFromSupabase(onComplete) {
+  if (!supabaseClient || !currentUser) { onComplete(); return; }
+  var uid = currentUser.id;
+  var tasks = [];
+
+  function pullSection(section, applyRaw) {
+    return new Promise(function(resolve) {
+      pullSharedSection(section, function(data, isShared) {
+        if (data !== null) applyRaw(data, isShared);
+        resolve();
+      });
+    });
+  }
+
+  tasks.push(pullSection('musts', function(data, isShared) {
+    localStorage.setItem(scopedKey(MUSTS_KEY), JSON.stringify(data));
+    sectionShareState.musts = isShared;
+  }));
+
+  tasks.push(pullSection('whiteboard', function(data, isShared) {
+    var tackleTasks = Array.isArray(data.tasks) ? data.tasks : [];
+    localStorage.setItem(scopedKey(TACKLE_KEY), JSON.stringify({ tasks: tackleTasks, shared: isShared }));
+    sectionShareState.whiteboard = isShared;
+  }));
+
+  tasks.push(pullSection('dailyArchiveFull', function(data) {
+    localStorage.setItem(scopedKey(DAILY_ARCHIVE_KEY), JSON.stringify(data));
+  }));
+
+  tasks.push(pullSection('weeklyArchiveFull', function(data, isShared) {
+    localStorage.setItem(scopedKey(WEEKLY_ARCHIVE_KEY), JSON.stringify(data));
+    sectionShareState.weekly = isShared;
+  }));
+
+  tasks.push(pullSection('yearly', function(data, isShared) {
+    localStorage.setItem(scopedKey(YEARLY_DATA_KEY), JSON.stringify(data));
+    sectionShareState.yearly = isShared;
+  }));
+
+  tasks.push(pullSection('monthlyFocus', function(data) {
+    localStorage.setItem(scopedKey(MONTHLY_ARCHIVE_KEY), JSON.stringify(data));
+  }));
+
+  tasks.push(pullSection('themeYear', function(data) {
+    localStorage.setItem(scopedKey(THEME_YEAR_KEY), data);
+  }));
+
+  tasks.push(pullSection('accomplishMonth', function(data, isShared) {
+    localStorage.setItem(scopedKey(ACCOMPLISH_MONTH_KEY), JSON.stringify(data));
+    sectionShareState.accomplishMonth = isShared;
+  }));
+
+  tasks.push(pullSection('ruler', function(data, isShared) {
+    sectionShareState.ruler = isShared;
+  }));
+
+  // Live Ruler blocks — the cross-device mirror lives in
+  // shared_rulers (merge_ruler_blocks RPC), not a shared_sections row
+  // (the 'ruler' section above is only the share-toggle flag, pushed
+  // as {} — see pushSharedSection('ruler', {})).
+  tasks.push(new Promise(function(resolve) {
+    supabaseClient.from('shared_rulers').select('blocks').eq('user_id', uid).then(function(result) {
+      var row = result.data && result.data[0];
+      if (row && Array.isArray(row.blocks) && row.blocks.length) {
+        localStorage.setItem(scopedKey(STORAGE_KEY), JSON.stringify(row.blocks));
+      }
+      resolve();
+    });
+  }));
+
+  // Ledgers — every entry this user owns; RLS already scopes this
+  // query to their own rows.
+  tasks.push(new Promise(function(resolve) {
+    supabaseClient.from('journal_entries').select('*').eq('user_id', uid).then(function(result) {
+      var rows = result.data || [];
+      if (rows.length) {
+        var entries = rows.map(function(r) {
+          return {
+            id: r.id,
+            date: r.entry_date,
+            createdAt: r.entry_created_at,
+            text: r.text,
+            category: r.category,
+            score: r.score,
+            sharedLegionIds: r.shared_legion_ids || [],
+            edited: !!r.edited,
+            history: r.history || [],
+            imagePaths: r.image_paths || [],
+            encrypted: false
+          };
+        });
+        localStorage.setItem(scopedKey(ENTRIES_KEY), JSON.stringify(entries));
+      }
+      resolve();
+    });
+  }));
+
+  // Track Alpha — decrypts with this device's key, same as normal use.
+  tasks.push(
+    alphaGetOrCreateDeviceKey(uid).then(function(key) {
+      alphaEncryptionKey = key;
+      return Promise.all([
+        supabaseClient.from('alpha_profiles').select('*').eq('user_id', uid).then(function(result) { return result.data || []; }),
+        supabaseClient.from('alpha_entries').select('*').eq('user_id', uid).then(function(result) { return result.data || []; })
+      ]);
+    }).then(function(results) {
+      var profileRows = results[0], entryRows = results[1];
+      return Promise.all([
+        Promise.all(profileRows.map(function(r) {
+          return Promise.all([alphaDecryptString(r.profile_name), alphaDecryptPayload(r.encrypted_data)]).then(function(decrypted) {
+            var extra = decrypted[1] || {};
+            return {
+              id: r.id,
+              category: r.category,
+              subcategory: r.subcategory,
+              customGroupName: extra.customGroupName || null,
+              profileName: decrypted[0],
+              setup: extra.setup || {},
+              createdAt: r.created_at
+            };
+          });
+        })),
+        Promise.all(entryRows.map(function(r) {
+          return alphaDecryptPayload(r.encrypted_data).then(function(data) {
+            return { id: r.id, profileId: r.profile_id, date: r.entry_date, data: data, createdAt: r.created_at };
+          });
+        }))
+      ]);
+    }).then(function(decoded) {
+      if (decoded[0].length) localStorage.setItem(scopedKey(ALPHA_PROFILES_KEY), JSON.stringify(decoded[0]));
+      if (decoded[1].length) localStorage.setItem(scopedKey(ALPHA_ENTRIES_KEY), JSON.stringify(decoded[1]));
+    }).catch(function() {
+      // Key-loading or decryption failure shouldn't block the rest of
+      // the repopulation — Track Alpha simply stays empty this time,
+      // same degraded state as when the device key is still loading
+      // during normal use.
+    })
+  );
+
+  Promise.all(tasks).then(function() {
+    localStorage.setItem(scopedKey(SECTION_SHARE_KEY), JSON.stringify(sectionShareState));
+    onComplete();
+  });
+}
+
 function loadSectionShareState() {
-  var saved = localStorage.getItem(SECTION_SHARE_KEY);
+  var saved = localStorage.getItem(scopedKey(SECTION_SHARE_KEY));
   if (saved) {
     try { return Object.assign(sectionShareState, JSON.parse(saved)); } catch(e) {}
   }
@@ -8552,7 +8915,7 @@ function loadSectionShareState() {
 }
 
 function saveSectionShareState() {
-  localStorage.setItem(SECTION_SHARE_KEY, JSON.stringify(sectionShareState));
+  localStorage.setItem(scopedKey(SECTION_SHARE_KEY), JSON.stringify(sectionShareState));
   renderSharedSectionsList();
 }
 
@@ -8579,6 +8942,9 @@ function pushJournalEntryToSupabase(entry) {
     category: entry.category,
     score: (typeof entry.score === 'number') ? entry.score : null,
     shared_legion_ids: entry.sharedLegionIds || [],
+    edited: !!entry.edited,
+    history: entry.history || [],
+    image_paths: entry.imagePaths || [],
     updated_at: new Date().toISOString()
   };
   enqueueSync('journalEntry:' + currentUser.id + ':' + entry.id, payload, syncPerformers.journalEntry);
@@ -9811,29 +10177,42 @@ function showExportMsg(text, isError) {
 // ---- Tabs + dynamic Categories ----
 // Ruler/Life category lists are fixed; Journal's is dynamic (built
 // from journalCategories, same source as the app's own category
-// picker, so it stays in sync automatically). Clans has nothing to
-// export yet (it's shared/social data, not really "yours"). Track
-// Alpha isn't exportable either — its data lives in its own Supabase
-// tables (see 0003_alpha_profiles.sql), not this pipeline.
+// picker, so it stays in sync automatically). Clans exports its
+// Contacts and Legions lists (fetched live via
+// fetchMyLegionsWithMembers). Track Alpha exports logged entries for
+// a chosen "snipe" (tracking profile) — or every snipe, via the
+// dropdown that appears once its checkbox is on.
 var EXPORT_CATEGORY_DEFS = {
   ruler: [
     { id: 'blocks', label: 'Blocks' },
     { id: 'energy', label: 'Energy Levels' },
+    { id: 'blockDetails', label: 'Block Details' },
     { id: 'dailyScores', label: 'Daily Scores' },
     { id: 'weeklySummaries', label: 'Weekly Summaries' },
     { id: 'whiteboard', label: 'Whiteboard' }
   ],
   life: [
+    { id: 'thisWeek', label: 'This Week' },
+    { id: 'thisMonth', label: 'This Month' },
     { id: 'musts', label: 'Musts & In-Between' },
     { id: 'yearly', label: 'Yearly Visualization' }
   ],
-  clans: []
+  clans: [
+    { id: 'contacts', label: 'Contacts' },
+    { id: 'legions', label: 'Legions' }
+  ],
+  insights: [
+    { id: 'snipes', label: 'Track Alpha Entries' }
+  ]
 };
 
-var exportSelectedTabs = { ruler: true, life: true, journal: true, clans: false };
+var exportSelectedTabs = { ruler: true, life: true, journal: true, clans: false, insights: false };
 // Remembers individual category checkbox states across re-renders
 // (e.g. switching tabs back and forth shouldn't reset your choices).
 var exportCategoryChecked = {};
+// Which Track Alpha profile ("snipe") the dropdown under
+// insights:snipes is currently set to — 'all' or a profile id.
+var exportSelectedSnipeId = 'all';
 
 function renderExportTabButtons() {
   Array.prototype.forEach.call(exportTabGroupEl.querySelectorAll('.export-tab-btn'), function(btn) {
@@ -9850,7 +10229,7 @@ Array.prototype.forEach.call(exportTabGroupEl.querySelectorAll('.export-tab-btn'
   });
 });
 
-function appendExportCategoryCheckbox(key, label, disabled) {
+function appendExportCategoryCheckbox(key, label, disabled, onChange) {
   var wrap = document.createElement('label');
   if (disabled) wrap.className = 'export-category-disabled';
   var cb = document.createElement('input');
@@ -9861,9 +10240,38 @@ function appendExportCategoryCheckbox(key, label, disabled) {
   cb.checked = disabled ? false : (exportCategoryChecked[key] !== false);
   cb.addEventListener('change', function() {
     exportCategoryChecked[key] = cb.checked;
+    if (typeof onChange === 'function') onChange();
   });
   wrap.appendChild(cb);
   wrap.appendChild(document.createTextNode(' ' + label + (disabled ? ' (Coming Soon)' : '')));
+  exportCategoryGroup.appendChild(wrap);
+}
+
+// The dropdown that appears under the Track Alpha "Entries" checkbox
+// once it's checked, letting the export be scoped to a single snipe
+// (tracking profile) instead of every one. Rebuilt fresh each render
+// (profiles can change), but exportSelectedSnipeId itself persists
+// across re-renders the same way exportCategoryChecked does.
+function appendExportSnipeDropdown() {
+  var wrap = document.createElement('div');
+  wrap.className = 'export-snipe-dropdown-wrap';
+  var select = document.createElement('select');
+  select.className = 'export-snipe-select';
+  var allOpt = document.createElement('option');
+  allOpt.value = 'all';
+  allOpt.textContent = 'All Snipes';
+  select.appendChild(allOpt);
+  alphaProfiles.forEach(function(p) {
+    var opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.profileName;
+    select.appendChild(opt);
+  });
+  select.value = alphaProfiles.some(function(p) { return p.id === exportSelectedSnipeId; }) ? exportSelectedSnipeId : 'all';
+  select.addEventListener('change', function() {
+    exportSelectedSnipeId = select.value;
+  });
+  wrap.appendChild(select);
   exportCategoryGroup.appendChild(wrap);
 }
 
@@ -9887,6 +10295,16 @@ function renderExportCategoryCheckboxes() {
       appendExportCategoryCheckbox(tab + ':' + def.id, def.label, false);
     });
   });
+
+  if (exportSelectedTabs.insights) {
+    anySelected = true;
+    (EXPORT_CATEGORY_DEFS.insights || []).forEach(function(def) {
+      appendExportCategoryCheckbox('insights:' + def.id, def.label, false, renderExportCategoryCheckboxes);
+    });
+    if (isExportCategoryChecked('insights:snipes')) {
+      appendExportSnipeDropdown();
+    }
+  }
 
   if (!anySelected) {
     exportCategoryGroup.innerHTML = '<span class="export-row-label">Select a tab above to see its categories.</span>';
@@ -9949,11 +10367,18 @@ function resolveExportFilters() {
     includeRuler: !!exportSelectedTabs.ruler,
     includeRulerBlocks: exportSelectedTabs.ruler && isExportCategoryChecked('ruler:blocks'),
     includeRulerEnergy: exportSelectedTabs.ruler && isExportCategoryChecked('ruler:energy'),
+    includeBlockDetails: exportSelectedTabs.ruler && isExportCategoryChecked('ruler:blockDetails'),
     includeDailyScores: exportSelectedTabs.ruler && isExportCategoryChecked('ruler:dailyScores'),
     includeWeeklySummaries: exportSelectedTabs.ruler && isExportCategoryChecked('ruler:weeklySummaries'),
     includeWhiteboard: exportSelectedTabs.ruler && isExportCategoryChecked('ruler:whiteboard'),
+    includeThisWeek: exportSelectedTabs.life && isExportCategoryChecked('life:thisWeek'),
+    includeThisMonth: exportSelectedTabs.life && isExportCategoryChecked('life:thisMonth'),
     includeMusts: exportSelectedTabs.life && isExportCategoryChecked('life:musts'),
     includeYearly: exportSelectedTabs.life && isExportCategoryChecked('life:yearly'),
+    includeContacts: exportSelectedTabs.clans && isExportCategoryChecked('clans:contacts'),
+    includeLegionsList: exportSelectedTabs.clans && isExportCategoryChecked('clans:legions'),
+    includeAlpha: exportSelectedTabs.insights && isExportCategoryChecked('insights:snipes'),
+    alphaSnipeId: exportSelectedSnipeId,
     wasClipped: wasClipped
   };
 }
@@ -9996,12 +10421,68 @@ function queryWeeklyRange(startDate, endDate) {
     });
 }
 
+// Track Alpha entries for the selected snipe (or every snipe, when
+// alphaSnipeId is 'all'), scoped to the export's date range and
+// joined against alphaProfiles for a human-readable name/category.
+// alphaEntries/alphaProfiles are always plaintext in memory (see the
+// "Local storage (always plaintext" note near loadAlphaProfiles) —
+// nothing to decrypt here.
+function buildAlphaExportRows(filters) {
+  var wantedId = filters.alphaSnipeId;
+  return alphaEntries
+    .filter(function(e) {
+      if (wantedId && wantedId !== 'all' && e.profileId !== wantedId) return false;
+      return dateInRange((e.date || e.createdAt) + 'T00:00:00Z', filters.dateStart, filters.dateEnd);
+    })
+    .map(function(e) {
+      var profile = alphaProfiles.filter(function(p) { return p.id === e.profileId; })[0];
+      return {
+        date: e.date,
+        profileName: profile ? profile.profileName : 'Deleted profile',
+        category: profile ? profile.category : '',
+        data: e.data
+      };
+    });
+}
+
+function buildAlphaCsv(rows) {
+  var lines = [['Date', 'Snipe', 'Category', 'Logged Data'].join(',')];
+  rows.sort(function(a, b) { return a.date < b.date ? -1 : 1; }).forEach(function(r) {
+    lines.push([
+      csvEscape(r.date),
+      csvEscape(r.profileName),
+      csvEscape(r.category),
+      csvEscape(JSON.stringify(r.data || {}))
+    ].join(','));
+  });
+  return lines.join('\n');
+}
+
+function buildContactsCsv(legionsWithMembers) {
+  var lines = [['Legion', 'Contact Name'].join(',')];
+  legionsWithMembers.forEach(function(legion) {
+    legion.members.forEach(function(m) {
+      lines.push([csvEscape(legion.name), csvEscape(m.name)].join(','));
+    });
+  });
+  return lines.join('\n');
+}
+
+function buildLegionsCsv(legionsWithMembers) {
+  var lines = [['Legion', 'Member Count'].join(',')];
+  legionsWithMembers.forEach(function(legion) {
+    lines.push([csvEscape(legion.name), csvEscape(legion.members.length)].join(','));
+  });
+  return lines.join('\n');
+}
+
 // Gathers everything matching the filters into one bundle: journal
 // entries, Ruler blocks snapshots (local + server merged, only
 // fetched when Blocks/Energy Levels is actually selected — the
 // network round-trip is skipped otherwise), Daily Scores, Weekly
-// Summaries, Musts, Whiteboard, Accomplish, and Yearly Visualization —
-// all sourced from the unified Daily/Weekly Archive.
+// Summaries, Musts, Whiteboard, Accomplish, Yearly Visualization,
+// Track Alpha entries, and Legions/Contacts (fetched live via
+// fetchMyLegionsWithMembers, same as the Send modal's Legion picker).
 function gatherExportData(filters, callback) {
   var allEntries = loadEntries();
 
@@ -10024,7 +10505,7 @@ function gatherExportData(filters, callback) {
   var tackleText = '';
   if (filters.includeWhiteboard) {
     try {
-      var savedTackle = localStorage.getItem(TACKLE_KEY);
+      var savedTackle = localStorage.getItem(scopedKey(TACKLE_KEY));
       if (savedTackle) {
         var parsedTackle = JSON.parse(savedTackle);
         var exportTasks = Array.isArray(parsedTackle.tasks) ? parsedTackle.tasks : [];
@@ -10042,68 +10523,94 @@ function gatherExportData(filters, callback) {
     ? queryWeeklyRange(filters.dateStart, filters.dateEnd)
     : [];
   var yearlyCsvText = filters.includeYearly ? buildYearlyCsv(filters.dateStart, filters.dateEnd) : '';
+  var alphaRows = filters.includeAlpha ? buildAlphaExportRows(filters) : [];
+
+  // This Week / This Month are single current-value fields (the "This
+  // week's focus..." input on the Ruler tab and the Monthly Focus box
+  // atop Plans), not per-day history — read straight from their
+  // localStorage-backed sources rather than the DOM, so export works
+  // the same whether or not those inputs are currently on screen.
+  var thisWeekFocus = filters.includeThisWeek ? (localStorage.getItem(scopedKey(WEEKLY_FOCUS_KEY)) || '') : '';
+  var thisMonthFocus = filters.includeThisMonth ? getMonthlyFocusDisplay(currentMonthKeyForVision(), null) : '';
 
   var extras = {
     entries: entries,
     tackleText: tackleText,
+    thisWeekFocus: thisWeekFocus,
+    thisMonthFocus: thisMonthFocus,
     dailyRecords: dailyRecords,
     weeklyRecords: weeklyRecords,
     yearlyCsvText: yearlyCsvText,
     scoreByDate: scoreByDate,
+    alphaRows: alphaRows,
     filters: filters
   };
 
-  var needsBlocks = filters.includeRulerBlocks || filters.includeRulerEnergy;
-  if (!needsBlocks) {
-    callback(Object.assign({ snapshots: [] }, extras));
-    return;
+  // Contacts/Legions are the only categories sourced from a live
+  // fetchMyLegionsWithMembers() call rather than local/archive data —
+  // fetched once up front (skipped entirely if neither is selected)
+  // so both the "no blocks needed" early return and the blocks-fetch
+  // branch below end up with the same extras.legionsWithMembers.
+  function withLegionsData(next) {
+    if (!filters.includeContacts && !filters.includeLegionsList) { next([]); return; }
+    fetchMyLegionsWithMembers(function(legions) { next(legions || []); });
   }
 
-  var dailyArchive = loadDailyArchive();
-  var localSnapList = Object.keys(dailyArchive)
-    .filter(function(dateStr) { return dateInRange(dateStr + 'T00:00:00Z', filters.dateStart, filters.dateEnd); })
-    .map(function(dateStr) { return { date: dateStr, blocks: dailyArchive[dateStr].blocks }; });
+  withLegionsData(function(legionsWithMembers) {
+    extras.legionsWithMembers = legionsWithMembers;
 
-  if (supabaseClient && currentUser) {
-    supabaseClient.from('daily_snapshots')
-      .select('snapshot_date, blocks')
-      .eq('user_id', currentUser.id)
-      .then(function(result) {
-        // If the server fetch failed, fall back to local snapshots but
-        // tell the person clearly so they know the export may be missing
-        // cloud-only days (e.g. days recorded on another device).
-        if (result.error) {
+    var needsBlocks = filters.includeRulerBlocks || filters.includeRulerEnergy || filters.includeBlockDetails;
+    if (!needsBlocks) {
+      callback(Object.assign({ snapshots: [] }, extras));
+      return;
+    }
+
+    var dailyArchive = loadDailyArchive();
+    var localSnapList = Object.keys(dailyArchive)
+      .filter(function(dateStr) { return dateInRange(dateStr + 'T00:00:00Z', filters.dateStart, filters.dateEnd); })
+      .map(function(dateStr) { return { date: dateStr, blocks: dailyArchive[dateStr].blocks }; });
+
+    if (supabaseClient && currentUser) {
+      supabaseClient.from('daily_snapshots')
+        .select('snapshot_date, blocks')
+        .eq('user_id', currentUser.id)
+        .then(function(result) {
+          // If the server fetch failed, fall back to local snapshots but
+          // tell the person clearly so they know the export may be missing
+          // cloud-only days (e.g. days recorded on another device).
+          if (result.error) {
+            showExportMsg(
+              'Warning: could not reach the server (' + result.error.message + '). ' +
+              'Export contains only locally-stored data — some days recorded on other devices may be missing.',
+              true
+            );
+            callback(Object.assign({ snapshots: localSnapList, serverFetchFailed: true }, extras));
+            return;
+          }
+          var serverSnaps = [];
+          if (result.data) {
+            serverSnaps = result.data
+              .filter(function(row) { return dateInRange(row.snapshot_date + 'T00:00:00Z', filters.dateStart, filters.dateEnd); })
+              .map(function(row) { return { date: row.snapshot_date, blocks: row.blocks }; });
+          }
+          var merged = {};
+          localSnapList.forEach(function(s) { merged[s.date] = s; });
+          serverSnaps.forEach(function(s) { merged[s.date] = s; }); // server wins on blocks (freshest across devices)
+          callback(Object.assign({ snapshots: Object.values(merged) }, extras));
+        })
+        .catch(function(err) {
+          // Network-level failure (offline, DNS, Supabase down).
           showExportMsg(
-            'Warning: could not reach the server (' + result.error.message + '). ' +
+            'Warning: could not reach the server (' + ((err && err.message) || 'network error') + '). ' +
             'Export contains only locally-stored data — some days recorded on other devices may be missing.',
             true
           );
           callback(Object.assign({ snapshots: localSnapList, serverFetchFailed: true }, extras));
-          return;
-        }
-        var serverSnaps = [];
-        if (result.data) {
-          serverSnaps = result.data
-            .filter(function(row) { return dateInRange(row.snapshot_date + 'T00:00:00Z', filters.dateStart, filters.dateEnd); })
-            .map(function(row) { return { date: row.snapshot_date, blocks: row.blocks }; });
-        }
-        var merged = {};
-        localSnapList.forEach(function(s) { merged[s.date] = s; });
-        serverSnaps.forEach(function(s) { merged[s.date] = s; }); // server wins on blocks (freshest across devices)
-        callback(Object.assign({ snapshots: Object.values(merged) }, extras));
-      })
-      .catch(function(err) {
-        // Network-level failure (offline, DNS, Supabase down).
-        showExportMsg(
-          'Warning: could not reach the server (' + ((err && err.message) || 'network error') + '). ' +
-          'Export contains only locally-stored data — some days recorded on other devices may be missing.',
-          true
-        );
-        callback(Object.assign({ snapshots: localSnapList, serverFetchFailed: true }, extras));
-      });
-  } else {
-    callback(Object.assign({ snapshots: localSnapList }, extras));
-  }
+        });
+    } else {
+      callback(Object.assign({ snapshots: localSnapList }, extras));
+    }
+  });
 }
 
 function csvEscape(val) {
@@ -10155,10 +10662,11 @@ function wordCount(text) {
 // the Ruler, so it's pivot/filter-friendly in Excel rather than one
 // wide row of 48 columns per day) ----
 
-function buildRulerCsv(snapshots, includeEnergy) {
+function buildRulerCsv(snapshots, includeEnergy, includeBlockDetails) {
   var lines = [];
   var headers = ['Date', 'Block Number', 'Block Name', 'Start Time', 'End Time', 'Minutes', 'Is Sleep'];
-  if (includeEnergy) headers.push('Energy Level', 'Notes');
+  if (includeEnergy) headers.push('Energy Level');
+  if (includeBlockDetails) headers.push('Notes');
   lines.push(headers.join(','));
   snapshots.sort(function(a, b) { return a.date < b.date ? -1 : 1; }).forEach(function(s) {
     annotateBlocksWithTimes(s.blocks).forEach(function(b) {
@@ -10171,7 +10679,8 @@ function buildRulerCsv(snapshots, includeEnergy) {
         csvEscape(b.minutes),
         csvEscape(b.sleep ? 'Yes' : 'No')
       ];
-      if (includeEnergy) row.push(csvEscape(b.energy), csvEscape(b.notes));
+      if (includeEnergy) row.push(csvEscape(b.energy));
+      if (includeBlockDetails) row.push(csvEscape(b.notes));
       lines.push(row.join(','));
     });
   });
@@ -10303,8 +10812,8 @@ document.getElementById('exportCsvBtn').addEventListener('click', function() {
     var zip = new JSZip();
     var fileCount = 0;
 
-    if ((filters.includeRulerBlocks || filters.includeRulerEnergy) && bundle.snapshots.length) {
-      zip.file('today-blocks.csv', buildRulerCsv(bundle.snapshots, filters.includeRulerEnergy));
+    if ((filters.includeRulerBlocks || filters.includeRulerEnergy || filters.includeBlockDetails) && bundle.snapshots.length) {
+      zip.file('today-blocks.csv', buildRulerCsv(bundle.snapshots, filters.includeRulerEnergy, filters.includeBlockDetails));
       fileCount++;
     }
     if (filters.includeJournal && bundle.entries.length) {
@@ -10336,8 +10845,28 @@ document.getElementById('exportCsvBtn').addEventListener('click', function() {
       zip.file('whiteboard.txt', bundle.tackleText);
       fileCount++;
     }
+    if (filters.includeThisWeek && bundle.thisWeekFocus) {
+      zip.file('this-week-focus.txt', bundle.thisWeekFocus);
+      fileCount++;
+    }
+    if (filters.includeThisMonth && bundle.thisMonthFocus) {
+      zip.file('this-month-focus.txt', bundle.thisMonthFocus);
+      fileCount++;
+    }
     if (filters.includeYearly && bundle.yearlyCsvText && bundle.yearlyCsvText.split('\n').length > 1) {
       zip.file('yearly-visualization.csv', bundle.yearlyCsvText);
+      fileCount++;
+    }
+    if (filters.includeAlpha && bundle.alphaRows.length) {
+      zip.file('track-alpha-entries.csv', buildAlphaCsv(bundle.alphaRows));
+      fileCount++;
+    }
+    if (filters.includeContacts && bundle.legionsWithMembers.length) {
+      zip.file('contacts.csv', buildContactsCsv(bundle.legionsWithMembers));
+      fileCount++;
+    }
+    if (filters.includeLegionsList && bundle.legionsWithMembers.length) {
+      zip.file('legions.csv', buildLegionsCsv(bundle.legionsWithMembers));
       fileCount++;
     }
 
@@ -10520,16 +11049,31 @@ function renderPdfDocument(bundle, imagesByEntryId, onComplete) {
     body: summaryRows
   });
 
-  if (tackleText) {
-    cursorY = doc.lastAutoTable.finalY + 24;
+  cursorY = doc.lastAutoTable.finalY + 24;
+
+  // Draws a titled block of wrapped text on the cover page and
+  // advances the shared cursorY past it, so multiple optional blocks
+  // (This Week/This Month/Whiteboard) can stack without overlapping.
+  function drawCoverTextBlock(title, text) {
     doc.setFont('times', 'bold');
     doc.setFontSize(13);
-    doc.text('Whiteboard (at time of export)', marginX, cursorY);
+    doc.text(title, marginX, cursorY);
     cursorY += 16;
     doc.setFont('times', 'normal');
     doc.setFontSize(10);
-    var wrapped = doc.splitTextToSize(tackleText, pageWidth - marginX * 2);
+    var wrapped = doc.splitTextToSize(text, pageWidth - marginX * 2);
     doc.text(wrapped, marginX, cursorY);
+    cursorY += wrapped.length * 12 + 24;
+  }
+
+  if (filters.includeThisWeek && bundle.thisWeekFocus) {
+    drawCoverTextBlock('This Week\'s Focus', bundle.thisWeekFocus);
+  }
+  if (filters.includeThisMonth && bundle.thisMonthFocus) {
+    drawCoverTextBlock('This Month\'s Focus', bundle.thisMonthFocus);
+  }
+  if (tackleText) {
+    drawCoverTextBlock('Whiteboard (at time of export)', tackleText);
   }
 
   // ---- Per-day sections ----
@@ -10556,14 +11100,20 @@ function renderPdfDocument(bundle, imagesByEntryId, onComplete) {
     var snap = snapByDate[dateStr];
     if (snap) {
       var annotated = annotateBlocksWithTimes(snap.blocks);
+      var blockHead = ['#', 'Block', 'Start', 'End', 'Minutes'];
+      if (filters.includeRulerEnergy) blockHead.push('Energy');
+      if (filters.includeBlockDetails) blockHead.push('Notes');
       doc.autoTable({
         startY: y,
         margin: { left: marginX, right: marginX },
         styles: { font: 'times', fontSize: 9 },
         headStyles: { fillColor: [192, 181, 165], textColor: [30, 30, 30] },
-        head: [['#', 'Block', 'Start', 'End', 'Minutes']],
+        head: [blockHead],
         body: annotated.map(function(b) {
-          return [b.blockNumber, b.name, b.startTime, b.endTime, b.minutes];
+          var row = [b.blockNumber, b.name, b.startTime, b.endTime, b.minutes];
+          if (filters.includeRulerEnergy) row.push(b.energy != null ? b.energy : '—');
+          if (filters.includeBlockDetails) row.push(b.notes || '—');
+          return row;
         }),
         didParseCell: function(data) {
           if (data.section === 'body' && annotated[data.row.index] && annotated[data.row.index].sleep) {
@@ -10656,6 +11206,64 @@ function renderPdfDocument(bundle, imagesByEntryId, onComplete) {
       body: bundle.weeklyRecords.map(function(r) {
         return [r.weekKey, r.focusText || '—', typeof r.scoreAverage === 'number' ? (r.scoreAverage + ' / 10') : '—'];
       })
+    });
+  }
+
+  if (filters.includeAlpha && (bundle.alphaRows || []).length) {
+    doc.addPage();
+    var taY = 50;
+    doc.setFont('times', 'bold');
+    doc.setFontSize(15);
+    doc.text('Track Alpha Entries', marginX, taY);
+    taY += 16;
+    doc.autoTable({
+      startY: taY,
+      margin: { left: marginX, right: marginX },
+      styles: { font: 'times', fontSize: 9 },
+      headStyles: { fillColor: [192, 181, 165], textColor: [30, 30, 30] },
+      head: [['Date', 'Snipe', 'Category', 'Logged Data']],
+      body: bundle.alphaRows
+        .slice()
+        .sort(function(a, b) { return a.date < b.date ? -1 : 1; })
+        .map(function(r) { return [r.date, r.profileName, r.category, JSON.stringify(r.data || {})]; })
+    });
+  }
+
+  if (filters.includeContacts && (bundle.legionsWithMembers || []).length) {
+    doc.addPage();
+    var ctY = 50;
+    doc.setFont('times', 'bold');
+    doc.setFontSize(15);
+    doc.text('Contacts', marginX, ctY);
+    ctY += 16;
+    var contactRows = [];
+    bundle.legionsWithMembers.forEach(function(legion) {
+      legion.members.forEach(function(m) { contactRows.push([legion.name, m.name]); });
+    });
+    doc.autoTable({
+      startY: ctY,
+      margin: { left: marginX, right: marginX },
+      styles: { font: 'times', fontSize: 9 },
+      headStyles: { fillColor: [192, 181, 165], textColor: [30, 30, 30] },
+      head: [['Legion', 'Contact Name']],
+      body: contactRows
+    });
+  }
+
+  if (filters.includeLegionsList && (bundle.legionsWithMembers || []).length) {
+    doc.addPage();
+    var lgY = 50;
+    doc.setFont('times', 'bold');
+    doc.setFontSize(15);
+    doc.text('Legions', marginX, lgY);
+    lgY += 16;
+    doc.autoTable({
+      startY: lgY,
+      margin: { left: marginX, right: marginX },
+      styles: { font: 'times', fontSize: 9 },
+      headStyles: { fillColor: [192, 181, 165], textColor: [30, 30, 30] },
+      head: [['Legion', 'Member Count']],
+      body: bundle.legionsWithMembers.map(function(legion) { return [legion.name, String(legion.members.length)]; })
     });
   }
 
@@ -11029,24 +11637,24 @@ var ALPHA_PROFILES_KEY = 'csrAlignAlphaProfiles';
 var ALPHA_ENTRIES_KEY = 'csrAlignAlphaEntries';
 
 function loadAlphaProfiles() {
-  var saved = localStorage.getItem(ALPHA_PROFILES_KEY);
+  var saved = localStorage.getItem(scopedKey(ALPHA_PROFILES_KEY));
   if (saved) {
     try { var parsed = JSON.parse(saved); return Array.isArray(parsed) ? parsed : []; } catch(e) {}
   }
   return [];
 }
 function saveAlphaProfiles(list) {
-  localStorage.setItem(ALPHA_PROFILES_KEY, JSON.stringify(list));
+  localStorage.setItem(scopedKey(ALPHA_PROFILES_KEY), JSON.stringify(list));
 }
 function loadAlphaEntries() {
-  var saved = localStorage.getItem(ALPHA_ENTRIES_KEY);
+  var saved = localStorage.getItem(scopedKey(ALPHA_ENTRIES_KEY));
   if (saved) {
     try { var parsed = JSON.parse(saved); return Array.isArray(parsed) ? parsed : []; } catch(e) {}
   }
   return [];
 }
 function saveAlphaEntries(list) {
-  localStorage.setItem(ALPHA_ENTRIES_KEY, JSON.stringify(list));
+  localStorage.setItem(scopedKey(ALPHA_ENTRIES_KEY), JSON.stringify(list));
 }
 function alphaGenerateId(prefix) {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
@@ -11067,7 +11675,7 @@ var alphaEntries = loadAlphaEntries();
 // folded into any profile's account-wide `profiles` row, since it's
 // scoped to the Track Alpha experience specifically, not the account.
 var ALPHA_GENDER_KEY = 'csrAlignAlphaGender';
-var alphaGender = localStorage.getItem(ALPHA_GENDER_KEY) || null;
+var alphaGender = localStorage.getItem(scopedKey(ALPHA_GENDER_KEY)) || null;
 
 var alphaSelectedProfileId = null;   // set once an improvement is opened
 var alphaActiveSubTab = 'input';     // 'input' | 'stats', within a profile detail view
@@ -11958,7 +12566,7 @@ function renderAlphaGenderGate(container) {
     btn.textContent = pair[1];
     btn.addEventListener('click', function() {
       alphaGender = pair[0];
-      localStorage.setItem(ALPHA_GENDER_KEY, alphaGender);
+      localStorage.setItem(scopedKey(ALPHA_GENDER_KEY), alphaGender);
       renderAlphaBrowser();
     });
     row.appendChild(btn);

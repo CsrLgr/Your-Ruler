@@ -127,15 +127,18 @@ create policy "clans_delete_owner"
 -- ============================================================
 alter table clan_members enable row level security;
 
+-- Non-recursive: uses is_legion_mate() (SECURITY DEFINER, defined
+-- above) rather than a raw self-join subquery against clan_members
+-- from within a policy ON clan_members — that shape causes "infinite
+-- recursion detected in policy for relation clan_members" in Postgres
+-- (surfaces as 500s from PostgREST on anything touching clan_members,
+-- including Whiteboard sync via shared_sections' is_legion_mate() use).
 drop policy if exists "clan_members_select_own_or_fellow" on clan_members;
 create policy "clan_members_select_own_or_fellow"
   on clan_members for select
   using (
     user_id = auth.uid()
-    or exists (
-      select 1 from clan_members cm2
-      where cm2.clan_id = clan_members.clan_id and cm2.user_id = auth.uid()
-    )
+    or is_legion_mate(user_id)
   );
 
 -- Free tier capped at 2 Legions, matching the client's existing
