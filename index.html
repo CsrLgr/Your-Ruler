@@ -8264,6 +8264,47 @@ function retryQueuedSyncs(force) {
   });
 }
 
+// Sign-out-time final flush — unlike retryQueuedSyncs()/attemptSync()
+// above (fire-and-forget: they update toasts/retryCount and return
+// immediately), this variant is a Promise the logout flow can
+// actually wait on, since it needs to know whether everything queued
+// (Plans/Today/Ledgers/Track Alpha/settings — every save in this app
+// already funnels through enqueueSync, so the queue is genuinely the
+// complete list of "not yet confirmed on the server") got pushed
+// before deciding whether it's safe to wipe. Deliberately does NOT
+// touch retryCount/show its own toasts on failure — a failed flush
+// attempt here isn't "give up," it's "the user gets to decide,"
+// and whatever's still queued stays exactly as queued for the normal
+// background retry to keep handling if they choose to stay signed in.
+// callback(true) if the queue is now empty (everything pushed, or
+// there was nothing pending to begin with); callback(false) if
+// anything is still stuck.
+function flushAllPendingSyncsAndCheck(callback) {
+  if (!supabaseClient || !currentUser) { callback(true); return; }
+  var queue = loadSyncQueue();
+  var keys = Object.keys(queue);
+  if (!keys.length) { callback(true); return; }
+
+  Promise.all(keys.map(function(queueKey) {
+    var entry = queue[queueKey];
+    var prefix = queueKey.split(':')[0];
+    var performFn = syncPerformers[prefix];
+    if (!performFn) return true; // nothing registered to retry this with — not this flush's problem to solve
+
+    var result;
+    try { result = performFn(entry.payload); } catch (e) { return false; }
+    if (!result || typeof result.then !== 'function') return true;
+
+    return result.then(function(response) {
+      if (response && response.error) return false;
+      clearFromQueue(queueKey);
+      return true;
+    }).catch(function() { return false; });
+  })).then(function(results) {
+    callback(results.every(function(ok) { return ok; }));
+  });
+}
+
 // ---- One-time cleanup: stale queued failures from before the
 // shared_sections_section_check constraint was updated to allow
 // 'themeYear'/'monthlyFocus' (see the migration run directly in
@@ -8390,8 +8431,29 @@ function renderAuthBarLoggedIn(email) {
   signOutBtn.className = 'secondary';
   signOutBtn.textContent = 'Sign out';
   signOutBtn.addEventListener('click', function() {
-    if (supabaseClient) supabaseClient.auth.signOut();
-    renderAuthBarLoggedOut();
+    if (!supabaseClient) { renderAuthBarLoggedOut(); return; }
+    signOutBtn.disabled = true;
+    signOutBtn.textContent = 'Saving...';
+    flushAllPendingSyncsAndCheck(function(allSynced) {
+      if (allSynced) {
+        supabaseClient.auth.signOut();
+        renderAuthBarLoggedOut();
+        return;
+      }
+      signOutBtn.disabled = false;
+      signOutBtn.textContent = 'Sign out';
+      var logoutAnyway = window.confirm(
+        'Server unreachable — your unsaved changes will be lost if you log out now.\n\n' +
+        'Click OK to log out anyway (unsaved changes will be lost), or Cancel to stay logged in and try again.'
+      );
+      if (logoutAnyway) {
+        supabaseClient.auth.signOut();
+        renderAuthBarLoggedOut();
+      }
+      // Cancel: stay signed in, do nothing further — the existing
+      // background retry mechanism (retryQueuedSyncs) keeps trying
+      // independently regardless of this dialog's outcome.
+    });
   });
 
   authBar.appendChild(status);
