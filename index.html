@@ -3972,21 +3972,6 @@
   </div>
 </div>
 
-<!-- Send Entry modal: shared by the composer's Send button and every
-     past entry's Send button. Step content (choose Individual/Legion,
-     then the matching dropdown) is rendered dynamically into
-     #sendModalBody by renderSendModalStep() in the JS, since it needs
-     to reset per-open depending on which entry is being sent. -->
-<div class="send-modal-overlay" id="sendModalOverlay" style="display:none;">
-  <div class="send-modal">
-    <div class="send-modal-header">
-      <span class="section-label">Send Entry</span>
-      <button type="button" class="secondary" id="sendModalClose">Close</button>
-    </div>
-    <div id="sendModalBody"></div>
-  </div>
-</div>
-
 <!-- Block Detail (2/3 width) + Musts & In-between (1/3 width), side
      by side. Block Detail is hidden until a block is clicked; when
      hidden, Musts naturally expands to fill the row rather than
@@ -4188,6 +4173,30 @@
   <div class="entries-list entries-list-full">
     <span class="section-label">Past Entries</span>
     <div id="entriesList" class="entries-scroll"></div>
+  </div>
+
+  <!-- Send Entry modal: shared by the composer's Send button and every
+       past entry's Send button, both of which live in this tab — was
+       previously (mistakenly) placed inside the Ruler/Today tab-panel's
+       markup instead, which meant .tab-panel { display: none } on the
+       INACTIVE Today tab hid this modal's entire subtree regardless of
+       its own inline display:flex, so it only ever became visible if
+       the person happened to also be on Today (a parent's display:none
+       always wins over a child's own display value, position:fixed
+       or not). Moved here, into the only tab that ever opens it, so it
+       shows up exactly where it was triggered. Step content (choose
+       Individual/Legion, then the matching dropdown) is rendered
+       dynamically into #sendModalBody by renderSendModalStep() in the
+       JS, since it needs to reset per-open depending on which entry is
+       being sent. -->
+  <div class="send-modal-overlay" id="sendModalOverlay" style="display:none;">
+    <div class="send-modal">
+      <div class="send-modal-header">
+        <span class="section-label">Send Entry</span>
+        <button type="button" class="secondary" id="sendModalClose">Close</button>
+      </div>
+      <div id="sendModalBody"></div>
+    </div>
   </div>
 </div><!-- ============================ /TAB 3: JOURNAL ============================ -->
 
