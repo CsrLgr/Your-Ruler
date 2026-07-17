@@ -2272,14 +2272,14 @@
   }
   .accomplish-row .accomplish-col { margin: 0; max-width: none; min-width: 0; flex: 1 1 0; }
   .accomplish-row .section-label { font-size: 16px !important; }
-  .vision-days-panel { display: flex; flex-direction: column; }
+  .plans-week-days-panel { display: flex; flex-direction: column; }
 
-  /* ---- Vision — Month split into weeks ----
+  /* ---- Plans — Month split into weeks ----
      WEEK 1-4 are the current month's 1st-4th real Mon-Sun calendar
-     weeks (see visionWeekDates() in the JS) — day boxes read/write the
+     weeks (see plansWeekDates() in the JS) — day boxes read/write the
      real Daily Archive directly, so they're always in step with
      Ruler's Weekly Visualization and Yearly Visualization's per-week
-     records. visionMonthWeeks itself only still stores each week's
+     records. plansWeeks itself only still stores each week's
      name and its own Week Notes text. 4 renameable week buttons, one
      active at a time (purely which week you're viewing/editing, not
      which one Ruler follows); double-click a button to rename it.
@@ -2311,14 +2311,14 @@
     padding: 0 0.5rem;
   }
   .vision-month-focus-display:focus { outline: 1px solid var(--rd-gold-bright) !important; }
-  .vision-week-buttons {
+  .plans-week-buttons {
     display: flex;
     gap: 0.5rem;
     margin-top: 1rem;
     flex-wrap: wrap;
   }
-  .vision-week-btn-wrap { flex: 1 1 0; min-width: 90px; }
-  .vision-week-btn {
+  .plans-week-btn-wrap { flex: 1 1 0; min-width: 90px; }
+  .plans-week-btn {
     width: 100%;
     background: var(--rd-field);
     border: 1px solid var(--rd-edge);
@@ -2335,14 +2335,14 @@
      real <button>, and the app's generic "button:hover { background:
      var(--rd-gold-bright) }" rule would otherwise win that property
      by specificity and flash the button solid gold on hover. */
-  .vision-week-btn:hover { border-color: var(--rd-gold); color: var(--rd-gold-bright); background: var(--rd-field); }
-  .vision-week-btn.active {
+  .plans-week-btn:hover { border-color: var(--rd-gold); color: var(--rd-gold-bright); background: var(--rd-field); }
+  .plans-week-btn.active {
     background: var(--rd-gold);
     color: #1c1305;
     border-color: var(--rd-gold);
     font-weight: bold;
   }
-  .vision-week-rename-input {
+  .plans-week-rename-input {
     width: 100%;
     box-sizing: border-box;
     background: var(--rd-field);
@@ -2353,40 +2353,40 @@
     font-size: 13px;
     text-align: center;
   }
-  .vision-week-hint {
+  .plans-week-hint {
     font-size: 10px;
     color: var(--rd-muted);
     text-align: center;
     margin-top: 0.4rem;
   }
 
-  /* #visionWeekDays itself is now a column: the 2-column day-box row
+  /* #plansWeekDays itself is now a column: the 2-column day-box row
      on top (fixed/natural height), then the week-notes box below it
      with flex:1 so it stretches to fill whatever's left down to
-     Yearly Visualization — see .vision-days-panel/.accomplish-row
+     Yearly Visualization — see .plans-week-days-panel/.accomplish-row
      (align-items:stretch) above for the rest of that height chain.
      min-height:0 is load-bearing here: without it a flex child with
      internal scroll content (the notes textarea) can force this
      container to grow past its intended bounds instead of scrolling
      internally. */
-  .vision-week-days {
+  .plans-week-days {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
     flex: 1;
     min-height: 0;
   }
-  .vision-week-days-empty { font-size: 12px; color: var(--rd-muted); font-style: italic; }
+  .plans-week-days-empty { font-size: 12px; color: var(--rd-muted); font-style: italic; }
   /* The 2-column day-box row (4 boxes left, 3 right), sized to sit in
      roughly the same footprint as the accomplish-box next to it (4
      lines x min-height 60px + 0.75rem gaps, see .accomplish-line) —
      deliberately smaller/tighter than that reference, not identical,
      since 7 boxes need to fit where 4 used to. */
-  .vision-week-days-row {
+  .plans-week-days-row {
     display: flex;
     gap: 0.5rem;
   }
-  .vision-week-days-col {
+  .plans-week-days-col {
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
@@ -2397,8 +2397,8 @@
      absolutely positioned in the corner — the box's own visible size
      (background/border) lives on the textarea itself, so there's no
      percentage-height math to get wrong. */
-  .vision-day-box { position: relative; }
-  .vision-day-label {
+  .plans-day-box { position: relative; }
+  .plans-day-label {
     position: absolute;
     top: 2px;
     left: 6px;
@@ -2413,7 +2413,7 @@
   /* Opposite corner from the label — same sticky-overlay technique,
      unlike the label this one needs pointer-events since it's
      interactive. */
-  .vision-day-done {
+  .plans-day-done {
     position: absolute;
     top: 2px;
     right: 4px;
@@ -2429,7 +2429,7 @@
      to var(--rd-edge)/var(--rd-field) at !important — without matching
      it here, this box's gold border/panel background would silently
      lose to that sweep despite never looking wrong in the source. */
-  .vision-day-input {
+  .plans-day-input {
     display: block;
     width: 100%;
     min-height: 44px;
@@ -2445,18 +2445,18 @@
     resize: none;
     overflow-y: auto;
   }
-  .vision-day-input:focus { outline: 1px solid var(--rd-gold-bright); }
+  .plans-day-input:focus { outline: 1px solid var(--rd-gold-bright); }
 
   /* Week Notes — same sticky-corner-label pattern as the day boxes,
      but flex:1 so it grows to fill whatever vertical space is left in
      the column instead of sitting at a fixed small size. */
-  .vision-week-notes-wrap {
+  .plans-week-notes-wrap {
     position: relative;
     flex: 1;
     min-height: 60px;
     display: flex;
   }
-  .vision-week-notes-label {
+  .plans-week-notes-label {
     position: absolute;
     top: 4px;
     left: 8px;
@@ -2468,11 +2468,11 @@
     pointer-events: none;
     z-index: 1;
   }
-  /* !important — same reason as .vision-day-input above: this is a
+  /* !important — same reason as .plans-day-input above: this is a
      <textarea>, and the "Form controls" theme sweep further down
      forces bare textareas to var(--rd-edge)/var(--rd-field) at
      !important. */
-  .vision-week-notes-input {
+  .plans-week-notes-input {
     display: block;
     width: 100%;
     flex: 1;
@@ -2487,7 +2487,7 @@
     padding: 20px 10px 8px 10px;
     resize: none;
   }
-  .vision-week-notes-input:focus { outline: 1px solid var(--rd-gold-bright); }
+  .plans-week-notes-input:focus { outline: 1px solid var(--rd-gold-bright); }
 
   .yearly-year-nav {
     display: flex;
@@ -2499,7 +2499,7 @@
   .yearly-year-nav button { padding: 0.3rem 0.7rem; font-size: 12px; }
   .yearly-year-label { font-size: 16px; font-weight: bold; color: var(--rd-gold); min-width: 3.5em; text-align: center; }
   /* Single source of truth for Yearly Focus (see THEME_YEAR_KEY in the
-     JS). Sized to match .vision-week-notes-input's column width exactly
+     JS). Sized to match .plans-week-notes-input's column width exactly
      (each .accomplish-col is half of .accomplish-row's 1100px/1.5rem-gap
      box) and centered under the year nav. Two states, toggled in JS via
      .yearly-focus-wrap's children: the <textarea> (edit mode, bordered)
@@ -2508,7 +2508,7 @@
     max-width: calc((1100px - 1.5rem) / 2);
     margin: -0.25rem auto 0.9rem auto;
   }
-  /* !important on border/color — same reason as .vision-day-input
+  /* !important on border/color — same reason as .plans-day-input
      above: this is a <textarea>, and the "Form controls" theme sweep
      further down forces bare textareas to var(--rd-edge) border and
      var(--rd-text) color at !important (background already happened
@@ -2608,7 +2608,7 @@
      down forces those to var(--rd-edge)/var(--rd-field)/var(--rd-text)
      at !important; without matching it here this box would silently
      lose its gold accent despite looking correct in the source (see
-     the same note on .vision-day-input above). */
+     the same note on .plans-day-input above). */
   /* Same size as .vision-month-focus-display (Vision tab's "This
      Month" mirror of this exact box) — matched dimensions, not just a
      similar percentage, per direct request: 40px height, 12px type,
@@ -2635,14 +2635,14 @@
     gap: 0.5rem;
     min-width: 0;
   }
-  /* Yearly Visualization's week boxes ONLY (Vision tab's own WEEK 1-4
+  /* Yearly Visualization's week boxes ONLY (Plans tab's own WEEK 1-4
      day boxes/notes are untouched — separate classes entirely) — kept
      to minimum height: one line of pulled focus text plus the score,
      nothing else. ONE box, not two stacked ones: .yearly-week-box
      keeps its own full border/background, and the pulled focus text
      is an overlay INSIDE it (position:absolute, pointer-events:none so
      clicks pass through to the textarea underneath) — the same
-     sticky-label technique as .vision-day-label/.vision-week-notes-
+     sticky-label technique as .plans-day-label/.plans-week-notes-
      label elsewhere in this app, chosen for the same reason: a
      <textarea> can't contain child elements, so a label that must sit
      inside its visual bounds has to be an absolutely-positioned
@@ -2676,7 +2676,7 @@
   }
   /* Empty -> a muted "Weekly Focus" placeholder-style caption (renders
      as WEEKLY FOCUS via the app-wide uppercase sweep) so it's clear
-     what this spot is for before any Vision week box has been typed
+     what this spot is for before any Plans week box has been typed
      into yet, same idea as every other ::placeholder in the app. */
   .yearly-week-pulled-focus:empty::before {
     content: 'Weekly Focus';
@@ -3873,7 +3873,7 @@
         <span class="todays-mission-date" id="todaysMissionDate"></span>
         <div class="todays-mission-header-row">
           <!-- Marks today's mission done — synced with whichever
-               Vision day box represents today (Plans tab), if that
+               Plans day box represents today (Plans tab), if that
                week happens to be the one currently open there. See
                renderTodaysMission()/buildDayBox() in the JS; both
                read/write the same Daily Archive record for today's
@@ -4048,17 +4048,17 @@
         <label for="accomplishMonthShare">Share with Legion</label>
       </div>
       <!-- 4 renameable week buttons, one active at a time — see
-           renderVisionWeekButtons()/renderVisionWeekDays() in the JS,
-           and the "Vision — Month split into weeks" section for the
+           renderPlansWeekButtons()/renderPlansWeekDays() in the JS,
+           and the "Plans — Month split into weeks" section for the
            full design note. Wired into Ruler and Yearly Visualization
-           via real calendar weeks — see visionWeekDates() and
-           saveWeekFocusForVisionWeek(). -->
-      <div class="vision-week-buttons" id="visionWeekButtons"></div>
+           via real calendar weeks — see plansWeekDates() and
+           saveWeekFocusForPlansWeek(). -->
+      <div class="plans-week-buttons" id="plansWeekButtons"></div>
     </div>
 
-    <div class="life-section accomplish-col vision-days-panel">
+    <div class="life-section accomplish-col plans-week-days-panel">
       <span class="section-label">Week Days</span>
-      <div class="vision-week-days" id="visionWeekDays"></div>
+      <div class="plans-week-days" id="plansWeekDays"></div>
     </div>
   </div>
 
@@ -4688,20 +4688,21 @@ function getWeekRecord(weekKey) {
   return archive[weekKey] || null;
 }
 
-// ---- Vision week <-> real calendar week mapping ----
-// WEEK 1-4 (Vision's buttons/goal boxes) are the current real month's
-// 1st-4th real Mon-Sun weeks, in order — not a manually-arbitrary
-// "whichever button is active" bucket. A month always has at least 4
-// Mondays (a 5th, when it occurs, has no Vision button and is simply
-// not covered — acknowledged edge case, doesn't need a 5th slot to
-// handle the normal case correctly). Computed fresh every call rather
-// than cached so a month rollover while the app stays open just works.
-function visionMonthMondays() {
+// ---- Plans week <-> real calendar week mapping ----
+// WEEK 1-4 (Plans' week buttons/goal boxes) are the current real
+// month's 1st-4th real Mon-Sun weeks, in order — not a
+// manually-arbitrary "whichever button is active" bucket. A month
+// always has at least 4 Mondays (a 5th, when it occurs, has no Plans
+// Week button and is simply not covered — acknowledged edge case,
+// doesn't need a 5th slot to handle the normal case correctly).
+// Computed fresh every call rather than cached so a month rollover
+// while the app stays open just works.
+function plansWeekMondays() {
   var now = new Date();
   return getMondaysInMonth(now.getFullYear(), now.getMonth());
 }
-function visionWeekDates(weekIdx) {
-  var monday = visionMonthMondays()[weekIdx];
+function plansWeekDates(weekIdx) {
+  var monday = plansWeekMondays()[weekIdx];
   if (!monday) return null;
   var dates = [];
   for (var i = 0; i < 7; i++) {
@@ -4709,26 +4710,26 @@ function visionWeekDates(weekIdx) {
   }
   return dates;
 }
-// Which Vision week (0-3) today's real date falls in, or null if today
+// Which Plans week (0-3) today's real date falls in, or null if today
 // lands in a 5th-Monday week this month has no button for.
-function visionWeekIndexForToday() {
+function plansWeekIndexForToday() {
   var todayStr = todayLocalDateString();
   for (var i = 0; i < 4; i++) {
-    var dates = visionWeekDates(i);
+    var dates = plansWeekDates(i);
     if (dates && dates.indexOf(todayStr) !== -1) return i;
   }
   return null;
 }
 
-// Saves a Vision week's goal-box text into ITS OWN real ISO week's
+// Saves a Plans week's goal-box text into ITS OWN real ISO week's
 // WeeklyArchive record — every week gets its own permanent slot, so
 // typing in box 2 can never stomp on box 1's slot the way a single
 // shared "today's week" key used to. Score average comes from that
 // same real week's Daily Archive records, distinct from the Weekly
 // Visualization panel's own rolling-window summary
 // (renderWeeklyScoreSummary), which averages a different span.
-function saveWeekFocusForVisionWeek(weekIdx, text) {
-  var monday = visionMonthMondays()[weekIdx];
+function saveWeekFocusForPlansWeek(weekIdx, text) {
+  var monday = plansWeekMondays()[weekIdx];
   if (!monday) return;
   var key = isoWeekKey(monday);
   var archive = loadWeeklyArchive();
@@ -4753,11 +4754,11 @@ function saveWeekFocusForVisionWeek(weekIdx, text) {
 
 // Thin wrapper kept for the existing call sites (the Ruler tab's
 // Weekly Focus input and its bound goal box) — always targets whichever
-// Vision week matches TODAY specifically, via accomplishBoundGoalIndex
+// Plans week matches TODAY specifically, via accomplishBoundGoalIndex
 // (see renderAccomplishMonth()), since that's the one box Ruler's
 // Weekly Focus field mirrors.
 function recordCurrentWeek() {
-  saveWeekFocusForVisionWeek(accomplishBoundGoalIndex, weeklyFocusText);
+  saveWeekFocusForPlansWeek(accomplishBoundGoalIndex, weeklyFocusText);
 }
 
 // Logs the PREVIOUS value into this week's focusHistory, timestamped —
@@ -4766,7 +4767,7 @@ function recordCurrentWeek() {
 // saving stays live via recordCurrentWeek(); history is per-edit, not
 // per-character, mirroring how Journal entry edits are logged.
 function logWeeklyFocusEdit(previousText) {
-  var monday = visionMonthMondays()[accomplishBoundGoalIndex] || new Date();
+  var monday = plansWeekMondays()[accomplishBoundGoalIndex] || new Date();
   var key = isoWeekKey(monday);
   var archive = loadWeeklyArchive();
   var rec = archive[key] || { focusText: weeklyFocusText, scoreAverage: null, focusHistory: [] };
@@ -6918,9 +6919,9 @@ function buildRollingWindowSnapshot() {
 // Weekly Focus text. Two-way bound to whichever "This Month" goal box
 // corresponds to the REAL calendar week containing today (Week 1 = the
 // month's 1st Mon-Sun, Week 2 = 2nd, etc. — see accomplishBoundGoalIndex
-// and visionWeekIndexForToday(), both used in renderAccomplishMonth()).
+// and plansWeekIndexForToday(), both used in renderAccomplishMonth()).
 // This is deliberately NOT tied to which week button the user happens
-// to be viewing/editing in Vision (visionActiveWeekIndex) — Ruler
+// to be viewing/editing in Plans (plansActiveWeekIndex) — Ruler
 // always tracks the calendar, not the UI's current scroll position.
 // Falls back to index 0 only if today falls in a 5th-Monday week this
 // month has no button for. goal1InputEl is set once
@@ -7024,16 +7025,16 @@ function toggleTodaysMissionDone() {
   var rec = getDayRecord(today);
   saveMissionForDate(today, (rec && rec.missionText) || '', checkbox.checked);
   updateDailyScore();
-  // Mirror into Vision's day box for today (Plans tab), if that's the
+  // Mirror into Plans' day box for today (Plans tab), if that's the
   // week currently open there — same "update the other side's DOM
   // directly if it's on screen" pattern buildDayBox()'s own input
   // listener already uses for mission text.
-  if (typeof visionActiveWeekIndex !== 'undefined' && typeof visionWeekIndexForToday === 'function'
-      && visionActiveWeekIndex === visionWeekIndexForToday()) {
+  if (typeof plansActiveWeekIndex !== 'undefined' && typeof plansWeekIndexForToday === 'function'
+      && plansActiveWeekIndex === plansWeekIndexForToday()) {
     var jsDay = new Date().getDay();
     var slotIndex = jsDay === 0 ? 6 : jsDay - 1; // Monday=0..Sunday=6, same convention as getRollingWindowDates()
-    var visionDone = document.getElementById('visionDayDone-' + slotIndex);
-    if (visionDone) visionDone.checked = checkbox.checked;
+    var plansDone = document.getElementById('plansDayDone-' + slotIndex);
+    if (plansDone) plansDone.checked = checkbox.checked;
   }
 }
 var todaysMissionDoneEl = document.getElementById('todaysMissionDone');
@@ -7093,13 +7094,13 @@ function renderWeeklyViz() {
         var currentRec = getDayRecord(dateStr);
         saveMissionForDate(dateStr, input.value, currentRec && currentRec.missionDone);
         if (isTodayRow) renderTodaysMission();
-        // Mirror live into Vision's day box if Vision is currently
+        // Mirror live into Plans' day box if Plans is currently
         // showing TODAY's real week — same underlying Daily Archive
         // record (the write above), just a same-tab DOM update so the
         // other tab doesn't look stale if it's already rendered.
-        if (visionActiveWeekIndex !== null && visionActiveWeekIndex === visionWeekIndexForToday()) {
-          var visionInput = document.getElementById('visionDayInput-' + slot);
-          if (visionInput && document.activeElement !== visionInput) visionInput.value = input.value;
+        if (plansActiveWeekIndex !== null && plansActiveWeekIndex === plansWeekIndexForToday()) {
+          var plansInput = document.getElementById('plansDayInput-' + slot);
+          if (plansInput && document.activeElement !== plansInput) plansInput.value = input.value;
         }
       });
     })(date, isToday, slotIndex);
@@ -7592,14 +7593,14 @@ function renderAccomplishMonth() {
   if (!accomplishMonthBox) return;
   accomplishMonthBox.innerHTML = '';
   // Which of the 4 goal boxes drives Ruler's Weekly Focus — whichever
-  // box's real calendar week (see visionWeekDates()) actually contains
-  // TODAY, not whichever week the user happens to be VIEWING in Vision
-  // (that's visionActiveWeekIndex, a separate, purely-UI concept — see
+  // box's real calendar week (see plansWeekDates()) actually contains
+  // TODAY, not whichever week the user happens to be VIEWING in Plans
+  // (that's plansActiveWeekIndex, a separate, purely-UI concept — see
   // the week-button click handler below). This is what makes Ruler
   // "always show the current week" regardless of which week you're
   // planning ahead in. Falls back to index 0 only in the rare case
   // today falls in a 5th-Monday week this month has no button for.
-  var todayIdx = visionWeekIndexForToday();
+  var todayIdx = plansWeekIndexForToday();
   var boundIdx = todayIdx !== null ? todayIdx : 0;
   accomplishBoundGoalIndex = boundIdx;
   for (var i = 0; i < 4; i++) {
@@ -7616,7 +7617,7 @@ function renderAccomplishMonth() {
         // Visualization's 4 week-slots for this month each show their
         // own correct text instead of only whichever box happened to
         // be edited most recently under the old shared-slot design.
-        saveWeekFocusForVisionWeek(idx, el.value);
+        saveWeekFocusForPlansWeek(idx, el.value);
       });
       // The box for TODAY's real week is two-way bound to Weekly Focus
       // on the Ruler tab (see weeklyFocusInputEl above) — editing
@@ -7654,20 +7655,20 @@ function renderAccomplishMonth() {
   }
 }
 
-// ---- Vision — Month split into weeks ----
+// ---- Plans — Month split into weeks ----
 // 4 renameable week buttons under the 4 goal boxes, one active at a
-// time (visionActiveWeekIndex — purely which week's day boxes you're
+// time (plansActiveWeekIndex — purely which week's day boxes you're
 // currently VIEWING/editing, a UI-navigation concept). Each week IS a
-// real calendar week (see visionWeekDates() above), so its day boxes
+// real calendar week (see plansWeekDates() above), so its day boxes
 // read/write the real Daily Archive directly for those 7 dates — no
 // separate day-storage to keep in sync, so switching which week you're
 // viewing can never bleed one week's data into another's. Ruler's
 // rolling 7-day widget already reads the same Daily Archive for
-// today's real dates, so it automatically reflects whichever Vision
+// today's real dates, so it automatically reflects whichever Plans
 // week today falls in with no explicit push needed.
-var VISION_MONTH_WEEKS_KEY = 'csrAlignVisionMonthWeeks';
+var PLANS_WEEKS_KEY = 'csrAlignVisionMonthWeeks';
 
-function defaultVisionMonthWeeks() {
+function defaultPlansWeeks() {
   return [
     { name: 'Week 1', notes: '' },
     { name: 'Week 2', notes: '' },
@@ -7675,8 +7676,8 @@ function defaultVisionMonthWeeks() {
     { name: 'Week 4', notes: '' }
   ];
 }
-function loadVisionMonthWeeks() {
-  var saved = localStorage.getItem(scopedKey(VISION_MONTH_WEEKS_KEY));
+function loadPlansWeeks() {
+  var saved = localStorage.getItem(scopedKey(PLANS_WEEKS_KEY));
   if (saved) {
     try {
       var parsed = JSON.parse(saved);
@@ -7691,53 +7692,54 @@ function loadVisionMonthWeeks() {
           };
           // Legacy per-week days[] from before day boxes were mapped to
           // real calendar dates — kept only long enough for
-          // migrateVisionDaysToDailyArchiveIfNeeded() to absorb it into
+          // migratePlansWeekDaysToDailyArchiveIfNeeded() to absorb it into
           // the real Daily Archive; not part of the normalized shape
-          // saveVisionMonthWeeks() writes back out afterward.
+          // savePlansWeeks() writes back out afterward.
           if (Array.isArray(week.days)) out.days = week.days;
           return out;
         });
       }
     } catch (e) {}
   }
-  return defaultVisionMonthWeeks();
+  return defaultPlansWeeks();
 }
-function saveVisionMonthWeeks() {
-  localStorage.setItem(scopedKey(VISION_MONTH_WEEKS_KEY), JSON.stringify(visionMonthWeeks));
+function savePlansWeeks() {
+  localStorage.setItem(scopedKey(PLANS_WEEKS_KEY), JSON.stringify(plansWeeks));
+  pushSharedSection('plansWeeks', plansWeeks);
 }
 
-var visionMonthWeeks = loadVisionMonthWeeks();
-// Persisted (not just in-memory) purely so Vision reopens on whichever
+var plansWeeks = loadPlansWeeks();
+// Persisted (not just in-memory) purely so Plans reopens on whichever
 // week you were last viewing — this no longer drives anything on the
-// Ruler side (see visionWeekIndexForToday()/accomplishBoundGoalIndex
+// Ruler side (see plansWeekIndexForToday()/accomplishBoundGoalIndex
 // above instead).
-var VISION_ACTIVE_WEEK_KEY = 'csrAlignVisionActiveWeekIndex';
-var visionActiveWeekIndex = (function() {
-  var saved = localStorage.getItem(scopedKey(VISION_ACTIVE_WEEK_KEY));
+var PLANS_ACTIVE_WEEK_KEY = 'csrAlignVisionActiveWeekIndex';
+var plansActiveWeekIndex = (function() {
+  var saved = localStorage.getItem(scopedKey(PLANS_ACTIVE_WEEK_KEY));
   var idx = saved === null ? NaN : parseInt(saved, 10);
   return (idx >= 0 && idx <= 3) ? idx : null;
 })();
-function saveVisionActiveWeekIndex() {
-  if (visionActiveWeekIndex === null) localStorage.removeItem(scopedKey(VISION_ACTIVE_WEEK_KEY));
-  else localStorage.setItem(scopedKey(VISION_ACTIVE_WEEK_KEY), String(visionActiveWeekIndex));
+function savePlansActiveWeekIndex() {
+  if (plansActiveWeekIndex === null) localStorage.removeItem(scopedKey(PLANS_ACTIVE_WEEK_KEY));
+  else localStorage.setItem(scopedKey(PLANS_ACTIVE_WEEK_KEY), String(plansActiveWeekIndex));
 }
-var visionWeekButtonsEl = document.getElementById('visionWeekButtons');
-var visionWeekDaysEl = document.getElementById('visionWeekDays');
+var plansWeekButtonsEl = document.getElementById('plansWeekButtons');
+var plansWeekDaysEl = document.getElementById('plansWeekDays');
 
 // One-time absorb of the old per-week days[] arrays into the real
 // Daily Archive, now that day boxes read/write real dates directly
 // instead of their own parallel store. A real Daily Archive entry
 // already present for a date wins (never clobber real data); this only
 // fills in blanks.
-var VISION_DAYS_MIGRATION_KEY = 'csrAlignVisionDaysMigratedToDailyArchive';
-function migrateVisionDaysToDailyArchiveIfNeeded() {
-  if (localStorage.getItem(scopedKey(VISION_DAYS_MIGRATION_KEY))) return;
-  localStorage.setItem(scopedKey(VISION_DAYS_MIGRATION_KEY), '1');
+var PLANS_WEEK_DAYS_MIGRATION_KEY = 'csrAlignVisionDaysMigratedToDailyArchive';
+function migratePlansWeekDaysToDailyArchiveIfNeeded() {
+  if (localStorage.getItem(scopedKey(PLANS_WEEK_DAYS_MIGRATION_KEY))) return;
+  localStorage.setItem(scopedKey(PLANS_WEEK_DAYS_MIGRATION_KEY), '1');
   var changed = false;
   for (var w = 0; w < 4; w++) {
-    var week = visionMonthWeeks[w];
+    var week = plansWeeks[w];
     if (!week || !Array.isArray(week.days)) continue;
-    var dates = visionWeekDates(w);
+    var dates = plansWeekDates(w);
     if (dates) {
       for (var d = 0; d < 7; d++) {
         var text = week.days[d];
@@ -7750,66 +7752,66 @@ function migrateVisionDaysToDailyArchiveIfNeeded() {
     delete week.days;
     changed = true;
   }
-  if (changed) saveVisionMonthWeeks();
+  if (changed) savePlansWeeks();
 }
 
-function visionWeekLabel(idx) {
-  var name = visionMonthWeeks[idx] && visionMonthWeeks[idx].name;
+function plansWeekLabel(idx) {
+  var name = plansWeeks[idx] && plansWeeks[idx].name;
   return name || ('Week ' + (idx + 1));
 }
 
-function renderVisionWeekButtons() {
-  if (!visionWeekButtonsEl) return;
-  visionWeekButtonsEl.innerHTML = '';
-  visionMonthWeeks.forEach(function(week, idx) {
+function renderPlansWeekButtons() {
+  if (!plansWeekButtonsEl) return;
+  plansWeekButtonsEl.innerHTML = '';
+  plansWeeks.forEach(function(week, idx) {
     var wrap = document.createElement('div');
-    wrap.className = 'vision-week-btn-wrap';
+    wrap.className = 'plans-week-btn-wrap';
 
     var btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'vision-week-btn' + (visionActiveWeekIndex === idx ? ' active' : '');
-    btn.textContent = visionWeekLabel(idx);
+    btn.className = 'plans-week-btn' + (plansActiveWeekIndex === idx ? ' active' : '');
+    btn.textContent = plansWeekLabel(idx);
     btn.title = 'Click to open this week — double-click to rename';
     btn.addEventListener('click', function() {
-      if (visionActiveWeekIndex === idx) return;
-      visionActiveWeekIndex = idx;
-      saveVisionActiveWeekIndex();
+      if (plansActiveWeekIndex === idx) return;
+      plansActiveWeekIndex = idx;
+      savePlansActiveWeekIndex();
       // Just changes which week's day boxes are being VIEWED — no data
       // to push or merge anymore, each week already owns its own real
       // dates permanently (see the header comment above).
-      renderVisionWeekButtons();
-      renderVisionWeekDays();
+      renderPlansWeekButtons();
+      renderPlansWeekDays();
     });
     btn.addEventListener('dblclick', function(e) {
       e.preventDefault();
-      renderVisionWeekRename(idx, wrap);
+      renderPlansWeekRename(idx, wrap);
     });
 
     wrap.appendChild(btn);
-    visionWeekButtonsEl.appendChild(wrap);
+    plansWeekButtonsEl.appendChild(wrap);
   });
 }
 
 // Swaps a week button for a text input in place, so renaming happens
 // right where the button was rather than in a separate dialog/prompt.
-function renderVisionWeekRename(idx, wrap) {
+function renderPlansWeekRename(idx, wrap) {
   wrap.innerHTML = '';
   var input = document.createElement('input');
   input.type = 'text';
-  input.className = 'vision-week-rename-input';
-  input.value = visionWeekLabel(idx);
+  input.className = 'plans-week-rename-input';
+  input.value = plansWeekLabel(idx);
   input.maxLength = 24;
 
   var cancelled = false;
   var finish = function() {
     if (cancelled) return;
-    visionMonthWeeks[idx].name = input.value.trim();
-    saveVisionMonthWeeks();
-    renderVisionWeekButtons();
+    plansWeeks[idx].name = input.value.trim();
+    savePlansWeeks();
+    renderPlansWeekButtons();
   };
   input.addEventListener('keydown', function(e) {
     if (e.key === 'Enter') { input.blur(); }
-    if (e.key === 'Escape') { cancelled = true; renderVisionWeekButtons(); }
+    if (e.key === 'Escape') { cancelled = true; renderPlansWeekButtons(); }
   });
   input.addEventListener('blur', finish);
 
@@ -7820,38 +7822,38 @@ function renderVisionWeekRename(idx, wrap) {
 
 // Two columns — left gets days 1-4, right gets days 5-7 (per direct
 // request) — each day a small box with a label pinned to its corner
-// (position:absolute, see .vision-day-label) so it stays put no
+// (position:absolute, see .plans-day-label) so it stays put no
 // matter how much text is typed/scrolled inside the textarea beneath
 // it. Each box reads/writes the REAL Daily Archive record for this
-// week's actual calendar date directly (see visionWeekDates()) — no
+// week's actual calendar date directly (see plansWeekDates()) — no
 // separate per-week storage, so there's nothing to fall out of sync:
 // Ruler's rolling 7-day widget reads the exact same records whenever
 // today falls inside this week.
-function renderVisionWeekDays() {
-  if (!visionWeekDaysEl) return;
-  visionWeekDaysEl.innerHTML = '';
+function renderPlansWeekDays() {
+  if (!plansWeekDaysEl) return;
+  plansWeekDaysEl.innerHTML = '';
 
-  if (visionActiveWeekIndex === null) {
+  if (plansActiveWeekIndex === null) {
     var empty = document.createElement('p');
-    empty.className = 'vision-week-days-empty';
+    empty.className = 'plans-week-days-empty';
     empty.textContent = 'Pick a week on the left to log its days.';
-    visionWeekDaysEl.appendChild(empty);
+    plansWeekDaysEl.appendChild(empty);
     return;
   }
 
-  var week = visionMonthWeeks[visionActiveWeekIndex];
-  var dates = visionWeekDates(visionActiveWeekIndex);
-  var isTodaysWeek = visionActiveWeekIndex === visionWeekIndexForToday();
+  var week = plansWeeks[plansActiveWeekIndex];
+  var dates = plansWeekDates(plansActiveWeekIndex);
+  var isTodaysWeek = plansActiveWeekIndex === plansWeekIndexForToday();
 
   function buildDayBox(i) {
     var date = dates ? dates[i] : null;
     var rec = date ? getDayRecord(date) : null;
 
     var box = document.createElement('div');
-    box.className = 'vision-day-box';
+    box.className = 'plans-day-box';
 
     var label = document.createElement('span');
-    label.className = 'vision-day-label';
+    label.className = 'plans-day-label';
     label.textContent = 'Day ' + (i + 1);
     if (date) box.title = date;
     box.appendChild(label);
@@ -7865,8 +7867,8 @@ function renderVisionWeekDays() {
     // fires for the box whose date genuinely is today.
     var doneCheckbox = document.createElement('input');
     doneCheckbox.type = 'checkbox';
-    doneCheckbox.className = 'vision-day-done';
-    doneCheckbox.id = 'visionDayDone-' + i;
+    doneCheckbox.className = 'plans-day-done';
+    doneCheckbox.id = 'plansDayDone-' + i;
     doneCheckbox.checked = !!(rec && rec.missionDone);
     doneCheckbox.title = 'Mark this day complete';
     doneCheckbox.addEventListener('change', function() {
@@ -7882,8 +7884,8 @@ function renderVisionWeekDays() {
     box.appendChild(doneCheckbox);
 
     var dayInput = document.createElement('textarea');
-    dayInput.className = 'vision-day-input';
-    dayInput.id = 'visionDayInput-' + i;
+    dayInput.className = 'plans-day-input';
+    dayInput.id = 'plansDayInput-' + i;
     dayInput.value = (rec && rec.missionText) || '';
     dayInput.addEventListener('input', function() {
       if (!date) return;
@@ -7905,42 +7907,42 @@ function renderVisionWeekDays() {
   }
 
   var leftCol = document.createElement('div');
-  leftCol.className = 'vision-week-days-col';
+  leftCol.className = 'plans-week-days-col';
   [0, 1, 2, 3].forEach(function(i) { leftCol.appendChild(buildDayBox(i)); });
 
   var rightCol = document.createElement('div');
-  rightCol.className = 'vision-week-days-col';
+  rightCol.className = 'plans-week-days-col';
   [4, 5, 6].forEach(function(i) { rightCol.appendChild(buildDayBox(i)); });
 
   var daysRow = document.createElement('div');
-  daysRow.className = 'vision-week-days-row';
+  daysRow.className = 'plans-week-days-row';
   daysRow.appendChild(leftCol);
   daysRow.appendChild(rightCol);
-  visionWeekDaysEl.appendChild(daysRow);
+  plansWeekDaysEl.appendChild(daysRow);
 
   // ---- Week Notes — fills the remaining space below the day boxes,
-  // down to Yearly Visualization (see .vision-week-days/.vision-week-
+  // down to Yearly Visualization (see .plans-week-days/.plans-week-
   // notes-wrap flex:1 chain in the CSS). Same persist-on-input,
   // per-week storage pattern as the day boxes: it lives on the same
   // `week` object, so switching weeks and back never loses it. ----
   var notesWrap = document.createElement('div');
-  notesWrap.className = 'vision-week-notes-wrap';
+  notesWrap.className = 'plans-week-notes-wrap';
 
   var notesLabel = document.createElement('span');
-  notesLabel.className = 'vision-week-notes-label';
+  notesLabel.className = 'plans-week-notes-label';
   notesLabel.textContent = 'Week Notes';
   notesWrap.appendChild(notesLabel);
 
   var notesInput = document.createElement('textarea');
-  notesInput.className = 'vision-week-notes-input';
+  notesInput.className = 'plans-week-notes-input';
   notesInput.value = week.notes || '';
   notesInput.addEventListener('input', function() {
     week.notes = notesInput.value;
-    saveVisionMonthWeeks();
+    savePlansWeeks();
   });
   notesWrap.appendChild(notesInput);
 
-  visionWeekDaysEl.appendChild(notesWrap);
+  plansWeekDaysEl.appendChild(notesWrap);
 }
 
 // ---- Yearly Focus ----
@@ -8074,6 +8076,22 @@ function showToast(message, type) {
     setTimeout(function() { toast.remove(); }, 300);
   }, type === 'error' ? 6000 : 3500);
 }
+
+// pullAllUserDataFromSupabase() reloads the page as soon as it
+// finishes (see pullOnceIfNeeded()), so a toast fired right before
+// that would just vanish with the page. If any pull task failed, it
+// leaves a message here (sessionStorage — survives the reload it's
+// escaping, cleared once read so it only ever shows once) instead of
+// calling showToast() directly; this check runs unconditionally at
+// load, picks it up, and shows it on the settled page.
+var PULL_FAILURE_WARNING_KEY = 'csrAlignPullFailureWarning';
+(function() {
+  var pending = sessionStorage.getItem(PULL_FAILURE_WARNING_KEY);
+  if (pending) {
+    sessionStorage.removeItem(PULL_FAILURE_WARNING_KEY);
+    showToast(pending, 'error');
+  }
+})();
 
 // ============================================================
 // Sync queue — every write that needs to reach Supabase goes through
@@ -8774,16 +8792,23 @@ function pushSharedSection(section, data) {
 // column, which is also the authoritative source for rebuilding
 // sectionShareState after a wipe (rather than a separate local-only
 // key, which would itself be gone).
+// callback(data, isShared, errored) — errored=true means the query
+// itself failed (network/server error), which is NOT the same thing
+// as "no row exists yet" (data=null, errored=false, a legitimate
+// first-time state). Collapsing those two cases together is exactly
+// what silently masqueraded failed pulls as empty data before.
 function pullSharedSection(section, callback) {
-  if (!supabaseClient || !currentUser) { callback(null, false); return; }
+  if (!supabaseClient || !currentUser) { callback(null, false, false); return; }
   supabaseClient.from('shared_sections')
     .select('data, is_shared')
     .eq('user_id', currentUser.id)
     .eq('section', section)
     .then(function(result) {
+      if (result.error) { callback(null, false, true); return; }
       var row = result.data && result.data[0];
-      callback(row ? row.data : null, row ? !!row.is_shared : false);
-    });
+      callback(row ? row.data : null, row ? !!row.is_shared : false, false);
+    })
+    .catch(function() { callback(null, false, true); });
 }
 
 // ============================================================
@@ -8810,8 +8835,8 @@ var ALL_SCOPED_STORAGE_KEYS = [
   QUICK_LINKS_KEY, TRADINGVIEW_SECRET_KEY, DAILY_SCORE_WEIGHTS_KEY,
   AFFILIATE_LINK_KEY, JOURNAL_CATEGORIES_KEY, THEME_YEAR_KEY,
   VISION_YEAR_LOCAL_CLEANUP_KEY, VISION_YEAR_REMOTE_CLEANUP_KEY,
-  ACCOMPLISH_MONTH_KEY, VISION_MONTH_WEEKS_KEY, VISION_ACTIVE_WEEK_KEY,
-  VISION_DAYS_MIGRATION_KEY, SYNC_QUEUE_KEY,
+  ACCOMPLISH_MONTH_KEY, PLANS_WEEKS_KEY, PLANS_ACTIVE_WEEK_KEY,
+  PLANS_WEEK_DAYS_MIGRATION_KEY, SYNC_QUEUE_KEY,
   STALE_SECTION_QUEUE_CLEANUP_KEY, ALPHA_PROFILES_KEY,
   ALPHA_ENTRIES_KEY, ALPHA_GENDER_KEY
 ];
@@ -8842,55 +8867,74 @@ function pullAllUserDataFromSupabase(onComplete) {
   if (!supabaseClient || !currentUser) { onComplete(); return; }
   var uid = currentUser.id;
   var tasks = [];
+  // Collects a human-readable label for every task that actually
+  // failed (query error / thrown exception) — NOT for "no row yet",
+  // which is a legitimate, silent, expected state for a first-time
+  // section. Read once at the end; a failed pull was previously
+  // indistinguishable from "you have no data," which is exactly what
+  // let a transient Supabase hiccup masquerade as real, permanent
+  // data loss after a wipe.
+  var failedLabels = [];
 
-  function pullSection(section, applyRaw) {
+  function pullSection(section, label, applyRaw) {
     return new Promise(function(resolve) {
-      pullSharedSection(section, function(data, isShared) {
+      pullSharedSection(section, function(data, isShared, errored) {
+        if (errored) { failedLabels.push(label); resolve(); return; }
         if (data !== null) applyRaw(data, isShared);
         resolve();
       });
     });
   }
 
-  tasks.push(pullSection('musts', function(data, isShared) {
+  tasks.push(pullSection('musts', 'Musts & In-Between', function(data, isShared) {
     localStorage.setItem(scopedKey(MUSTS_KEY), JSON.stringify(data));
     sectionShareState.musts = isShared;
   }));
 
-  tasks.push(pullSection('whiteboard', function(data, isShared) {
+  tasks.push(pullSection('whiteboard', 'Whiteboard', function(data, isShared) {
     var tackleTasks = Array.isArray(data.tasks) ? data.tasks : [];
     localStorage.setItem(scopedKey(TACKLE_KEY), JSON.stringify({ tasks: tackleTasks, shared: isShared }));
     sectionShareState.whiteboard = isShared;
   }));
 
-  tasks.push(pullSection('dailyArchiveFull', function(data) {
+  tasks.push(pullSection('dailyArchiveFull', 'Daily Archive (scores/mission history)', function(data) {
     localStorage.setItem(scopedKey(DAILY_ARCHIVE_KEY), JSON.stringify(data));
   }));
 
-  tasks.push(pullSection('weeklyArchiveFull', function(data, isShared) {
+  tasks.push(pullSection('weeklyArchiveFull', 'Weekly Archive', function(data, isShared) {
     localStorage.setItem(scopedKey(WEEKLY_ARCHIVE_KEY), JSON.stringify(data));
     sectionShareState.weekly = isShared;
   }));
 
-  tasks.push(pullSection('yearly', function(data, isShared) {
+  tasks.push(pullSection('yearly', 'Yearly Visualization', function(data, isShared) {
     localStorage.setItem(scopedKey(YEARLY_DATA_KEY), JSON.stringify(data));
     sectionShareState.yearly = isShared;
   }));
 
-  tasks.push(pullSection('monthlyFocus', function(data) {
+  tasks.push(pullSection('monthlyFocus', 'Monthly Focus', function(data) {
     localStorage.setItem(scopedKey(MONTHLY_ARCHIVE_KEY), JSON.stringify(data));
   }));
 
-  tasks.push(pullSection('themeYear', function(data) {
+  // Plans Week Buttons (the 4 renameable week goal-boxes + their day
+  // boxes/notes) — previously had NO sync at all, meaning any
+  // wipe+repopulate cycle silently deleted this data with nothing to
+  // restore it. plansActiveWeekIndex (which week you're currently
+  // VIEWING) deliberately stays local-only — it's pure UI navigation
+  // state, not data, same reasoning as not syncing which tab is open.
+  tasks.push(pullSection('plansWeeks', 'Plans Week Buttons', function(data) {
+    localStorage.setItem(scopedKey(PLANS_WEEKS_KEY), JSON.stringify(data));
+  }));
+
+  tasks.push(pullSection('themeYear', 'Theme/Yearly Focus', function(data) {
     localStorage.setItem(scopedKey(THEME_YEAR_KEY), data);
   }));
 
-  tasks.push(pullSection('accomplishMonth', function(data, isShared) {
+  tasks.push(pullSection('accomplishMonth', 'Accomplish This Month', function(data, isShared) {
     localStorage.setItem(scopedKey(ACCOMPLISH_MONTH_KEY), JSON.stringify(data));
     sectionShareState.accomplishMonth = isShared;
   }));
 
-  tasks.push(pullSection('ruler', function(data, isShared) {
+  tasks.push(pullSection('ruler', 'Ruler share setting', function(data, isShared) {
     sectionShareState.ruler = isShared;
   }));
 
@@ -8898,19 +8942,19 @@ function pullAllUserDataFromSupabase(onComplete) {
   // (unlike the Telegram bot token, which stays local-only on
   // purpose — see SECURITY.md) — none of these carry an is_shared
   // toggle, so the second callback arg is unused here.
-  tasks.push(pullSection('quickLinks', function(data) {
+  tasks.push(pullSection('quickLinks', 'Quick Links', function(data) {
     localStorage.setItem(scopedKey(QUICK_LINKS_KEY), JSON.stringify(data));
   }));
-  tasks.push(pullSection('sunriseLocation', function(data) {
+  tasks.push(pullSection('sunriseLocation', 'Sunrise Location', function(data) {
     localStorage.setItem(scopedKey(SUNRISE_LOCATION_KEY), JSON.stringify(data));
   }));
-  tasks.push(pullSection('dailyScoreWeights', function(data) {
+  tasks.push(pullSection('dailyScoreWeights', 'Daily Score Weights', function(data) {
     localStorage.setItem(scopedKey(DAILY_SCORE_WEIGHTS_KEY), JSON.stringify(data));
   }));
-  tasks.push(pullSection('affiliateLink', function(data) {
+  tasks.push(pullSection('affiliateLink', 'Affiliate Link', function(data) {
     localStorage.setItem(scopedKey(AFFILIATE_LINK_KEY), data);
   }));
-  tasks.push(pullSection('journalCategories', function(data) {
+  tasks.push(pullSection('journalCategories', 'Journal Categories', function(data) {
     localStorage.setItem(scopedKey(JOURNAL_CATEGORIES_KEY), JSON.stringify(data));
   }));
 
@@ -8923,12 +8967,13 @@ function pullAllUserDataFromSupabase(onComplete) {
   // they already configured in TradingView's alert JSON.
   tasks.push(new Promise(function(resolve) {
     supabaseClient.from('webhook_secrets').select('tradingview_secret').eq('user_id', uid).then(function(result) {
+      if (result.error) { failedLabels.push('TradingView Secret'); resolve(); return; }
       var row = result.data && result.data[0];
       if (row && row.tradingview_secret) {
         localStorage.setItem(scopedKey(TRADINGVIEW_SECRET_KEY), row.tradingview_secret);
       }
       resolve();
-    });
+    }).catch(function() { failedLabels.push('TradingView Secret'); resolve(); });
   }));
 
   // Live Ruler blocks — the cross-device mirror lives in
@@ -8937,18 +8982,20 @@ function pullAllUserDataFromSupabase(onComplete) {
   // as {} — see pushSharedSection('ruler', {})).
   tasks.push(new Promise(function(resolve) {
     supabaseClient.from('shared_rulers').select('blocks').eq('user_id', uid).then(function(result) {
+      if (result.error) { failedLabels.push('Today\'s Ruler Blocks'); resolve(); return; }
       var row = result.data && result.data[0];
       if (row && Array.isArray(row.blocks) && row.blocks.length) {
         localStorage.setItem(scopedKey(STORAGE_KEY), JSON.stringify(row.blocks));
       }
       resolve();
-    });
+    }).catch(function() { failedLabels.push('Today\'s Ruler Blocks'); resolve(); });
   }));
 
   // Ledgers — every entry this user owns; RLS already scopes this
   // query to their own rows.
   tasks.push(new Promise(function(resolve) {
     supabaseClient.from('journal_entries').select('*').eq('user_id', uid).then(function(result) {
+      if (result.error) { failedLabels.push('Ledgers Entries'); resolve(); return; }
       var rows = result.data || [];
       if (rows.length) {
         var entries = rows.map(function(r) {
@@ -8969,7 +9016,7 @@ function pullAllUserDataFromSupabase(onComplete) {
         localStorage.setItem(scopedKey(ENTRIES_KEY), JSON.stringify(entries));
       }
       resolve();
-    });
+    }).catch(function() { failedLabels.push('Ledgers Entries'); resolve(); });
   }));
 
   // Track Alpha — decrypts with this device's key, same as normal use.
@@ -8977,8 +9024,14 @@ function pullAllUserDataFromSupabase(onComplete) {
     alphaGetOrCreateDeviceKey(uid).then(function(key) {
       alphaEncryptionKey = key;
       return Promise.all([
-        supabaseClient.from('alpha_profiles').select('*').eq('user_id', uid).then(function(result) { return result.data || []; }),
-        supabaseClient.from('alpha_entries').select('*').eq('user_id', uid).then(function(result) { return result.data || []; })
+        supabaseClient.from('alpha_profiles').select('*').eq('user_id', uid).then(function(result) {
+          if (result.error) throw result.error;
+          return result.data || [];
+        }),
+        supabaseClient.from('alpha_entries').select('*').eq('user_id', uid).then(function(result) {
+          if (result.error) throw result.error;
+          return result.data || [];
+        })
       ]);
     }).then(function(results) {
       var profileRows = results[0], entryRows = results[1];
@@ -9007,15 +9060,25 @@ function pullAllUserDataFromSupabase(onComplete) {
       if (decoded[0].length) localStorage.setItem(scopedKey(ALPHA_PROFILES_KEY), JSON.stringify(decoded[0]));
       if (decoded[1].length) localStorage.setItem(scopedKey(ALPHA_ENTRIES_KEY), JSON.stringify(decoded[1]));
     }).catch(function() {
-      // Key-loading or decryption failure shouldn't block the rest of
-      // the repopulation — Track Alpha simply stays empty this time,
-      // same degraded state as when the device key is still loading
-      // during normal use.
+      // Covers 3 distinct failure modes identically (device key
+      // couldn't load, a query errored, decryption failed) — Track
+      // Alpha simply stays empty/unchanged this time rather than
+      // blocking the rest of the repopulation, but it's now reported
+      // like every other failure instead of silently swallowed.
+      failedLabels.push('Track Alpha');
     })
   );
 
   Promise.all(tasks).then(function() {
     localStorage.setItem(scopedKey(SECTION_SHARE_KEY), JSON.stringify(sectionShareState));
+    if (failedLabels.length) {
+      sessionStorage.setItem(
+        PULL_FAILURE_WARNING_KEY,
+        'Some data could not be restored from the server and may be missing or out of date: ' +
+        failedLabels.join(', ') + '. Your data is safe — this was a sync hiccup, not data loss. ' +
+        'Try refreshing once you\'re back online.'
+      );
+    }
     onComplete();
   });
 }
@@ -13746,12 +13809,12 @@ syncDailyAndWeeklyArchive();
 loadTodayDraft();
 renderEntries();
 renderMusts();
-migrateVisionDaysToDailyArchiveIfNeeded(); // before any render reads the Daily Archive
+migratePlansWeekDaysToDailyArchiveIfNeeded(); // before any render reads the Daily Archive
 renderWeeklyViz();
 renderYearlyViz();
 renderAccomplishMonth();
-renderVisionWeekButtons();
-renderVisionWeekDays();
+renderPlansWeekButtons();
+renderPlansWeekDays();
 renderTodaysMission();
 renderSunriseForecast();
 updateLive();
