@@ -4484,6 +4484,60 @@ function pullOnceIfNeeded(userId) {
   });
 }
 
+// blocks/musts/tackle/accomplishMonthGoals/plansWeeks/quickLinks/
+// dailyScoreWeights/journalCategories are all loaded into module-level
+// vars ONCE, synchronously, at script-parse time — always under
+// 'guest' scope, since currentUser is necessarily still null at that
+// exact point (auth resolution is async, so it can never finish
+// before this first, synchronous pass already ran, on literally every
+// page load, not just the first one). Before scopedKey() existed,
+// 'guest' and a real signed-in user's data were the SAME bucket, so
+// this was invisible; splitting them means every one of these needs
+// an explicit reload once the real identity is confirmed, or the UI
+// just keeps showing whatever empty/stale guest-scoped state
+// happened to render first — the exact "everything looks empty until
+// I create something new" symptom this fixes (writing something new
+// calls its own save path, which reloads+re-renders correctly on its
+// own — that's why it "fixes" things, and why the bug is otherwise
+// invisible until you go looking for it).
+//
+// Deliberately NOT sessionStorage-guarded like pullOnceIfNeeded — a
+// plain page refresh while already signed in needs this exactly as
+// much as a fresh login does (neither the wipe/reload path nor the
+// pull path fires on a routine refresh), so this has to run on every
+// single page load. The in-memory flag only prevents re-running it
+// AGAIN within the same page-load-instance on a later, routine
+// onAuthStateChange event (a token refresh, say) — which would
+// otherwise blow away whatever the person is actively mid-typing.
+var uiRefreshedForCurrentScope = false;
+function refreshAllUIFromCorrectScope() {
+  if (uiRefreshedForCurrentScope) return;
+  uiRefreshedForCurrentScope = true;
+
+  blocks = loadBlocks();
+  musts = loadMusts();
+  tackle = loadTackle();
+  accomplishMonthGoals = loadAccomplishMonth();
+  plansWeeks = loadPlansWeeks();
+  quickLinks = loadQuickLinks();
+  dailyScoreWeights = loadDailyScoreWeights();
+  journalCategories = loadCategories();
+
+  renderRuler();
+  renderQuickEnergyBox();
+  renderMusts();
+  renderTackleList();
+  renderEntries();
+  renderWeeklyViz();
+  renderYearlyViz();
+  renderAccomplishMonth();
+  renderPlansWeekButtons();
+  renderPlansWeekDays();
+  renderTodaysMission();
+  if (typeof updateDailyScore === 'function') updateDailyScore();
+  if (typeof renderVisionMonthFocusDisplay === 'function') renderVisionMonthFocusDisplay();
+}
+
 var STORAGE_KEY = 'csrAlignBlocks';
 var ENTRIES_KEY = 'csrAlignEntries';
 var TODAY_KEY = 'csrAlignTodayEntry';
@@ -8590,6 +8644,7 @@ function initAuth() {
       currentUser = session.user;
       pullOnceIfNeeded(currentUser.id);
       ensureJournalKeyLoaded();
+      refreshAllUIFromCorrectScope();
       // The Track Alpha tab's initial renderAlphaBrowser() call (at
       // script load) almost always runs BEFORE this async session
       // restore resolves, so it renders as "not signed in" first.
@@ -8630,6 +8685,7 @@ function initAuth() {
       currentUser = session.user;
       pullOnceIfNeeded(currentUser.id);
       ensureJournalKeyLoaded();
+      refreshAllUIFromCorrectScope();
       if (isDifferentAlphaUser) {
         alphaEncryptionKey = null;
         alphaKeyLoading = false;
