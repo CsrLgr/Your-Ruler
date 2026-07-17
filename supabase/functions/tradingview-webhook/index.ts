@@ -3,12 +3,30 @@
 // Deploy with the Supabase CLI from the repo root:
 //   supabase functions deploy tradingview-webhook
 //
-// Needs the service role key available as a Function secret (NOT the
-// same thing as it being an env var in your local shell — Edge
-// Functions read their own secrets store):
-//   supabase secrets set SUPABASE_SERVICE_ROLE_KEY=<your service role key>
-// SUPABASE_URL is provided automatically by the Edge Functions runtime,
-// no need to set it yourself.
+// REQUIRES verify_jwt = false (see ../../config.toml) — this function
+// is called by parties with no Supabase auth at all (TradingView's
+// servers, and the app's own unauthenticated "Test Connectivity" GET),
+// so Supabase's platform-level JWT gate must be off or every request
+// gets rejected before this file's own code ever runs, regardless of
+// the uid+secret check below. If you deployed before config.toml
+// existed, or ever see 404/401 on requests that reach this function's
+// logs as never having arrived, redeploy after confirming config.toml
+// is present — the CLI reads verify_jwt from it automatically, no
+// extra flag needed.
+//
+// SUPABASE_SERVICE_ROLE_KEY is one of a handful of names (along with
+// SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_DB_URL) Supabase reserves
+// for itself and auto-injects into every Edge Function — the CLI
+// actively REFUSES `supabase secrets set` for anything starting with
+// `SUPABASE_`, since you're not meant to set these manually at all.
+// In practice this key is usually just already there with zero setup.
+// If your project's CLI/platform version doesn't auto-inject it for
+// some reason, set it under a name that isn't reserved instead:
+//   supabase secrets set SERVICE_ROLE_KEY=<your service role key>
+// (found in the Supabase dashboard under Project Settings > API).
+// The code below checks SUPABASE_SERVICE_ROLE_KEY first, then falls
+// back to SERVICE_ROLE_KEY, so it works either way without needing to
+// know in advance which one your project actually provides.
 //
 // The service role key is safe HERE specifically because this is a
 // real server that only Supabase runs, with no client ever able to
@@ -39,7 +57,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('SERVICE_ROLE_KEY')!;
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',

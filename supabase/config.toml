@@ -1,0 +1,18 @@
+[functions.tradingview-webhook]
+# This function is called by parties with NO Supabase auth at all:
+# TradingView's servers (POST, an external webhook with no concept of
+# a Supabase session) and the app's own "Test Connectivity" button
+# (a plain unauthenticated fetch() GET, in index.html's
+# tradingviewTestBtn click handler — no Authorization header is set).
+#
+# Without this, Supabase's platform gateway enforces its own default
+# JWT check on every request BEFORE the function's own code ever
+# runs — rejecting both of the above regardless of anything inside
+# index.ts, since neither caller can attach a valid Supabase JWT in
+# the first place. verify_jwt = false is required, not optional, for
+# this function's actual use case. Authentication instead happens
+# entirely inside the function body, via the per-user webhook secret
+# (see the uid + secret check in index.ts) — that's the real access
+# control here, this setting only removes a redundant, incompatible
+# gate in front of it.
+verify_jwt = false
