@@ -116,6 +116,19 @@
     color: var(--rd-muted);
     white-space: nowrap;
   }
+  /* This list is position:fixed to the viewport's top-left corner on
+     every tab (see .shared-sections-list above) — on desktop it floats
+     in the empty margin outside .page-wrap's centered 1100px column,
+     but on tablet/mobile widths that column runs nearly edge-to-edge,
+     so there's no empty margin left for it to float in without
+     sitting on top of whatever's actually in the page's own top-left
+     (tab nav, header clocks, Quick Links). Shrinking it and allowing
+     wrap (rather than one long nowrap line per shared section) keeps
+     its footprint small enough to reduce that collision risk without
+     changing its fixed top-left position, which is deliberate. */
+  @media (max-width: 1024px) {
+    .shared-sections-item { font-size: 9px; white-space: normal; max-width: 140px; }
+  }
 
   /* Sunrise — real astronomical sunrise (computed locally, no external
      API — offline-friendly like the rest of the app) for the user's
@@ -1677,7 +1690,15 @@
     margin-top: 0.5rem;
   }
 
-  @media (max-width: 700px) {
+  /* Widened from 700px to 1024px — .header-row's base rule
+     (display:flex; justify-content:space-between) puts Weekly Viz,
+     the header/clocks/mission column, and the Tackle/Whiteboard box
+     side by side in one row (see the "sits in the header row on the
+     right" comment above .tackle-wrap); below 1024px there isn't
+     enough width for all 3 without compressing/overlapping, which is
+     the direct cause of Tackle covering the Local Time clock on
+     iPad-width screens that fell in the gap above the old 700px cutoff. */
+  @media (max-width: 1024px) {
     body { padding: 1.25rem 0.75rem; }
     .header-row { flex-direction: column; align-items: center; }
     .weekly-wrap { width: 100%; display: flex; justify-content: center; order: -1; margin-bottom: 1rem; }
@@ -1826,10 +1847,17 @@
      the score label higher while the links stay lower. */
   .hg-score { grid-column: 2; grid-row: 2; margin-top: -1rem; }
   .hg-gmgn { grid-column: 2; grid-row: 3; margin-top: 1.5rem; }
-  /* Narrow screens: collapse to a single centered column, everything
-     in natural (DOM) order, rather than squeezing 3 fixed columns
-     into too little width. */
-  @media (max-width: 700px) {
+  /* Narrow AND tablet-width screens: collapse to a single centered
+     column, everything in natural (DOM) order, rather than squeezing
+     3 fixed columns into too little width. Widened from 700px to
+     1024px — iPad portrait (768-834px) and similar tablets sat in a
+     gap between this and desktop with no breakpoint at all, getting
+     the full 3-column grid (clocks + links + GM/GN, each with their
+     own hand-tuned margin-top offsets) at a width that was never
+     actually wide enough for it, causing exactly the "Local Time
+     clock hidden behind Tackle board / links covered" overlap this
+     fixes. */
+  @media (max-width: 1024px) {
     .header-grid { grid-template-columns: 1fr; }
     .header-grid > * { grid-column: 1; grid-row: auto; margin-top: 0; }
   }
@@ -3456,7 +3484,13 @@
     opacity: 0.97;
   }
 
-  @media (max-width: 700px) {
+  /* Widened from 700px to 1024px — same tablet-gap reasoning as the
+     .header-row/.header-grid breakpoints above: Block Detail + Musts
+     (.ruler-detail-row) and Plans' This-Month + Week-Days panel
+     (.accomplish-row) are both 2-column flex rows with no room to
+     breathe at iPad widths, which is what caused overlapping/cramped
+     content there rather than the clean stack this produces. */
+  @media (max-width: 1024px) {
     .tab-title { font-size: 32px; }
     .ruler-detail-row { flex-direction: column; }
     .accomplish-row { flex-direction: column; }
