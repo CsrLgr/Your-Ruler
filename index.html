@@ -8589,6 +8589,7 @@ function initAuth() {
       ensureProfileTimezone(session.user);
       currentUser = session.user;
       pullOnceIfNeeded(currentUser.id);
+      ensureJournalKeyLoaded();
       // The Track Alpha tab's initial renderAlphaBrowser() call (at
       // script load) almost always runs BEFORE this async session
       // restore resolves, so it renders as "not signed in" first.
@@ -8628,6 +8629,7 @@ function initAuth() {
       ensureProfileTimezone(session.user);
       currentUser = session.user;
       pullOnceIfNeeded(currentUser.id);
+      ensureJournalKeyLoaded();
       if (isDifferentAlphaUser) {
         alphaEncryptionKey = null;
         alphaKeyLoading = false;
@@ -8770,33 +8772,64 @@ registerSyncPerformer('section', function(payload) {
   return supabaseClient.from('shared_sections').upsert(payload);
 });
 
+// Sections encrypted with the journal device key whenever there's no
+// live way for a Legion-mate to need the plaintext:
+// - UNCONDITIONAL: no "Share with Legion" checkbox exists for these
+//   at all (either never had one, or the toggle UI was retired — see
+//   SHARE_SECTION_LABELS above), so is_shared can never actually be
+//   true for them. Always safe to encrypt.
+// - CONDITIONAL: DOES have a live share checkbox. Encrypting
+//   unconditionally would mean a Legion-mate viewing your shared
+//   Musts/Whiteboard/Weekly/Yearly/Accomplish sees undecryptable
+//   ciphertext instead of your actual content — so these encrypt only
+//   while is_shared is currently false, and push PLAINTEXT the moment
+//   sharing is turned on (pushSharedSection is already called fresh
+//   from every share-checkbox's own change handler, so this responds
+//   immediately, not on the next unrelated edit).
+var UNCONDITIONAL_ENCRYPT_SECTIONS = { dailyArchiveFull: true, weeklyArchiveFull: true, plansWeeks: true, themeYear: true, monthlyFocus: true };
+var CONDITIONAL_ENCRYPT_SECTIONS = { musts: true, whiteboard: true, weekly: true, yearly: true, accomplishMonth: true };
+
 function pushSharedSection(section, data) {
   if (!supabaseClient || !currentUser) return;
-  var payload = {
-    user_id: currentUser.id,
-    section: section,
-    data: JSON.parse(JSON.stringify(data)),
-    is_shared: !!sectionShareState[section],
-    updated_at: new Date().toISOString()
-  };
-  enqueueSync('section:' + currentUser.id + ':' + section, payload, syncPerformers.section);
+  var isShared = !!sectionShareState[section];
+  var shouldEncrypt = journalEncryptionKey &&
+    (UNCONDITIONAL_ENCRYPT_SECTIONS[section] || (CONDITIONAL_ENCRYPT_SECTIONS[section] && !isShared));
+  var cloned = JSON.parse(JSON.stringify(data));
+
+  function send(finalData) {
+    var payload = {
+      user_id: currentUser.id,
+      section: section,
+      data: finalData,
+      is_shared: isShared,
+      updated_at: new Date().toISOString()
+    };
+    enqueueSync('section:' + currentUser.id + ':' + section, payload, syncPerformers.section);
+  }
+
+  if (shouldEncrypt) {
+    journalEncryptPayload(cloned).then(send);
+  } else {
+    send(cloned);
+  }
 }
 
 // Generic pull counterpart to pushSharedSection — every section
 // (musts/whiteboard/weekly/yearly/monthlyFocus/themeYear/
-// accomplishMonth/dailyArchiveFull/weeklyArchiveFull) is pushed the
-// same way, so they can all be pulled back the same way too. Used by
-// pullAllUserDataFromSupabase() below. callback(data, isShared) —
-// data is whatever shape that section pushes (null if nothing's been
-// synced yet); isShared comes straight from the row's own is_shared
-// column, which is also the authoritative source for rebuilding
-// sectionShareState after a wipe (rather than a separate local-only
-// key, which would itself be gone).
-// callback(data, isShared, errored) — errored=true means the query
-// itself failed (network/server error), which is NOT the same thing
-// as "no row exists yet" (data=null, errored=false, a legitimate
-// first-time state). Collapsing those two cases together is exactly
-// what silently masqueraded failed pulls as empty data before.
+// accomplishMonth/dailyArchiveFull/weeklyArchiveFull/plansWeeks) is
+// pushed the same way, so they can all be pulled back the same way
+// too. Used by pullAllUserDataFromSupabase() below, which loads
+// journalEncryptionKey BEFORE calling this, so decryption is ready by
+// the time any of these run. callback(data, isShared, errored) —
+// errored=true means the query itself failed (network/server error),
+// NOT the same thing as "no row exists yet" (data=null, errored=false,
+// a legitimate first-time state) — collapsing those two together is
+// exactly what silently masqueraded failed pulls as empty data
+// before. Decryption itself is transparent to the caller: for any
+// section that might be encrypted, journalDecryptPayload() either
+// decrypts real ciphertext or passes pre-existing plaintext through
+// unchanged (shape-based detection — see its own comment), so the
+// caller never needs to know or care which case it got.
 function pullSharedSection(section, callback) {
   if (!supabaseClient || !currentUser) { callback(null, false, false); return; }
   supabaseClient.from('shared_sections')
@@ -8806,7 +8839,12 @@ function pullSharedSection(section, callback) {
     .then(function(result) {
       if (result.error) { callback(null, false, true); return; }
       var row = result.data && result.data[0];
-      callback(row ? row.data : null, row ? !!row.is_shared : false, false);
+      if (!row) { callback(null, false, false); return; }
+      var mightBeEncrypted = UNCONDITIONAL_ENCRYPT_SECTIONS[section] || CONDITIONAL_ENCRYPT_SECTIONS[section];
+      if (!mightBeEncrypted) { callback(row.data, !!row.is_shared, false); return; }
+      journalDecryptPayload(row.data).then(function(decrypted) {
+        callback(decrypted, !!row.is_shared, false);
+      });
     })
     .catch(function() { callback(null, false, true); });
 }
@@ -8866,6 +8904,21 @@ function wipeAllLocalUserData(userId) {
 function pullAllUserDataFromSupabase(onComplete) {
   if (!supabaseClient || !currentUser) { onComplete(); return; }
   var uid = currentUser.id;
+
+  // Load the journal device key FIRST, before any pull task starts —
+  // several of them (encryptable shared_sections rows, journal_entries)
+  // decrypt via journalDecryptString()/journalDecryptPayload(), both
+  // of which read the journalEncryptionKey global directly, so it has
+  // to be set before those tasks fire rather than raced against them.
+  // Proceeds either way: if the key can't load (unsupported browser),
+  // encrypted rows just stay ciphertext this pass — same
+  // degraded-not-broken pattern Track Alpha already uses for its own
+  // key.
+  journalGetOrCreateDeviceKey(uid).then(function(key) {
+    journalEncryptionKey = key;
+  }).catch(function() {}).then(runPullTasks);
+
+  function runPullTasks() {
   var tasks = [];
   // Collects a human-readable label for every task that actually
   // failed (query error / thrown exception) — NOT for "no row yet",
@@ -8992,30 +9045,37 @@ function pullAllUserDataFromSupabase(onComplete) {
   }));
 
   // Ledgers — every entry this user owns; RLS already scopes this
-  // query to their own rows.
+  // query to their own rows. text/history decrypt transparently
+  // (journalDecryptString/journalDecryptPayload pass pre-existing
+  // plaintext through unchanged for entries written before encryption
+  // existed, or currently shared with a Legion — see
+  // pushJournalEntryToSupabase's own comment for why shared entries
+  // are pushed in plaintext in the first place).
   tasks.push(new Promise(function(resolve) {
     supabaseClient.from('journal_entries').select('*').eq('user_id', uid).then(function(result) {
       if (result.error) { failedLabels.push('Ledgers Entries'); resolve(); return; }
       var rows = result.data || [];
-      if (rows.length) {
-        var entries = rows.map(function(r) {
+      if (!rows.length) { resolve(); return; }
+      Promise.all(rows.map(function(r) {
+        return Promise.all([journalDecryptString(r.text), journalDecryptPayload(r.history)]).then(function(decrypted) {
           return {
             id: r.id,
             date: r.entry_date,
             createdAt: r.entry_created_at,
-            text: r.text,
+            text: decrypted[0],
             category: r.category,
             score: r.score,
             sharedLegionIds: r.shared_legion_ids || [],
             edited: !!r.edited,
-            history: r.history || [],
+            history: Array.isArray(decrypted[1]) ? decrypted[1] : [],
             imagePaths: r.image_paths || [],
             encrypted: false
           };
         });
+      })).then(function(entries) {
         localStorage.setItem(scopedKey(ENTRIES_KEY), JSON.stringify(entries));
-      }
-      resolve();
+        resolve();
+      });
     }).catch(function() { failedLabels.push('Ledgers Entries'); resolve(); });
   }));
 
@@ -9081,6 +9141,7 @@ function pullAllUserDataFromSupabase(onComplete) {
     }
     onComplete();
   });
+  }
 }
 
 function loadSectionShareState() {
@@ -9108,23 +9169,51 @@ registerSyncPerformer('journalEntry', function(payload) {
   return supabaseClient.from('journal_entries').upsert(payload);
 });
 
+// Encrypts text/history with the journal device key, but ONLY for
+// entries with no Legion shares — a Legion-mate's client has no way
+// to decrypt something encrypted with YOUR device key, so a shared
+// entry is pushed in plaintext instead (matches what
+// journal_entries_select_own_or_shared actually grants them). This
+// responds immediately to sharing changes: the Share checkbox's own
+// change handler already calls this function fresh, so the very next
+// push after toggling sharing on sends plaintext, and toggling it
+// back off encrypts again on the next edit. date/category/score/
+// edited/imagePaths stay in the clear either way — needed for list
+// rendering, filtering, and CSV/PDF export without decrypting every
+// entry up front, same reasoning SECURITY.md originally laid out for
+// this table before encryption existed.
 function pushJournalEntryToSupabase(entry) {
   if (!supabaseClient || !currentUser) return;
-  var payload = {
-    id: entry.id,
-    user_id: currentUser.id,
-    entry_date: entry.date,
-    entry_created_at: entry.createdAt,
-    text: entry.text,
-    category: entry.category,
-    score: (typeof entry.score === 'number') ? entry.score : null,
-    shared_legion_ids: entry.sharedLegionIds || [],
-    edited: !!entry.edited,
-    history: entry.history || [],
-    image_paths: entry.imagePaths || [],
-    updated_at: new Date().toISOString()
-  };
-  enqueueSync('journalEntry:' + currentUser.id + ':' + entry.id, payload, syncPerformers.journalEntry);
+  var isShared = !!(entry.sharedLegionIds && entry.sharedLegionIds.length);
+
+  function send(text, history) {
+    var payload = {
+      id: entry.id,
+      user_id: currentUser.id,
+      entry_date: entry.date,
+      entry_created_at: entry.createdAt,
+      text: text,
+      category: entry.category,
+      score: (typeof entry.score === 'number') ? entry.score : null,
+      shared_legion_ids: entry.sharedLegionIds || [],
+      edited: !!entry.edited,
+      history: history,
+      image_paths: entry.imagePaths || [],
+      updated_at: new Date().toISOString()
+    };
+    enqueueSync('journalEntry:' + currentUser.id + ':' + entry.id, payload, syncPerformers.journalEntry);
+  }
+
+  if (!isShared && journalEncryptionKey) {
+    Promise.all([
+      journalEncryptString(entry.text),
+      journalEncryptPayload(entry.history || [])
+    ]).then(function(results) {
+      send(results[0], results[1]);
+    });
+  } else {
+    send(entry.text, entry.history || []);
+  }
 }
 
 // ---- Shared-sections list (fixed, top-left, every tab) ----
@@ -11720,7 +11809,15 @@ var alphaKeyUnsupported = false;    // set if IndexedDB/WebCrypto aren't availab
 var ALPHA_DEVICE_KEY_DB = 'csrAlignAlphaKeyDB';
 var ALPHA_DEVICE_KEY_STORE = 'keys';
 
-function alphaOpenKeyDb() {
+// ---- Generic device-key IndexedDB helpers ----
+// Originally Alpha-specific; generalized so a second, independent key
+// (journalGetOrCreateDeviceKey() below, for Plans/Today/Ledgers) can
+// reuse the exact same DB/object-store mechanics rather than
+// duplicating this whole open/load/store dance. Both keys still live
+// in the SAME IndexedDB database/store — they're just different
+// records within it (keyId is the only thing that varies), so this
+// doesn't touch or invalidate any already-generated Alpha key.
+function openKeyDb() {
   return new Promise(function(resolve, reject) {
     var req = indexedDB.open(ALPHA_DEVICE_KEY_DB, 1);
     req.onupgradeneeded = function() {
@@ -11730,7 +11827,7 @@ function alphaOpenKeyDb() {
     req.onerror = function() { reject(req.error); };
   });
 }
-function alphaLoadStoredDeviceKey(db, keyId) {
+function loadStoredDeviceKey(db, keyId) {
   return new Promise(function(resolve, reject) {
     var tx = db.transaction(ALPHA_DEVICE_KEY_STORE, 'readonly');
     var req = tx.objectStore(ALPHA_DEVICE_KEY_STORE).get(keyId);
@@ -11738,7 +11835,7 @@ function alphaLoadStoredDeviceKey(db, keyId) {
     req.onerror = function() { reject(req.error); };
   });
 }
-function alphaStoreDeviceKey(db, keyId, key) {
+function storeDeviceKey(db, keyId, key) {
   return new Promise(function(resolve, reject) {
     var tx = db.transaction(ALPHA_DEVICE_KEY_STORE, 'readwrite');
     var req = tx.objectStore(ALPHA_DEVICE_KEY_STORE).put(key, keyId);
@@ -11746,25 +11843,130 @@ function alphaStoreDeviceKey(db, keyId, key) {
     req.onerror = function() { reject(req.error); };
   });
 }
-// One key per (device, user) pair — userId keys the IndexedDB record
-// so two different accounts on the same browser never share a key.
-function alphaGetOrCreateDeviceKey(userId) {
+// One key per (device, user, purpose) triple — userId AND keyPrefix
+// both key the IndexedDB record, so two different accounts on the
+// same browser never share a key, AND Alpha's key stays fully
+// independent from Journal's (compromising/losing one says nothing
+// about the other, and each only ever decrypts its own data).
+function getOrCreateDeviceKey(userId, keyPrefix, unsupportedMessage) {
   if (typeof indexedDB === 'undefined' || !window.crypto || !window.crypto.subtle) {
-    return Promise.reject(new Error('This browser doesn\'t support the storage/crypto APIs Track Alpha encryption needs.'));
+    return Promise.reject(new Error(unsupportedMessage));
   }
-  var keyId = 'alphaDeviceKey:' + userId;
-  return alphaOpenKeyDb().then(function(db) {
-    return alphaLoadStoredDeviceKey(db, keyId).then(function(existingKey) {
+  var keyId = keyPrefix + ':' + userId;
+  return openKeyDb().then(function(db) {
+    return loadStoredDeviceKey(db, keyId).then(function(existingKey) {
       if (existingKey) return existingKey;
       return crypto.subtle.generateKey(
         { name: 'AES-GCM', length: 256 },
         false, // extractable: false — raw key material can never be exported, by design
         ['encrypt', 'decrypt']
       ).then(function(newKey) {
-        return alphaStoreDeviceKey(db, keyId, newKey).then(function() { return newKey; });
+        return storeDeviceKey(db, keyId, newKey).then(function() { return newKey; });
       });
     });
   });
+}
+function alphaGetOrCreateDeviceKey(userId) {
+  return getOrCreateDeviceKey(userId, 'alphaDeviceKey', 'This browser doesn\'t support the storage/crypto APIs Track Alpha encryption needs.');
+}
+
+// ============================================================
+// Journal encryption — Plans/Today/Ledgers (own entries only)
+// ============================================================
+// Same device-bound, non-extractable AES-256-GCM model as Track
+// Alpha, via the SAME getOrCreateDeviceKey() infrastructure above —
+// but its own INDEPENDENT key (keyPrefix 'journalDeviceKey', a
+// different IndexedDB record than 'alphaDeviceKey'), so the two
+// features don't share a key and one being compromised or lost says
+// nothing about the other.
+//
+// WHAT THIS COVERS: shared_sections rows that have no live
+// "Share with Legion" path (dailyArchiveFull/weeklyArchiveFull/
+// plansWeeks/themeYear/monthlyFocus — see pushSharedSection's
+// UNCONDITIONAL_ENCRYPT_SECTIONS), shared_sections rows that DO have
+// a live share checkbox but only while NOT currently shared
+// (musts/whiteboard/weekly/yearly/accomplishMonth — see
+// CONDITIONAL_ENCRYPT_SECTIONS), and journal_entries.text/history for
+// entries with an empty shared_legion_ids (see
+// pushJournalEntryToSupabase). A Legion-mate's client has no way to
+// decrypt something encrypted with YOUR device key, so anything
+// actually shared/visible to another person is deliberately left
+// plaintext for now — real Legion-visible encryption (a per-Legion
+// shared key, or per-recipient key exchange for DMs) is separate,
+// larger, explicitly-deferred work, not part of this pass.
+//
+// LEGACY DATA: every decrypt function here falls back to returning
+// the raw stored value unchanged if it doesn't look like this app's
+// {iv, ciphertext} envelope — i.e. plaintext rows written before this
+// feature existed keep loading and displaying correctly, forever,
+// with no migration step required. The next time that same row is
+// edited and re-pushed, it naturally becomes encrypted (or stays
+// plaintext, if it's currently shared) going forward.
+var journalEncryptionKey = null;
+var journalKeyLoading = false;
+var journalKeyUnsupported = false;
+function journalGetOrCreateDeviceKey(userId) {
+  return getOrCreateDeviceKey(userId, 'journalDeviceKey', 'This browser doesn\'t support the storage/crypto APIs Journal encryption needs.');
+}
+
+// Loads journalEncryptionKey for ongoing use through the rest of this
+// tab session. Separate from the key load inside
+// pullAllUserDataFromSupabase(): that one only needs the key transient
+// -ly, for the duration of the one-time post-login pull, and its
+// effect is immediately discarded by the reload pullOnceIfNeeded()
+// triggers right after — so without this second, independent load
+// call (wired into the normal steady-state sign-in path, not the pull
+// path), every push after that reload settles would silently fall
+// back to plaintext (pushSharedSection/pushJournalEntryToSupabase
+// both just skip encryption when journalEncryptionKey is null, same
+// "degraded, not broken" behavior as everywhere else this key is
+// used). Guarded so it only ever kicks off one load per session.
+function ensureJournalKeyLoaded() {
+  if (!currentUser || journalEncryptionKey || journalKeyLoading || journalKeyUnsupported) return;
+  journalKeyLoading = true;
+  journalGetOrCreateDeviceKey(currentUser.id).then(function(key) {
+    journalEncryptionKey = key;
+    journalKeyLoading = false;
+  }).catch(function() {
+    journalKeyUnsupported = true;
+    journalKeyLoading = false;
+  });
+}
+
+// String-in-string-out — for journal_entries.text specifically (a
+// `text` column, not jsonb, so it needs a JSON-stringified envelope
+// stored as a string). A value that fails JSON.parse, or parses but
+// lacks iv/ciphertext, is treated as pre-existing plaintext and
+// returned as-is rather than as an error.
+function journalEncryptString(plain) {
+  if (!journalEncryptionKey || !plain) return Promise.resolve(plain || '');
+  return encryptText(plain, journalEncryptionKey).then(function(enc) { return JSON.stringify(enc); });
+}
+function journalDecryptString(cipherJson) {
+  if (!cipherJson) return Promise.resolve('');
+  if (!journalEncryptionKey) return Promise.resolve(cipherJson);
+  var enc;
+  try { enc = JSON.parse(cipherJson); } catch (e) { return Promise.resolve(cipherJson); }
+  if (!enc || !enc.iv || !enc.ciphertext) return Promise.resolve(cipherJson);
+  return decryptText(enc, journalEncryptionKey).catch(function() { return cipherJson; });
+}
+// Object/array-in, object/array-out — for jsonb columns
+// (shared_sections.data, journal_entries.history). Shape-agnostic:
+// works identically whether the underlying value is an object, an
+// array, or even a bare string (JSON.stringify/parse round-trips all
+// three), which is what lets ALL of musts/whiteboard/yearly/
+// accomplishMonth/themeYear/etc. share this one pair of functions
+// despite having different data shapes.
+function journalEncryptPayload(obj) {
+  if (!journalEncryptionKey) return Promise.resolve(obj);
+  return encryptText(JSON.stringify(obj), journalEncryptionKey);
+}
+function journalDecryptPayload(raw) {
+  if (raw === null || raw === undefined) return Promise.resolve(raw);
+  if (!journalEncryptionKey || !raw.iv || !raw.ciphertext) return Promise.resolve(raw);
+  return decryptText(raw, journalEncryptionKey).then(function(json) {
+    try { return JSON.parse(json); } catch (e) { return raw; }
+  }).catch(function() { return raw; });
 }
 
 function alphaEncryptString(plain) {

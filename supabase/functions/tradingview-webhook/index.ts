@@ -47,6 +47,26 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
 };
 
+// Plain `!==` on strings short-circuits at the first differing byte —
+// a textbook timing side-channel on secret comparison (an attacker
+// measuring response latency across many requests can in principle
+// recover the secret one byte at a time). Compares every byte
+// unconditionally via a single OR-accumulator, no early exit.
+// Length mismatch is checked separately and isn't a meaningful leak
+// here: generateWebhookSecret() in index.html always produces a
+// fixed 32-character secret, so length never varies with a correct
+// guess the way byte-position would.
+function timingSafeEqual(a: string, b: string): boolean {
+  const aBytes = new TextEncoder().encode(a);
+  const bBytes = new TextEncoder().encode(b);
+  if (aBytes.length !== bBytes.length) return false;
+  let diff = 0;
+  for (let i = 0; i < aBytes.length; i++) {
+    diff |= aBytes[i] ^ bBytes[i];
+  }
+  return diff === 0;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: CORS_HEADERS });
@@ -103,9 +123,16 @@ Deno.serve(async (req) => {
   if (secretErr) {
     return new Response('Lookup failed: ' + secretErr.message, { status: 500, headers: CORS_HEADERS });
   }
-  if (!secretRow || secretRow.tradingview_secret !== secret) {
+  if (!secretRow || typeof secret !== 'string' || !timingSafeEqual(secretRow.tradingview_secret, secret)) {
     return new Response('Unauthorized', { status: 401, headers: CORS_HEADERS });
   }
+
+  // The secret already did its job (auth check above) — it has no
+  // reason to also live on inside every alert row forever. Strip it
+  // before archiving the rest of the payload verbatim, so this
+  // credential has exactly one place it's stored (webhook_secrets),
+  // not two.
+  const { secret: _secret, ...rawWithoutSecret } = payload;
 
   const { error: insertErr } = await admin.from('trade_alerts').insert({
     user_id: uid,
@@ -115,7 +142,7 @@ Deno.serve(async (req) => {
     price: typeof price === 'number' ? price : null,
     pnl: typeof pnl === 'number' ? pnl : null,
     alert_time: typeof time === 'string' ? time : null,
-    raw: payload
+    raw: rawWithoutSecret
   });
 
   if (insertErr) {

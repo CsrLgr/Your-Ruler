@@ -77,6 +77,18 @@ decision, and what still needs a manual step outside this codebase
   `webhook_secrets` (through the normal RLS-protected client), since
   the Edge Function needs a copy server-side to validate incoming
   requests against.
+  **Fixed (found during a security audit pass):** the Edge Function
+  compared the incoming secret with plain `!==`, a textbook
+  timing-safe-comparison bug (string equality short-circuits at the
+  first differing byte, in principle letting an attacker recover the
+  secret one byte at a time via response-latency measurements). Now
+  uses a constant-time `timingSafeEqual()` (single OR-accumulator over
+  every byte, no early exit) defined directly in the function — no new
+  dependency. It also used to store the *entire* inbound payload,
+  secret included, into `trade_alerts.raw` on every single alert,
+  duplicating a credential this file elsewhere calls "must never
+  leak" into every row ever received; the secret is now stripped
+  before that insert.
 - **Alpha (multi-profile measurement system)** —
   `supabase/migrations/0005_alpha_taxonomy_encryption_ready.sql`
   supersedes `0003_alpha_profiles.sql` entirely (drops and recreates
@@ -145,23 +157,46 @@ decision, and what still needs a manual step outside this codebase
   previously relying on SDK defaults, which happen to be the same
   values — this just makes it auditable). `onAuthStateChange` already
   fully clears `currentUser`/paid-status/UI state on sign-out.
-- **Crypto helper utility** — AES-256-GCM + PBKDF2 via the browser's
-  native Web Crypto API (no external library). **Not wired into
-  journal save/load yet.** The entry data model already carries an
-  `encrypted` flag (always `false` today) so wiring this in later
-  doesn't require another migration.
-  **CORRECTION (found during a security audit pass):** this section
-  previously claimed journal entry *text* never reaches Supabase. That
-  was true when written, but is no longer true — the Ledgers
-  Send-as-DM feature (`journal_entries`/`entry_messages`,
-  `supabase/migrations/0007_journal_dm.sql`) pushes entry text to
-  Supabase in plaintext whenever an entry is Legion-shared or sent as
-  a DM, and Legion group chat (`clan_messages`,
-  `0008_clan_messages.sql`) does the same for chat messages. Neither
-  is encrypted. This is now the single biggest gap in this document —
-  fixing it (or explicitly downgrading the privacy claim for those two
-  features) is the next thing to do here, before anything else in this
-  file.
+- **Journal encryption (Plans/Today/Ledgers-own-entries) — now wired
+  in.** Second, independent device-bound key (`journalEncryptionKey`,
+  `keyPrefix: 'journalDeviceKey'`) via the same `getOrCreateDeviceKey()`
+  infrastructure Track Alpha uses — same IndexedDB database/store,
+  different record, so the two keys are fully independent (losing or
+  compromising one says nothing about the other). Covers:
+  - `shared_sections` rows with no live "Share with Legion" path
+    (`dailyArchiveFull`/`weeklyArchiveFull`/`plansWeeks`/`themeYear`/
+    `monthlyFocus`) — always encrypted.
+  - `shared_sections` rows that DO have a live share checkbox
+    (`musts`/`whiteboard`/`weekly`/`yearly`/`accomplishMonth`) —
+    encrypted only while `is_shared` is currently false. The moment
+    sharing is turned on, that section pushes in plaintext instead
+    (a Legion-mate's client has no way to decrypt something encrypted
+    with *your* device key), and encrypts again the next time it's
+    edited after sharing is turned back off.
+  - `journal_entries.text`/`.history` — encrypted only for entries
+    with an empty `shared_legion_ids` (same reasoning: a shared
+    entry's Legion-mate recipients can't decrypt your device key's
+    output, so shared entries stay plaintext, matching exactly what
+    `journal_entries_select_own_or_shared` actually grants them).
+  - **Deliberately NOT covered, left plaintext:** live Ruler blocks
+    (`shared_rulers`, via the `merge_ruler_blocks` RPC) — that RPC
+    merges block-by-block server-side using each block's own
+    `block_updated_at` timestamp to resolve cross-device conflicts,
+    which requires reading individual block fields; ciphertext would
+    make that merge impossible without a much larger redesign. Also
+    not covered: `entry_messages` (DMs) and `clan_messages` (Legion
+    group chat) — both need Legion-visible encryption (per-recipient
+    key exchange for DMs, a per-Legion shared key for chat), which is
+    separate, larger, and explicitly deferred, not part of this pass.
+  - **Legacy data handles itself, no migration needed.** Every decrypt
+    path (`journalDecryptString`/`journalDecryptPayload`) detects
+    whether a stored value looks like this app's `{iv, ciphertext}`
+    envelope; anything that doesn't (every row written before this
+    feature existed, and anything currently plaintext-by-design per
+    the sharing rules above) is returned unchanged rather than treated
+    as an error. The `data`/`text`/`history` columns involved were
+    already `jsonb`/`text` with no shape constraint, so no schema
+    change was needed either.
 - **Per-user localStorage namespacing** — every local key (Journal
   entries, Ruler blocks, Track Alpha's local cache, the Telegram bot
   token, the TradingView webhook secret, etc.) is wrapped through
