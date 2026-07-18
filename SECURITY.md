@@ -270,6 +270,17 @@ decision, and what still needs a manual step outside this codebase
    applied yet — it closes live, actively-exploitable RLS gaps
    (stale pre-`0001` policies OR'd with the correct ones), not a
    routine migration.
+   **This list previously stopped at `0006` and was never updated as
+   later migrations were added — that's a doc gap, not evidence they
+   weren't run.** `0007_journal_dm.sql` (Legion DMs, `entry_messages`)
+   through `0013_merge_ruler_blocks.sql` also need to be applied if
+   they haven't been. **Confirmed live as of 2026-07-17:**
+   `clan_messages`, `entry_messages`, `clans`, and `clan_members` all
+   exist, and `clan_messages` is in the `supabase_realtime`
+   publication (`0007`/`0008` applied). `0009`–`0013` should still be
+   checked the same way before relying on the features they back
+   (full journal-entry fields, shared-sections archive/settings/plans
+   sync, and `merge_ruler_blocks` respectively).
 2. **Flip Pages source to "GitHub Actions"**: repo Settings > Pages >
    Build and deployment > Source. Until this changes, Pages keeps
    serving `main` directly and the new workflow's output, while it
