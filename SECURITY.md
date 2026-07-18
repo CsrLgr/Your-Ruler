@@ -272,15 +272,16 @@ decision, and what still needs a manual step outside this codebase
    routine migration.
    **This list previously stopped at `0006` and was never updated as
    later migrations were added — that's a doc gap, not evidence they
-   weren't run.** `0007_journal_dm.sql` (Legion DMs, `entry_messages`)
-   through `0013_merge_ruler_blocks.sql` also need to be applied if
-   they haven't been. **Confirmed live as of 2026-07-17:**
+   weren't run.** `0007_journal_dm.sql` through `0013_merge_ruler_blocks.sql`
+   are now **all confirmed applied live, as of 2026-07-17**:
    `clan_messages`, `entry_messages`, `clans`, and `clan_members` all
-   exist, and `clan_messages` is in the `supabase_realtime`
-   publication (`0007`/`0008` applied). `0009`–`0013` should still be
-   checked the same way before relying on the features they back
-   (full journal-entry fields, shared-sections archive/settings/plans
-   sync, and `merge_ruler_blocks` respectively).
+   exist and `clan_messages` is in the `supabase_realtime` publication
+   (`0007`/`0008`); `journal_entries` has `edited`/`history`/`image_paths`
+   (`0009`); `shared_sections_section_check` matches `0012`'s full list
+   including `plansWeeks`, meaning `0010`/`0011`/`0012` are all applied
+   in order; and `merge_ruler_blocks` exists (`0013`). Any *new*
+   migration added after this point should get the same live check
+   before being assumed to have run.
 2. **Flip Pages source to "GitHub Actions"**: repo Settings > Pages >
    Build and deployment > Source. Until this changes, Pages keeps
    serving `main` directly and the new workflow's output, while it
