@@ -282,6 +282,10 @@ decision, and what still needs a manual step outside this codebase
    in order; and `merge_ruler_blocks` exists (`0013`). Any *new*
    migration added after this point should get the same live check
    before being assumed to have run.
+   **`0014_entry_messages_realtime.sql` — confirmed applied live, as
+   of 2026-07-17.** Adds `entry_messages` to the `supabase_realtime`
+   publication so DMs push live (`subscribeToInboxRealtime()` in
+   `index.html`), matching how `clan_messages` chat already works.
 2. **Flip Pages source to "GitHub Actions"**: repo Settings > Pages >
    Build and deployment > Source. Until this changes, Pages keeps
    serving `main` directly and the new workflow's output, while it

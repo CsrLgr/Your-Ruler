@@ -8699,11 +8699,13 @@ function initAuth() {
       if (typeof cleanupOldVisionYearShareIfNeeded === 'function') cleanupOldVisionYearShareIfNeeded();
       if (typeof refreshTradingViewFields === 'function') refreshTradingViewFields();
       if (typeof refreshInboxUnreadCount === 'function') refreshInboxUnreadCount();
+      if (typeof subscribeToInboxRealtime === 'function') subscribeToInboxRealtime();
     } else {
       renderAuthBarLoggedOut();
       showClansLocked();
       if (typeof refreshTradingViewFields === 'function') refreshTradingViewFields();
       if (typeof refreshInboxUnreadCount === 'function') refreshInboxUnreadCount();
+      if (typeof cleanupInboxChannel === 'function') cleanupInboxChannel();
     }
   });
 
@@ -8738,6 +8740,7 @@ function initAuth() {
       if (typeof cleanupOldVisionYearShareIfNeeded === 'function') cleanupOldVisionYearShareIfNeeded();
       if (typeof refreshTradingViewFields === 'function') refreshTradingViewFields();
       if (typeof refreshInboxUnreadCount === 'function') refreshInboxUnreadCount();
+      if (typeof subscribeToInboxRealtime === 'function') subscribeToInboxRealtime();
     } else {
       currentUser = null;
       currentUserIsPaid = false;
@@ -8754,6 +8757,7 @@ function initAuth() {
       if (typeof updateDailyScore === 'function') updateDailyScore();
       if (typeof refreshTradingViewFields === 'function') refreshTradingViewFields();
       if (typeof refreshInboxUnreadCount === 'function') refreshInboxUnreadCount();
+      if (typeof cleanupInboxChannel === 'function') cleanupInboxChannel();
     }
   });
 }
@@ -9709,6 +9713,48 @@ function renderInbox() {
         });
       }
     });
+}
+
+// ============================================================
+// Live DM delivery — entry_messages has no natural per-panel scope
+// like clan chat's clan_id (a DM is just recipient_id = you, and the
+// Inbox isn't opened-per-conversation the way clan chat is opened
+// per-Legion), so this subscribes once per signed-in session rather
+// than per open panel. Established on login, torn down on sign-out —
+// same channel-per-owner pattern as chatChannel above, just scoped to
+// the user's whole session instead of one open chat room.
+// ============================================================
+var inboxChannel = null;
+
+function cleanupInboxChannel() {
+  if (inboxChannel) {
+    try { supabaseClient.removeChannel(inboxChannel); } catch (e) {}
+    inboxChannel = null;
+  }
+}
+
+function subscribeToInboxRealtime() {
+  if (!supabaseClient || !currentUser) return;
+  cleanupInboxChannel();
+  // Wrapped defensively for the same reason the clan chat/shared-Ruler
+  // channels are — one Realtime subscription failing must never break
+  // sending or the on-open/on-login poll that already works without it.
+  try {
+    inboxChannel = supabaseClient.channel('inbox-' + currentUser.id + '-' + Date.now())
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'entry_messages', filter: 'recipient_id=eq.' + currentUser.id }, function() {
+        refreshInboxUnreadCount();
+        // Only re-render the full list if the Legions tab is actually
+        // open right now — otherwise the next renderInbox() call (on
+        // opening that tab) picks up the new row anyway, and re-
+        // rendering a hidden panel would just be wasted work.
+        var clansPanel = document.getElementById('tab-clans');
+        if (clansPanel && clansPanel.classList.contains('active')) renderInbox();
+      })
+      .subscribe();
+  } catch (e) {
+    // Live delivery won't arrive, but sending and inbox-on-open/login
+    // both still work — same fallback as the clan chat channel.
+  }
 }
 
 // Inbox lives inside the Legions tab now — refresh both it and
