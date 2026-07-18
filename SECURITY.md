@@ -291,7 +291,13 @@ decision, and what still needs a manual step outside this codebase
    ('profiles','clan_members','shared_rulers');` — if any of the four
    stale policy names named in that migration's header are still
    present, run the migration now; it's idempotent.
-6. **Cloudflare**, once the domain routes through it:
+6. **`merge_ruler_blocks` — resolved.** Confirmed live via
+   `pg_get_functiondef`; the body is now captured verbatim in
+   `0013_merge_ruler_blocks.sql` (previously existed only in the
+   Supabase project, nowhere in git). Running `0013` is optional and
+   harmless — it's `CREATE OR REPLACE` against the exact existing
+   definition — but do it once so the DB and repo agree.
+7. **Cloudflare**, once the domain routes through it:
    - Full (strict) SSL/TLS mode, "Always Use HTTPS" on.
    - Security headers via Transform Rules or a Worker — this is where
      HSTS, `X-Content-Type-Options`, `Referrer-Policy`, and
@@ -308,16 +314,6 @@ decision, and what still needs a manual step outside this codebase
    - WAF managed rules + rate limiting, particularly on the auth
      endpoints (`signInWithOtp`, `signInWithPassword`) and Legion
      join-by-code, since both are realistic brute-force/abuse targets.
-7. **Journal encryption is still unwired** (`encryptText`/
-   `decryptText` are not called from `saveEntries()`/`loadEntries()`
-   yet) — but the key-management question that blocked it is now
-   answered by precedent: Alpha's device-bound non-extractable-key
-   model (`alphaGetOrCreateDeviceKey()`, IndexedDB, no passphrase) is
-   a proven pattern in this same codebase now. Reusing the same
-   IndexedDB-backed key for journal entries too (rather than a second
-   independent one) is the natural next step, not a fresh design
-   problem — same device-bound tradeoff applies: no cross-device
-   access without an export/import path, which doesn't exist yet.
 
 ## Explicitly out of scope right now
 

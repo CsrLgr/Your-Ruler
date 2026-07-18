@@ -6089,8 +6089,9 @@ function loadEntries() {
           edited: !!e.edited,
           history: Array.isArray(e.history) ? e.history : [],
           imagePaths: Array.isArray(e.imagePaths) ? e.imagePaths : [],
-          // Always false today — see the Crypto Helper block above
-          // for why this isn't wired in yet.
+          // Local cache is always plaintext by design — encryption
+          // (journalEncryptString/journalEncryptPayload) only applies
+          // to what's pushed to Supabase, in pushJournalEntryToSupabase().
           encrypted: !!e.encrypted
         };
       });
