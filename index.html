@@ -9396,7 +9396,17 @@ document.getElementById('joinClanBtn').addEventListener('click', function() {
         .insert({ clan_id: clan.id, user_id: currentUser.id })
         .then(function(insertResult) {
           if (insertResult.error) {
-            if (insertResult.error.message.indexOf('Free tier') !== -1) {
+            // clan_members_insert_self_capped (0001) is a bare RLS
+            // WITH CHECK, not a custom-message trigger — the real
+            // rejection is Postgres's generic "new row violates
+            // row-level security policy" text, which never contains
+            // "Free tier" (that check never matched anything). The
+            // only two ways this specific insert can fail RLS are
+            // user_id mismatch (impossible — always currentUser.id
+            // here) or the free-tier cap, so any 42501/RLS error on
+            // this exact call means the cap, same code+message check
+            // createClanBtn's handler above already uses correctly.
+            if (insertResult.error.message.indexOf('row-level security') !== -1 || insertResult.error.code === '42501') {
               showClansMsg('Free tier is limited to 2 Legions. Upgrade to join more.', true);
             } else if (insertResult.error.code === '23505') {
               showClansMsg('You\'re already in that Legion.', true);

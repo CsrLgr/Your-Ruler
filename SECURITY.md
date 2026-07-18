@@ -23,6 +23,19 @@ decision, and what still needs a manual step outside this codebase
     from this environment) — read the file's header comment before
     running it, especially around `find_clan_by_invite_code()` if
     that RPC already exists in some form.
+  - **A third generation of stale pre-0001 policies, found during a
+    later audit of the invite-code join flow** —
+    `0015_drop_stale_clan_policies.sql`. Five policies on
+    `clans`/`clan_members` that `0004` (below) never touched (it only
+    targets 4 specific names on `profiles`/`clan_members`/
+    `shared_rulers`). Checked each one's actual `qual`/`with_check`
+    against its `0001` replacement before deciding to drop rather than
+    assuming: all five turned out to be functionally identical
+    duplicates (including a helper, `is_clan_member()`, confirmed to
+    just be an ordinary membership `EXISTS` check), not bypasses like
+    the ones `0004` fixed. Dropped anyway — an exact duplicate under
+    an unrelated name is precisely what let `0004`'s real bugs go
+    unnoticed for as long as they did.
 - **Content-Security-Policy** — a `<meta>` tag in `index.html`.
   `script-src`/`style-src` include `'unsafe-inline'` as a known,
   deliberate trade-off — the whole app is one inline `<script>`/
@@ -286,6 +299,23 @@ decision, and what still needs a manual step outside this codebase
    of 2026-07-17.** Adds `entry_messages` to the `supabase_realtime`
    publication so DMs push live (`subscribeToInboxRealtime()` in
    `index.html`), matching how `clan_messages` chat already works.
+   **`0015_drop_stale_clan_policies.sql` — needs to be run.** Drops 5
+   duplicate pre-0001 policies on `clans`/`clan_members` found during
+   an audit of the invite-code join flow; confirmed harmless (see
+   "Implemented in code" above) but should still be dropped. Verify
+   with the same `pg_policies` query used to find them:
+   `select policyname from pg_policies where tablename in
+   ('clans','clan_members') and policyname in ('Users can leave a
+   clan (delete their own membership)','Clan members can view their
+   clans','Only paid users can create clans','Owner can delete their
+   clan','Owner can update their clan');` — should return zero rows
+   once applied.
+   **`0016_find_clan_by_invite_code.sql` — resolved, no live check
+   needed.** Captures the already-live `find_clan_by_invite_code()`
+   verbatim (it was working correctly before this file existed and
+   still is — `CREATE OR REPLACE` against its exact current
+   definition changes nothing). Optional to run; only matters for
+   restoring the schema from migrations alone in the future.
 2. **Flip Pages source to "GitHub Actions"**: repo Settings > Pages >
    Build and deployment > Source. Until this changes, Pages keeps
    serving `main` directly and the new workflow's output, while it
