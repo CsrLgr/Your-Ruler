@@ -210,6 +210,38 @@ decision, and what still needs a manual step outside this codebase
     as an error. The `data`/`text`/`history` columns involved were
     already `jsonb`/`text` with no shape constraint, so no schema
     change was needed either.
+- **Scheduling (Plans tab "+ Schedule Event")** —
+  `supabase/migrations/0017_schedule_events.sql`. A new `schedule_events`
+  table, own-row-only RLS (`for all using/with check (user_id =
+  auth.uid())`, matching `alpha_profiles`/`alpha_entries` — never
+  shared to a Legion, no `is_shared` concept at all). Deliberately a
+  **split** encryption model, not all-or-nothing: `title`/`event_date`/
+  `start_time`/`duration_minutes`/`category`/reminder settings are
+  plaintext on purpose — that's the "what and when" every signed-in
+  device needs for the calendar to actually work cross-device. Only
+  `description`/`notes` (the genuinely sensitive freeform content) are
+  encrypted, folded into one `encrypted_data` envelope via the
+  **existing** journal device key (`journalEncryptionKey`/
+  `journalEncryptPayload`/`journalDecryptPayload`) — no new key for
+  this feature. That key is device-bound and non-extractable (same
+  tradeoff already documented above for Journal), so those two fields
+  specifically won't decrypt on a device other than the one that wrote
+  them — the client detects this (`journalDecryptPayload` already
+  self-catches and returns the ciphertext envelope unchanged on
+  failure) and shows "unavailable on this device" rather than raw
+  ciphertext. **Save-side data-loss guard:** editing an event whose
+  description/notes are currently unavailable, and leaving both fields
+  blank, preserves the original ciphertext untouched rather than
+  silently overwriting it with two freshly-"encrypted" empty strings —
+  only actually typing new content on that device replaces it (see
+  `pushScheduleEventToSupabase()`'s `detailsUnavailable`/
+  `encryptedDataRaw` handling). Reminders are in-app only (no push
+  infrastructure exists anywhere in this app — `sw.js` is pure
+  offline-cache); the client-side reminder scan piggybacks on the
+  existing 1s clock tick rather than adding a new timer. Integrates
+  with the Ruler tab's rolling 7-day widget read-only/additively
+  (`renderScheduleAnnotationInto`) — never touches `blocks[]`/
+  `stampBlock`/`merge_ruler_blocks`, which stay exactly as they were.
 - **Per-user localStorage namespacing** — every local key (Journal
   entries, Ruler blocks, Track Alpha's local cache, the Telegram bot
   token, the TradingView webhook secret, etc.) is wrapped through
@@ -229,6 +261,20 @@ decision, and what still needs a manual step outside this codebase
   can possibly resolve — reload is what guarantees everything re-loads
   from the correct bucket rather than requiring ~30 separate pieces of
   state to be manually re-synced in place.
+  **Fixed (found while adding Scheduling's own storage key to this
+  list):** the sign-out wipe list (`getAllScopedStorageKeys()`, was a
+  plain `var ALL_SCOPED_STORAGE_KEYS = [...]` array literal) had
+  silently contained `undefined` in place of
+  `ALPHA_PROFILES_KEY`/`ALPHA_ENTRIES_KEY`/`ALPHA_GENDER_KEY` since
+  those three are assigned thousands of lines further down this same
+  script — `var` hoisting means the array literal captured each
+  identifier's value (still unassigned at that point) at construction
+  time, not live. Track Alpha's local cache has therefore never
+  actually been cleared on sign-out, contradicting this section's own
+  "nothing survives past sign-out" guarantee. Fixed by converting it
+  to a function, evaluated only when `wipeAllLocalUserData()` actually
+  runs — by then every key is guaranteed assigned, regardless of
+  declaration order.
 - **Subresource Integrity on all 5 externally-loaded scripts**
   (`supabase-js`, `jspdf`, `jspdf-autotable`, `jszip`, Sentry) — each
   `<script>` tag now carries an `integrity="sha384-…"` hash computed
@@ -316,6 +362,13 @@ decision, and what still needs a manual step outside this codebase
    still is — `CREATE OR REPLACE` against its exact current
    definition changes nothing). Optional to run; only matters for
    restoring the schema from migrations alone in the future.
+   **`0017_schedule_events.sql` — needs to be run.** New table for the
+   Scheduling feature (Plans tab). Verify with:
+   `select column_name from information_schema.columns where
+   table_name = 'schedule_events';` — should return `id`, `user_id`,
+   `event_date`, `start_time`, `duration_minutes`, `title`,
+   `category`, `reminder_offset_minutes`, `reminder_shown`,
+   `encrypted_data`, `created_at`, `updated_at`.
 2. **Flip Pages source to "GitHub Actions"**: repo Settings > Pages >
    Build and deployment > Source. Until this changes, Pages keeps
    serving `main` directly and the new workflow's output, while it

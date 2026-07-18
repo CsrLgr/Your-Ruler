@@ -2874,9 +2874,6 @@
 
   .alpha-browser { max-width: 700px; margin: 0 auto; }
 
-  .alpha-gate-card { max-width: 480px; margin: 0 auto; text-align: center; }
-  .alpha-gate-card .alpha-choice-row { justify-content: center; }
-
   /* ---- Track Alpha: four STATIONARY scopes, the internal reticle
      mechanics track the cursor ----
      The circles never move — each sits at a fixed spot (a static
@@ -3764,6 +3761,262 @@
   }
   button.secondary:hover { background: var(--rd-panel-2) !important; border-color: var(--rd-gold) !important; }
 
+  /* ============================================================
+     Scheduling (Plans tab "+ Schedule Event") — reuses .send-modal-
+     overlay for the backdrop and .alpha-chamber for the cockpit shell
+     (see the HTML in tab-life), so only the calendar-grid/day-view/
+     editor-specific pieces below are actually new. Same
+     cubic-bezier(.2,.8,.2,1) easing used throughout Track Alpha, for
+     visual consistency with the rest of this app's card-style UI.
+     ============================================================ */
+  .schedule-chamber {
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .schedule-overlay-close {
+    grid-column: 3;
+    justify-self: end;
+  }
+
+  /* Fresh entrance animation per screen render (a new element every
+     time, not a reused one — see renderScheduleOverlay()) — the
+     "zooming into place" feel for every month/day/editor transition. */
+  @keyframes scheduleScreenIn {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .schedule-screen {
+    animation: scheduleScreenIn 0.28s cubic-bezier(.2,.8,.2,1);
+  }
+
+  .schedule-upcoming-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-top: 0.6rem;
+  }
+  .schedule-upcoming-empty {
+    font-size: 12px;
+    color: var(--rd-muted);
+  }
+  .schedule-upcoming-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid var(--rd-edge);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: transform 0.25s cubic-bezier(.2,.8,.2,1), border-color 0.25s ease;
+  }
+  .schedule-upcoming-row:hover, .schedule-upcoming-row:focus-visible {
+    border-color: var(--rd-gold);
+    transform: translateY(-1px);
+    outline: none;
+  }
+  .schedule-upcoming-when {
+    font-size: 11px;
+    color: var(--rd-muted);
+    white-space: nowrap;
+  }
+  .schedule-upcoming-title {
+    font-size: 12px;
+    flex: 1;
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* ---- Month grid ---- */
+  .schedule-month-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  .schedule-month-label {
+    font-size: 16px;
+    min-width: 160px;
+    text-align: center;
+  }
+  .schedule-month-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.4rem;
+  }
+  .schedule-month-weekdays {
+    margin-bottom: 0.3rem;
+  }
+  .schedule-weekday-label {
+    font-size: 10px;
+    text-align: center;
+    color: var(--rd-muted);
+  }
+  .schedule-day-cell {
+    position: relative;
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--rd-edge);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.3s cubic-bezier(.2,.8,.2,1), border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+  .schedule-day-cell:hover, .schedule-day-cell:focus-visible {
+    border-color: var(--rd-gold);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+    outline: none;
+  }
+  .schedule-day-cell.is-today {
+    border-color: var(--alpha-blue, #2FD8FF);
+  }
+  .schedule-day-cell-empty {
+    border-color: transparent;
+    cursor: default;
+  }
+  .schedule-day-cell-empty:hover {
+    transform: none;
+    box-shadow: none;
+  }
+  .schedule-day-num {
+    font-size: 13px;
+  }
+  .schedule-day-dot {
+    position: absolute;
+    bottom: 6px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--alpha-blue, #2FD8FF);
+  }
+
+  /* ---- Day view ---- */
+  .schedule-day-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+  .schedule-day-view-label {
+    font-size: 14px;
+    flex: 1;
+    text-align: center;
+  }
+  .schedule-day-view {
+    display: flex;
+    flex-direction: column;
+  }
+  .schedule-hour-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid rgba(197,164,110,0.12);
+    cursor: pointer;
+  }
+  .schedule-hour-label {
+    width: 60px;
+    flex-shrink: 0;
+    font-size: 11px;
+    color: var(--rd-muted);
+    padding-top: 0.15rem;
+  }
+  .schedule-hour-events {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    min-height: 1.4rem;
+  }
+  .schedule-event-chip {
+    background: var(--rd-panel-2);
+    border: 1px solid var(--rd-edge);
+    border-radius: 6px;
+    padding: 0.5rem 0.6rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    cursor: pointer;
+    transition: transform 0.25s cubic-bezier(.2,.8,.2,1), border-color 0.25s ease, box-shadow 0.25s ease;
+  }
+  .schedule-event-chip:hover, .schedule-event-chip:focus-visible {
+    border-color: var(--rd-gold);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+    outline: none;
+  }
+  .schedule-event-chip-title {
+    font-size: 12px;
+    flex: 1;
+  }
+  .schedule-event-chip-time {
+    font-size: 10px;
+    color: var(--rd-muted);
+    white-space: nowrap;
+  }
+  .schedule-event-delete-btn {
+    font-size: 10px;
+    padding: 0.25rem 0.5rem;
+    flex-shrink: 0;
+  }
+
+  /* ---- Event editor ---- */
+  .schedule-editor-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+  .schedule-editor-warning {
+    font-size: 11px;
+    color: var(--rd-gold-bright);
+    background: rgba(197,164,110,0.08);
+    border: 1px solid rgba(197,164,110,0.3);
+    border-radius: 6px;
+    padding: 0.6rem 0.75rem;
+  }
+  .schedule-field-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    text-align: left;
+  }
+  .schedule-field-label {
+    font-size: 11px;
+    color: var(--rd-muted);
+  }
+  .schedule-field-row textarea {
+    min-height: 70px;
+    resize: vertical;
+  }
+
+  /* ---- Ruler weekly-widget annotation (see renderWeeklyViz/
+     renderScheduleAnnotationInto) ---- */
+  .weekly-day-schedule {
+    font-size: 10px;
+    color: var(--rd-muted);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 0.2rem;
+  }
+
+  @media (max-width: 700px) {
+    .schedule-day-cell { border-radius: 6px; }
+    .schedule-day-num { font-size: 11px; }
+    .schedule-hour-label { width: 48px; font-size: 10px; }
+  }
+
   /* ---- Total typographic unification: one face, one weight,
      command-caps everywhere — no more headings/labels/body text
      pulling in different weights or casing. Wildcard + !important
@@ -4096,6 +4349,16 @@
     </div>
   </div>
 
+  <!-- Scheduling entry point + always-visible upcoming list — the
+       month/day/editor flow itself lives in #scheduleOverlay below,
+       opened by scheduleOpenBtn. See renderScheduleUpcomingList() in
+       the JS. -->
+  <div class="life-section" id="scheduleUpcomingSection">
+    <span class="section-label">Upcoming Events</span>
+    <button type="button" class="secondary" id="scheduleOpenBtn">+ Schedule Event</button>
+    <div class="schedule-upcoming-list" id="scheduleUpcomingList"></div>
+  </div>
+
   <!-- Yearly Visualization: 12 months, each with a Monthly Focus header
        and 4 week-boxes pulling real Focus/Score from the Weekly Archive.
        Visible to everyone; free tier is read-only-ish (Monthly Focus and
@@ -4121,6 +4384,23 @@
         <input type="checkbox" id="yearlyShare">
         <label for="yearlyShare">Share with Legion</label>
       </div>
+    </div>
+  </div>
+
+  <!-- Scheduling overlay — month grid -> day view -> event editor, all
+       rendered by renderScheduleOverlay() and its helpers in the JS.
+       Reuses .send-modal-overlay for backdrop mechanics (same as the
+       Send Entry modal) and .alpha-chamber for the cockpit shell (same
+       shell Track Alpha's whole tab uses) — no new overlay-positioning
+       CSS needed for either. -->
+  <div class="send-modal-overlay schedule-overlay" id="scheduleOverlay" style="display:none;">
+    <div class="alpha-chamber schedule-chamber">
+      <div class="alpha-chamber-header">
+        <p class="alpha-tagline">Full command of your time.</p>
+        <h2 class="tab-title alpha-chamber-title">Schedule</h2>
+        <button type="button" class="secondary schedule-overlay-close" id="scheduleOverlayClose">Close</button>
+      </div>
+      <div class="alpha-browser schedule-browser" id="scheduleBrowser"></div>
     </div>
   </div>
 </div><!-- ============================ /TAB 2: LIFE ============================ -->
@@ -5884,6 +6164,7 @@ function updateLiveClock() {
 function updateLive() {
   updateLiveClock();
   checkDayRollover();
+  if (typeof scheduleCheckReminders === 'function') scheduleCheckReminders();
   var sinceSix = getSinceSix();
   var idx = findCurrentBlockIndex(sinceSix);
 
@@ -7200,6 +7481,18 @@ function renderWeeklyViz() {
     scoreSpan.id = 'weeklyScoreValue-' + date;
     scoreSpan.textContent = (rec && typeof rec.dailyScore === 'number') ? (rec.dailyScore + '/10') : '—';
     row.appendChild(scoreSpan);
+
+    // Read-only Scheduling annotation — reads the already-local
+    // scheduleEvents array only, no Supabase call. See
+    // renderScheduleAnnotationInto()/scheduleMirrorIntoWeeklyViz() in
+    // the Scheduling JS block.
+    if (typeof renderScheduleAnnotationInto === 'function') {
+      var scheduleList = document.createElement('div');
+      scheduleList.className = 'weekly-day-schedule';
+      scheduleList.id = 'weeklyDaySchedule-' + date;
+      renderScheduleAnnotationInto(scheduleList, date);
+      row.appendChild(scheduleList);
+    }
 
     weeklyDaysList.appendChild(row);
   });
@@ -8960,19 +9253,38 @@ function pullSharedSection(section, callback) {
 // brand new) device ends up identical to one that had been used all
 // along. Both are wired into ensureCorrectUserScope()/
 // pullOnceIfNeeded() below.
-var ALL_SCOPED_STORAGE_KEYS = [
-  STORAGE_KEY, ENTRIES_KEY, TODAY_KEY, MUSTS_KEY, TACKLE_KEY,
-  LAST_SNAPSHOT_DATE_KEY, SECTION_SHARE_KEY, DAILY_ARCHIVE_KEY,
-  WEEKLY_ARCHIVE_KEY, WEEKLY_FOCUS_KEY, MONTHLY_ARCHIVE_KEY,
-  YEARLY_DATA_KEY, SUNRISE_LOCATION_KEY, TELEGRAM_CONFIG_KEY,
-  QUICK_LINKS_KEY, TRADINGVIEW_SECRET_KEY, DAILY_SCORE_WEIGHTS_KEY,
-  AFFILIATE_LINK_KEY, JOURNAL_CATEGORIES_KEY, THEME_YEAR_KEY,
-  VISION_YEAR_LOCAL_CLEANUP_KEY, VISION_YEAR_REMOTE_CLEANUP_KEY,
-  ACCOMPLISH_MONTH_KEY, PLANS_WEEKS_KEY, PLANS_ACTIVE_WEEK_KEY,
-  PLANS_WEEK_DAYS_MIGRATION_KEY, SYNC_QUEUE_KEY,
-  STALE_SECTION_QUEUE_CLEANUP_KEY, ALPHA_PROFILES_KEY,
-  ALPHA_ENTRIES_KEY, ALPHA_GENDER_KEY
-];
+// A FUNCTION, not a top-level array literal, and this matters: several
+// of these keys (ALPHA_PROFILES_KEY/ALPHA_ENTRIES_KEY/ALPHA_GENDER_KEY,
+// SCHEDULE_EVENTS_KEY) aren't assigned until thousands of lines further
+// down this same script. `var` hoisting means the DECLARATION exists
+// early but the ASSIGNMENT doesn't run until that later line is
+// reached — so building this as an eager array literal here would have
+// silently captured `undefined` for every one of those, permanently,
+// since a plain array literal reads each identifier's value once, at
+// construction time. Wrapping it in a function sidesteps that
+// entirely: the body only evaluates when actually CALLED, and
+// wipeAllLocalUserData() is only ever invoked later at runtime (on
+// sign-out), well after the whole script has finished its initial
+// top-to-bottom pass — every key is guaranteed assigned by then,
+// regardless of where each is textually defined relative to this
+// point. (Found while adding SCHEDULE_EVENTS_KEY to this list: the 3
+// Alpha keys already had this exact bug, meaning wipeAllLocalUserData
+// has never actually cleared Track Alpha's local cache on sign-out.)
+function getAllScopedStorageKeys() {
+  return [
+    STORAGE_KEY, ENTRIES_KEY, TODAY_KEY, MUSTS_KEY, TACKLE_KEY,
+    LAST_SNAPSHOT_DATE_KEY, SECTION_SHARE_KEY, DAILY_ARCHIVE_KEY,
+    WEEKLY_ARCHIVE_KEY, WEEKLY_FOCUS_KEY, MONTHLY_ARCHIVE_KEY,
+    YEARLY_DATA_KEY, SUNRISE_LOCATION_KEY, TELEGRAM_CONFIG_KEY,
+    QUICK_LINKS_KEY, TRADINGVIEW_SECRET_KEY, DAILY_SCORE_WEIGHTS_KEY,
+    AFFILIATE_LINK_KEY, JOURNAL_CATEGORIES_KEY, THEME_YEAR_KEY,
+    VISION_YEAR_LOCAL_CLEANUP_KEY, VISION_YEAR_REMOTE_CLEANUP_KEY,
+    ACCOMPLISH_MONTH_KEY, PLANS_WEEKS_KEY, PLANS_ACTIVE_WEEK_KEY,
+    PLANS_WEEK_DAYS_MIGRATION_KEY, SYNC_QUEUE_KEY,
+    STALE_SECTION_QUEUE_CLEANUP_KEY, ALPHA_PROFILES_KEY,
+    ALPHA_ENTRIES_KEY, ALPHA_GENDER_KEY, SCHEDULE_EVENTS_KEY
+  ];
+}
 
 // Note: any sync queued but not yet sent when logout happens is
 // dropped along with everything else — accepted tradeoff, since the
@@ -8984,7 +9296,7 @@ var ALL_SCOPED_STORAGE_KEYS = [
 // that never received it either.
 function wipeAllLocalUserData(userId) {
   if (!userId) return;
-  ALL_SCOPED_STORAGE_KEYS.forEach(function(key) {
+  getAllScopedStorageKeys().forEach(function(key) {
     localStorage.removeItem('u:' + userId + ':' + key);
   });
 }
@@ -9222,6 +9534,49 @@ function pullAllUserDataFromSupabase(onComplete) {
       // like every other failure instead of silently swallowed.
       failedLabels.push('Track Alpha');
     })
+  );
+
+  // Scheduled Events — journalEncryptionKey already loaded above,
+  // before any task starts. Unlike the Track Alpha task just above,
+  // this decrypts per-row rather than in one Promise.all across every
+  // row's ciphertext: journalDecryptPayload already self-catches
+  // internally and returns the raw {iv, ciphertext} envelope unchanged
+  // on failure (unlike alphaDecryptPayload, which has no such catch),
+  // so one event encrypted on a different device can't reject/fail
+  // this whole task the way one bad row could for Track Alpha above — each
+  // row resolves independently, and detailsUnavailable marks exactly
+  // which ones didn't decrypt so the UI can say so instead of showing
+  // blank/garbled content.
+  tasks.push(
+    supabaseClient.from('schedule_events').select('*').eq('user_id', uid).then(function(result) {
+      if (result.error) { failedLabels.push('Scheduled Events'); return; }
+      var rows = result.data || [];
+      if (!rows.length) return;
+      return Promise.all(rows.map(function(r) {
+        return journalDecryptPayload(r.encrypted_data).then(function(decrypted) {
+          var stillEncrypted = !!(decrypted && decrypted.iv && decrypted.ciphertext);
+          var extra = stillEncrypted ? {} : (decrypted || {});
+          return {
+            id: r.id,
+            date: r.event_date,
+            startTime: r.start_time,
+            durationMinutes: r.duration_minutes,
+            title: r.title,
+            category: r.category,
+            reminderOffsetMinutes: r.reminder_offset_minutes,
+            reminderShown: !!r.reminder_shown,
+            description: extra.description || '',
+            notes: extra.notes || '',
+            detailsUnavailable: stillEncrypted,
+            encryptedDataRaw: stillEncrypted ? r.encrypted_data : null,
+            createdAt: r.created_at,
+            updatedAt: r.updated_at
+          };
+        });
+      })).then(function(events) {
+        localStorage.setItem(scopedKey(SCHEDULE_EVENTS_KEY), JSON.stringify(events));
+      });
+    }).catch(function() { failedLabels.push('Scheduled Events'); })
   );
 
   Promise.all(tasks).then(function() {
@@ -12203,18 +12558,802 @@ function alphaGenerateId(prefix) {
 var alphaProfiles = loadAlphaProfiles();
 var alphaEntries = loadAlphaEntries();
 
+// ============================================================
+// Scheduling (Plans tab "+ Schedule Event") — local-first, same
+// pattern as Track Alpha's profiles/entries above: local array is
+// authoritative, Supabase is a cross-device sync target. Only
+// description/notes are encrypted (journalEncryptPayload, the SAME
+// device key Journal already uses — no new key for this feature);
+// title/date/time/duration/category/reminder settings stay plaintext
+// so the calendar itself works correctly cross-device even though
+// those two fields don't (see 0017_schedule_events.sql's header for
+// the full reasoning). Never shared to a Legion.
+// ============================================================
+var SCHEDULE_EVENTS_KEY = 'csrAlignScheduleEvents';
+
+function loadScheduleEvents() {
+  var saved = localStorage.getItem(scopedKey(SCHEDULE_EVENTS_KEY));
+  if (saved) {
+    try { var parsed = JSON.parse(saved); return Array.isArray(parsed) ? parsed : []; } catch(e) {}
+  }
+  return [];
+}
+function saveScheduleEvents(list) {
+  localStorage.setItem(scopedKey(SCHEDULE_EVENTS_KEY), JSON.stringify(list));
+}
+function scheduleGenerateId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return 'schedule-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+}
+
+var scheduleEvents = loadScheduleEvents();
+
+// ---- Overlay navigation state ----
+// scheduleViewYear/scheduleViewMonth: which month the grid screen is
+// showing (seeded to today's real year/month the first time the
+// overlay opens). scheduleSelectedDate: null = month grid; a
+// "YYYY-MM-DD" string = day view for that date. scheduleEditorOpen
+// gates the editor screen on top of that (true whether creating or
+// editing) — scheduleEditingEventId is null for create, an id for
+// edit; scheduleEditorPrefillTime ("HH:MM") is set only when an empty
+// hour row was clicked, so a NEW event's Start time field opens
+// pre-filled. The editor always returns to the day view it came from
+// (scheduleSelectedDate is untouched by opening/closing it).
+var scheduleViewYear = null;
+var scheduleViewMonth = null;
+var scheduleSelectedDate = null;
+var scheduleEditorOpen = false;
+var scheduleEditingEventId = null;
+var scheduleEditorPrefillTime = null;
+
+// ---- Overlay open/close ----
+var scheduleOverlayEl = document.getElementById('scheduleOverlay');
+function closeScheduleOverlay() {
+  if (scheduleOverlayEl) scheduleOverlayEl.style.display = 'none';
+  // Close doesn't re-render (unlike every screen transition, which
+  // calls scheduleStopScopeAnimation() itself as its first line — see
+  // renderScheduleOverlay()), so it has to tear the loop/listener down
+  // directly here as its own defense in depth.
+  scheduleStopScopeAnimation();
+}
+if (document.getElementById('scheduleOpenBtn')) {
+  document.getElementById('scheduleOpenBtn').addEventListener('click', function() {
+    var today = new Date();
+    if (scheduleViewYear === null) scheduleViewYear = today.getFullYear();
+    if (scheduleViewMonth === null) scheduleViewMonth = today.getMonth();
+    scheduleSelectedDate = null;
+    scheduleEditingEventId = null;
+    scheduleEditorPrefillTime = null;
+    if (scheduleOverlayEl) scheduleOverlayEl.style.display = 'flex';
+    renderScheduleOverlay();
+  });
+}
+if (document.getElementById('scheduleOverlayClose')) {
+  document.getElementById('scheduleOverlayClose').addEventListener('click', closeScheduleOverlay);
+}
+if (scheduleOverlayEl) {
+  scheduleOverlayEl.addEventListener('click', function(e) {
+    if (e.target === scheduleOverlayEl) closeScheduleOverlay();
+  });
+}
+
+// Encrypts only the two free-text fields into one envelope — see the
+// header comment above and 0017_schedule_events.sql for why the rest
+// of the row stays plaintext. Mirrors pushAlphaProfileToSupabase's
+// shape (12238-12254) but keyed on journalEncryptionKey, not Alpha's.
+function buildScheduleEventRow(event, encData) {
+  return {
+    id: event.id,
+    user_id: currentUser.id,
+    event_date: event.date,
+    start_time: event.startTime,
+    duration_minutes: event.durationMinutes,
+    title: event.title,
+    category: event.category,
+    reminder_offset_minutes: (typeof event.reminderOffsetMinutes === 'number') ? event.reminderOffsetMinutes : null,
+    reminder_shown: !!event.reminderShown,
+    encrypted_data: encData,
+    updated_at: event.updatedAt || new Date().toISOString()
+  };
+}
+function pushScheduleEventToSupabase(event) {
+  if (!supabaseClient || !currentUser) return;
+  // event.detailsUnavailable (set by the pull task below) means this
+  // device couldn't decrypt the existing description/notes — they were
+  // encrypted on a different device. If both fields are still blank
+  // here, the user never actually retyped them; re-encrypting two
+  // empty strings under THIS device's key would silently destroy
+  // content only the original device can still read. Preserve the
+  // untouched ciphertext (event.encryptedDataRaw) instead. Only an
+  // explicit, non-blank edit on this device is treated as intent to
+  // overwrite.
+  if (event.detailsUnavailable && !event.description && !event.notes && event.encryptedDataRaw) {
+    enqueueSync('scheduleEvent:' + event.id, buildScheduleEventRow(event, event.encryptedDataRaw), syncPerformers.scheduleEvent);
+    return;
+  }
+  ensureJournalKeyLoaded();
+  journalEncryptPayload({ description: event.description || '', notes: event.notes || '' }).then(function(encData) {
+    enqueueSync('scheduleEvent:' + event.id, buildScheduleEventRow(event, encData), syncPerformers.scheduleEvent);
+  });
+}
+registerSyncPerformer('scheduleEvent', function(payload) {
+  return supabaseClient.from('schedule_events').upsert(payload);
+});
+
+// Local-first create/edit, keyed on scheduleEditingEventId (set by
+// whichever screen opened the editor). reminderShown always resets to
+// false on save — editing an event's time/reminder settings should be
+// able to notify again, and re-deriving "was this specific edit a
+// meaningful timing change" isn't worth the complexity versus just
+// always giving a freshly-saved event a clean reminder state.
+function saveScheduleEvent(fields) {
+  var now = new Date().toISOString();
+  var event, previousDate;
+  if (scheduleEditingEventId) {
+    event = scheduleEvents.find(function(e) { return e.id === scheduleEditingEventId; });
+    if (!event) return null;
+    previousDate = event.date;
+    Object.assign(event, fields, { reminderShown: false, updatedAt: now });
+  } else {
+    event = Object.assign({ id: scheduleGenerateId(), createdAt: now }, fields, { reminderShown: false, updatedAt: now });
+    scheduleEvents.push(event);
+  }
+  // Only still "unavailable" if it already was AND the user left both
+  // fields blank this time (see pushScheduleEventToSupabase's matching
+  // check) — any actual typed content means this device now has real
+  // plaintext, so the placeholder/preserve-ciphertext path no longer
+  // applies going forward.
+  event.detailsUnavailable = !!(event.detailsUnavailable && !event.description && !event.notes);
+  if (!event.detailsUnavailable) event.encryptedDataRaw = null;
+  saveScheduleEvents(scheduleEvents);
+  pushScheduleEventToSupabase(event);
+  if (typeof scheduleMirrorIntoWeeklyViz === 'function') {
+    // If editing moved the event to a different date, the OLD date's
+    // widget (if it happens to be on screen) still shows the
+    // now-stale event until this refreshes it too — not just the new
+    // date's.
+    if (previousDate && previousDate !== event.date) scheduleMirrorIntoWeeklyViz(previousDate);
+    scheduleMirrorIntoWeeklyViz(event.date);
+  }
+  if (typeof renderScheduleUpcomingList === 'function') renderScheduleUpcomingList();
+  return event;
+}
+
+// Direct, non-queued delete — matches deleteAlphaProfile (12276-12286)
+// and the Legion leave/disband pattern (index.html ~9992-9998): local
+// removal always wins immediately, the server delete is fire-and-
+// forget with its own error toast rather than routed through the
+// upsert-oriented sync queue (which has no delete semantics). Not
+// auto-retried if offline — same accepted tradeoff those already use.
+function deleteScheduleEvent(id) {
+  var deleted = scheduleEvents.find(function(e) { return e.id === id; });
+  scheduleEvents = scheduleEvents.filter(function(e) { return e.id !== id; });
+  saveScheduleEvents(scheduleEvents);
+  if (supabaseClient && currentUser) {
+    supabaseClient.from('schedule_events').delete().eq('id', id).eq('user_id', currentUser.id).then(function(result) {
+      if (result.error) showToast('Could not delete on the server: ' + result.error.message, 'error');
+    });
+  }
+  if (deleted) {
+    if (typeof scheduleMirrorIntoWeeklyViz === 'function') scheduleMirrorIntoWeeklyViz(deleted.date);
+    if (typeof renderScheduleUpcomingList === 'function') renderScheduleUpcomingList();
+    if (scheduleSelectedDate && deleted.date === scheduleSelectedDate && typeof renderScheduleOverlay === 'function') {
+      renderScheduleOverlay();
+    }
+  }
+}
+
+// In-app reminder scan — no push/background notifications exist in
+// this app (sw.js is pure offline-cache, see SECURITY.md), so this
+// only ever fires while the app is actually open. Piggybacks on the
+// existing 1s clock tick (updateLive(), which already calls this) via
+// a minute-key throttle rather than adding a new setInterval — cheap
+// enough to run every tick, but there's no reason to actually re-scan
+// more than once a minute since reminder lead times are never finer
+// than that. Starts at null so the very first call after page load
+// always runs immediately, not after waiting up to 60s.
+var scheduleLastReminderCheckMinute = null;
+function scheduleCheckReminders() {
+  var nowMinuteKey = Math.floor(Date.now() / 60000);
+  if (nowMinuteKey === scheduleLastReminderCheckMinute) return;
+  scheduleLastReminderCheckMinute = nowMinuteKey;
+  if (!scheduleEvents.length) return;
+  var now = new Date();
+  scheduleEvents.forEach(function(event) {
+    if (event.reminderOffsetMinutes == null || event.reminderShown) return;
+    // "YYYY-MM-DDTHH:MM:00", no Z suffix — parsed as local wall-clock
+    // time, same convention the rest of this app's date-string code
+    // uses (contrast pure day-bucket math elsewhere, which deliberately
+    // uses a UTC anchor since it only ever needs a date, not a real hour).
+    var eventStart = new Date(event.date + 'T' + event.startTime + ':00');
+    if (isNaN(eventStart.getTime())) return;
+    var dueAt = new Date(eventStart.getTime() - event.reminderOffsetMinutes * 60000);
+    if (now < dueAt) return;
+    event.reminderShown = true;
+    showToast('Reminder: ' + event.title + ' at ' + event.startTime, 'info');
+    saveScheduleEvents(scheduleEvents);
+    // Full event, not a hand-rolled partial payload — both this and a
+    // normal edit-save converge on the same 'scheduleEvent:<id>' queue
+    // slot, so only a writer that sends the complete intended row state
+    // is safe against last-write-wins clobbering an in-flight edit.
+    pushScheduleEventToSupabase(event);
+    if (typeof scheduleMirrorIntoWeeklyViz === 'function') scheduleMirrorIntoWeeklyViz(event.date);
+  });
+}
+
+// ============================================================
+// Overlay dispatcher + screens (month grid -> day view -> editor).
+// Parallel to renderAlphaBrowser (13850+) — same "stop any previous
+// screen's animation loop, clear, chamber-void toggle, then gate down
+// to exactly one screen" shape — but a smaller, direct dispatcher
+// rather than reusing that function, since Scheduling's gates
+// (editor-open / date-selected / neither) are its own concern, not
+// Track Alpha's.
+// ============================================================
+function renderScheduleOverlay() {
+  var container = document.getElementById('scheduleBrowser');
+  if (!container) return;
+  scheduleStopScopeAnimation();
+  container.innerHTML = '';
+  var chamber = container.closest('.schedule-chamber');
+  if (chamber) chamber.classList.remove('alpha-chamber-void');
+
+  // A fresh element every render (rather than an animation re-applied
+  // to a reused node, which CSS won't replay without an explicit
+  // reflow hack) — gives every screen transition the same brief
+  // scale-in "zooming into place" entrance, the actual zoom feel this
+  // feature is named for. See .schedule-screen's keyframes.
+  var screen = document.createElement('div');
+  screen.className = 'schedule-screen';
+  container.appendChild(screen);
+
+  if (scheduleEditorOpen) {
+    renderScheduleEventEditor(screen);
+    return;
+  }
+  if (scheduleSelectedDate) {
+    renderScheduleDayView(screen, scheduleSelectedDate);
+    return;
+  }
+  renderScheduleMonthGrid(screen);
+}
+
+function scheduleDaysInMonth(year, month) {
+  return new Date(year, month + 1, 0).getDate();
+}
+// Monday-first offset (0=Monday..6=Sunday) for the leading blank grid
+// cells, matching the rest of this app's week-start convention (see
+// getRollingWindowDates()).
+function scheduleFirstWeekdayOfMonth(year, month) {
+  return (new Date(year, month, 1).getDay() + 6) % 7;
+}
+
+function renderScheduleMonthGrid(container) {
+  var header = document.createElement('div');
+  header.className = 'schedule-month-header';
+
+  var prevBtn = document.createElement('button');
+  prevBtn.type = 'button';
+  prevBtn.className = 'secondary';
+  prevBtn.textContent = '‹';
+  prevBtn.addEventListener('click', function() {
+    scheduleViewMonth -= 1;
+    if (scheduleViewMonth < 0) { scheduleViewMonth = 11; scheduleViewYear -= 1; }
+    renderScheduleOverlay();
+  });
+
+  var label = document.createElement('span');
+  label.className = 'schedule-month-label';
+  label.textContent = MONTH_NAMES[scheduleViewMonth] + ' ' + scheduleViewYear;
+
+  var nextBtn = document.createElement('button');
+  nextBtn.type = 'button';
+  nextBtn.className = 'secondary';
+  nextBtn.textContent = '›';
+  nextBtn.addEventListener('click', function() {
+    scheduleViewMonth += 1;
+    if (scheduleViewMonth > 11) { scheduleViewMonth = 0; scheduleViewYear += 1; }
+    renderScheduleOverlay();
+  });
+
+  header.appendChild(prevBtn);
+  header.appendChild(label);
+  header.appendChild(nextBtn);
+  container.appendChild(header);
+
+  var weekdayRow = document.createElement('div');
+  weekdayRow.className = 'schedule-month-grid schedule-month-weekdays';
+  ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].forEach(function(wd) {
+    var cell = document.createElement('div');
+    cell.className = 'schedule-weekday-label';
+    cell.textContent = wd;
+    weekdayRow.appendChild(cell);
+  });
+  container.appendChild(weekdayRow);
+
+  var grid = document.createElement('div');
+  grid.className = 'schedule-month-grid';
+
+  var offset = scheduleFirstWeekdayOfMonth(scheduleViewYear, scheduleViewMonth);
+  var totalDays = scheduleDaysInMonth(scheduleViewYear, scheduleViewMonth);
+  var todayStr = todayLocalDateString();
+
+  for (var i = 0; i < offset; i++) {
+    var empty = document.createElement('div');
+    empty.className = 'schedule-day-cell schedule-day-cell-empty';
+    grid.appendChild(empty);
+  }
+
+  for (var day = 1; day <= totalDays; day++) {
+    (function(day) {
+      var dateStr = localDateString(new Date(scheduleViewYear, scheduleViewMonth, day));
+      var cell = document.createElement('div');
+      cell.className = 'schedule-day-cell' + (dateStr === todayStr ? ' is-today' : '');
+      cell.tabIndex = 0;
+
+      var num = document.createElement('span');
+      num.className = 'schedule-day-num';
+      num.textContent = String(day);
+      cell.appendChild(num);
+
+      if (scheduleEvents.some(function(e) { return e.date === dateStr; })) {
+        var dot = document.createElement('span');
+        dot.className = 'schedule-day-dot';
+        dot.setAttribute('aria-hidden', 'true');
+        cell.appendChild(dot);
+      }
+
+      function openDay() {
+        scheduleSelectedDate = dateStr;
+        renderScheduleOverlay();
+      }
+      cell.addEventListener('click', openDay);
+      cell.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDay(); }
+      });
+
+      grid.appendChild(cell);
+    })(day);
+  }
+
+  container.appendChild(grid);
+}
+
+function scheduleFormatHourLabel(hour) {
+  var period = hour < 12 ? 'AM' : 'PM';
+  var h12 = hour % 12;
+  if (h12 === 0) h12 = 12;
+  return h12 + ' ' + period;
+}
+
+// startTime "HH:MM" + durationMinutes -> "9:00 AM – 10:30 AM"
+function scheduleFormatTimeRange(startTime, durationMinutes) {
+  var parts = (startTime || '0:0').split(':');
+  var startMin = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+  var endMin = startMin + (durationMinutes || 0);
+  function fmt(totalMin) {
+    var h = Math.floor((totalMin % 1440) / 60);
+    var m = totalMin % 60;
+    var period = h < 12 ? 'AM' : 'PM';
+    var h12 = h % 12;
+    if (h12 === 0) h12 = 12;
+    return h12 + ':' + (m < 10 ? '0' : '') + m + ' ' + period;
+  }
+  return fmt(startMin) + ' – ' + fmt(endMin);
+}
+
+function renderScheduleDayView(container, dateStr) {
+  var header = document.createElement('div');
+  header.className = 'schedule-day-header';
+
+  var backBtn = document.createElement('button');
+  backBtn.type = 'button';
+  backBtn.className = 'secondary';
+  backBtn.textContent = '← Back';
+  backBtn.addEventListener('click', function() {
+    scheduleSelectedDate = null;
+    renderScheduleOverlay();
+  });
+
+  var dateObj = new Date(dateStr + 'T00:00:00');
+  var label = document.createElement('span');
+  label.className = 'schedule-day-view-label';
+  label.textContent = dateObj.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+
+  var addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.textContent = '+ Add Event';
+  addBtn.addEventListener('click', function() {
+    scheduleEditorOpen = true;
+    scheduleEditingEventId = null;
+    scheduleEditorPrefillTime = null;
+    renderScheduleOverlay();
+  });
+
+  header.appendChild(backBtn);
+  header.appendChild(label);
+  header.appendChild(addBtn);
+  container.appendChild(header);
+
+  var dayEvents = scheduleEvents.filter(function(e) { return e.date === dateStr; });
+  var byHour = {};
+  dayEvents.forEach(function(e) {
+    var hour = parseInt((e.startTime || '0:0').split(':')[0], 10) || 0;
+    if (!byHour[hour]) byHour[hour] = [];
+    byHour[hour].push(e);
+  });
+  Object.keys(byHour).forEach(function(h) {
+    byHour[h].sort(function(a, b) { return a.startTime < b.startTime ? -1 : 1; });
+  });
+
+  var list = document.createElement('div');
+  list.className = 'schedule-day-view';
+
+  for (var hour = 0; hour < 24; hour++) {
+    (function(hour) {
+      var row = document.createElement('div');
+      row.className = 'schedule-hour-row';
+
+      var hourLabel = document.createElement('span');
+      hourLabel.className = 'schedule-hour-label';
+      hourLabel.textContent = scheduleFormatHourLabel(hour);
+      row.appendChild(hourLabel);
+
+      var eventsWrap = document.createElement('div');
+      eventsWrap.className = 'schedule-hour-events';
+
+      (byHour[hour] || []).forEach(function(event) {
+        var chip = document.createElement('div');
+        chip.className = 'schedule-event-chip';
+        chip.tabIndex = 0;
+
+        var titleEl = document.createElement('div');
+        titleEl.className = 'schedule-event-chip-title';
+        titleEl.textContent = event.title;
+        chip.appendChild(titleEl);
+
+        var timeEl = document.createElement('div');
+        timeEl.className = 'schedule-event-chip-time';
+        timeEl.textContent = scheduleFormatTimeRange(event.startTime, event.durationMinutes) + (event.category ? ' · ' + event.category : '');
+        chip.appendChild(timeEl);
+
+        var deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'secondary schedule-event-delete-btn';
+        deleteBtn.textContent = 'Delete';
+        deleteBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          if (!window.confirm('Delete "' + event.title + '"?')) return;
+          deleteScheduleEvent(event.id);
+        });
+        chip.appendChild(deleteBtn);
+
+        function openEdit() {
+          scheduleEditorOpen = true;
+          scheduleEditingEventId = event.id;
+          scheduleEditorPrefillTime = null;
+          renderScheduleOverlay();
+        }
+        chip.addEventListener('click', openEdit);
+        chip.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEdit(); }
+        });
+
+        eventsWrap.appendChild(chip);
+      });
+
+      row.appendChild(eventsWrap);
+
+      // Clicking empty space in an hour row (the row background, the
+      // hour label, or the empty events-wrap area) opens the editor
+      // pre-filled to that hour. A click on an event chip (or its
+      // title/time/delete children) still bubbles up to this same
+      // listener, but its target is the chip/child, not one of these
+      // three container elements, so it's correctly ignored here —
+      // the chip's own listener (attached directly to it) already
+      // handled it.
+      row.addEventListener('click', function(e) {
+        if (e.target !== row && e.target !== hourLabel && e.target !== eventsWrap) return;
+        scheduleEditorOpen = true;
+        scheduleEditingEventId = null;
+        scheduleEditorPrefillTime = (hour < 10 ? '0' : '') + hour + ':00';
+        renderScheduleOverlay();
+      });
+
+      list.appendChild(row);
+    })(hour);
+  }
+
+  container.appendChild(list);
+}
+
+// ---- Event editor ----
+var SCHEDULE_CATEGORIES = ['Work', 'Personal', 'Health', 'Social', 'Errand', 'Other'];
+// value: null means "no reminder" — mapped to/from the <select>'s
+// empty-string option below, since <option> values are always strings.
+var SCHEDULE_REMINDER_OPTIONS = [
+  { label: 'No reminder', value: null },
+  { label: 'At time of event', value: 0 },
+  { label: '10 minutes before', value: 10 },
+  { label: '30 minutes before', value: 30 },
+  { label: '1 hour before', value: 60 },
+  { label: '1 day before', value: 1440 },
+  { label: '2 days before', value: 2880 },
+  { label: '3 days before', value: 4320 },
+  { label: '1 week before', value: 10080 }
+];
+var SCHEDULE_DURATION_OPTIONS = [15, 30, 45, 60, 90, 120, 180, 240];
+function scheduleFormatDurationLabel(mins) {
+  if (mins < 60) return mins + ' min';
+  var hrs = Math.floor(mins / 60), rem = mins % 60;
+  return hrs + ' hr' + (rem ? ' ' + rem + ' min' : '');
+}
+
+function scheduleFieldRow(labelText, inputEl) {
+  var row = document.createElement('div');
+  row.className = 'schedule-field-row';
+  var label = document.createElement('label');
+  label.className = 'schedule-field-label';
+  label.textContent = labelText;
+  row.appendChild(label);
+  row.appendChild(inputEl);
+  return row;
+}
+
+// Single-screen form, not a multi-step wizard like Track Alpha's setup
+// flows use — the field count here doesn't need progressive
+// disclosure. scheduleEditingEventId null = create; an id = edit
+// (pre-fills every field from the existing event). Reuses
+// .alpha-question-card/.alpha-answer-input/.alpha-continue-btn/
+// .alpha-secondary-btn verbatim for visual consistency with the rest
+// of this app's card-style forms.
+function renderScheduleEventEditor(container) {
+  var editingEvent = scheduleEditingEventId ? scheduleEvents.find(function(e) { return e.id === scheduleEditingEventId; }) : null;
+
+  var card = document.createElement('div');
+  card.className = 'alpha-question-card schedule-editor-card';
+
+  var heading = document.createElement('div');
+  heading.className = 'alpha-question-text';
+  heading.textContent = editingEvent ? 'Edit Event' : 'New Event';
+  card.appendChild(heading);
+
+  // See saveScheduleEvent()/pushScheduleEventToSupabase() for the
+  // matching save-side logic that makes this promise true: leaving
+  // these two fields blank here does NOT erase the original content —
+  // only actually typing something does.
+  if (editingEvent && editingEvent.detailsUnavailable) {
+    var warning = document.createElement('p');
+    warning.className = 'schedule-editor-warning';
+    warning.textContent = 'Description/notes were encrypted on a different device and can’t be read here. Leaving these fields blank and saving will NOT erase the original content — only typing new text here replaces it.';
+    card.appendChild(warning);
+  }
+
+  var titleInput = document.createElement('input');
+  titleInput.type = 'text';
+  titleInput.className = 'alpha-answer-input';
+  titleInput.placeholder = 'Event title';
+  titleInput.value = editingEvent ? (editingEvent.title || '') : '';
+  card.appendChild(scheduleFieldRow('Title', titleInput));
+
+  var categorySelect = document.createElement('select');
+  SCHEDULE_CATEGORIES.forEach(function(c) {
+    var opt = document.createElement('option');
+    opt.value = c;
+    opt.textContent = c;
+    categorySelect.appendChild(opt);
+  });
+  categorySelect.value = editingEvent ? (editingEvent.category || 'Other') : 'Other';
+  card.appendChild(scheduleFieldRow('Category', categorySelect));
+
+  var dateInput = document.createElement('input');
+  dateInput.type = 'date';
+  dateInput.value = editingEvent ? editingEvent.date : (scheduleSelectedDate || todayLocalDateString());
+  card.appendChild(scheduleFieldRow('Date', dateInput));
+
+  var timeInput = document.createElement('input');
+  timeInput.type = 'time';
+  timeInput.value = editingEvent ? editingEvent.startTime : (scheduleEditorPrefillTime || '09:00');
+  card.appendChild(scheduleFieldRow('Start time', timeInput));
+
+  var durationSelect = document.createElement('select');
+  SCHEDULE_DURATION_OPTIONS.forEach(function(mins) {
+    var opt = document.createElement('option');
+    opt.value = String(mins);
+    opt.textContent = scheduleFormatDurationLabel(mins);
+    durationSelect.appendChild(opt);
+  });
+  durationSelect.value = editingEvent ? String(editingEvent.durationMinutes || 60) : '60';
+  card.appendChild(scheduleFieldRow('Duration', durationSelect));
+
+  var descTextarea = document.createElement('textarea');
+  descTextarea.placeholder = (editingEvent && editingEvent.detailsUnavailable) ? 'Unavailable on this device' : 'Description...';
+  descTextarea.value = editingEvent ? (editingEvent.description || '') : '';
+  card.appendChild(scheduleFieldRow('Description', descTextarea));
+
+  var notesTextarea = document.createElement('textarea');
+  notesTextarea.placeholder = (editingEvent && editingEvent.detailsUnavailable) ? 'Unavailable on this device' : 'Notes...';
+  notesTextarea.value = editingEvent ? (editingEvent.notes || '') : '';
+  card.appendChild(scheduleFieldRow('Notes', notesTextarea));
+
+  var reminderSelect = document.createElement('select');
+  SCHEDULE_REMINDER_OPTIONS.forEach(function(opt) {
+    var optEl = document.createElement('option');
+    optEl.value = opt.value === null ? '' : String(opt.value);
+    optEl.textContent = opt.label;
+    reminderSelect.appendChild(optEl);
+  });
+  reminderSelect.value = (editingEvent && typeof editingEvent.reminderOffsetMinutes === 'number') ? String(editingEvent.reminderOffsetMinutes) : '';
+  card.appendChild(scheduleFieldRow('Reminder', reminderSelect));
+
+  function closeEditor() {
+    scheduleEditorOpen = false;
+    scheduleEditingEventId = null;
+    scheduleEditorPrefillTime = null;
+  }
+
+  var saveBtn = document.createElement('button');
+  saveBtn.type = 'button';
+  saveBtn.className = 'alpha-continue-btn';
+  saveBtn.textContent = editingEvent ? 'Save Changes' : 'Create Event';
+  saveBtn.addEventListener('click', function() {
+    var title = titleInput.value.trim();
+    if (!title) { titleInput.focus(); return; }
+    var reminderVal = reminderSelect.value === '' ? null : parseInt(reminderSelect.value, 10);
+    saveScheduleEvent({
+      title: title,
+      category: categorySelect.value,
+      date: dateInput.value || todayLocalDateString(),
+      startTime: timeInput.value || '09:00',
+      durationMinutes: parseInt(durationSelect.value, 10) || 60,
+      description: descTextarea.value,
+      notes: notesTextarea.value,
+      reminderOffsetMinutes: reminderVal
+    });
+    closeEditor();
+    renderScheduleOverlay();
+  });
+  card.appendChild(saveBtn);
+
+  if (editingEvent) {
+    var deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'alpha-secondary-btn';
+    deleteBtn.textContent = 'Delete Event';
+    deleteBtn.addEventListener('click', function() {
+      if (!window.confirm('Delete "' + editingEvent.title + '"?')) return;
+      deleteScheduleEvent(editingEvent.id);
+      closeEditor();
+      renderScheduleOverlay();
+    });
+    card.appendChild(deleteBtn);
+  }
+
+  var cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.className = 'alpha-secondary-btn';
+  cancelBtn.textContent = '← Back';
+  cancelBtn.addEventListener('click', function() {
+    closeEditor();
+    renderScheduleOverlay();
+  });
+  card.appendChild(cancelBtn);
+
+  container.appendChild(card);
+}
+
+// ---- Upcoming Events mini-list (always visible in the Plans tab,
+// outside the overlay) ----
+function scheduleFormatClockTime(hhmm) {
+  var parts = (hhmm || '0:0').split(':');
+  var h = parseInt(parts[0], 10), m = parseInt(parts[1], 10) || 0;
+  var period = h < 12 ? 'AM' : 'PM';
+  var h12 = h % 12;
+  if (h12 === 0) h12 = 12;
+  return h12 + ':' + (m < 10 ? '0' : '') + m + ' ' + period;
+}
+
+function renderScheduleUpcomingList() {
+  var el = document.getElementById('scheduleUpcomingList');
+  if (!el) return;
+  el.innerHTML = '';
+
+  var todayStr = todayLocalDateString();
+  var now = new Date();
+  var nowHHMM = (now.getHours() < 10 ? '0' : '') + now.getHours() + ':' + (now.getMinutes() < 10 ? '0' : '') + now.getMinutes();
+
+  var upcoming = scheduleEvents
+    .filter(function(e) { return e.date > todayStr || (e.date === todayStr && e.startTime >= nowHHMM); })
+    .sort(function(a, b) {
+      if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+      return a.startTime < b.startTime ? -1 : 1;
+    })
+    .slice(0, 5);
+
+  if (!upcoming.length) {
+    var empty = document.createElement('p');
+    empty.className = 'schedule-upcoming-empty';
+    empty.textContent = 'Nothing scheduled yet.';
+    el.appendChild(empty);
+    return;
+  }
+
+  upcoming.forEach(function(event) {
+    var row = document.createElement('div');
+    row.className = 'schedule-upcoming-row';
+    row.tabIndex = 0;
+
+    var when = document.createElement('span');
+    when.className = 'schedule-upcoming-when';
+    var dayLabel = event.date === todayStr ? 'Today' : new Date(event.date + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    when.textContent = dayLabel + ' · ' + scheduleFormatClockTime(event.startTime);
+    row.appendChild(when);
+
+    var title = document.createElement('span');
+    title.className = 'schedule-upcoming-title';
+    title.textContent = event.title;
+    row.appendChild(title);
+
+    function jump() {
+      scheduleSelectedDate = event.date;
+      scheduleEditorOpen = false;
+      scheduleEditingEventId = null;
+      scheduleEditorPrefillTime = null;
+      if (scheduleOverlayEl) scheduleOverlayEl.style.display = 'flex';
+      renderScheduleOverlay();
+    }
+    row.addEventListener('click', jump);
+    row.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); jump(); }
+    });
+
+    el.appendChild(row);
+  });
+}
+
+// ---- Ruler weekly-widget annotation ----
+// Read-only, additive rendering into the Ruler tab's rolling 7-day
+// widget (renderWeeklyViz) — reads the already-local scheduleEvents
+// array only, no Supabase call, and never touches blocks[]/
+// stampBlock/merge_ruler_blocks. Unlike the Plans<->Ruler day-box
+// mirror (which is conditioned on isTodaysWeek/plansActiveWeekIndex,
+// since Plans' day boxes are keyed by week-slot-index and only line
+// up with Ruler's fixed Mon-Sun window when the currently-viewed
+// Plans week happens to BE this week), scheduleEvents is keyed by
+// real absolute date the same way getDayRecord/getRollingWindowDates
+// are — getElementById('weeklyDaySchedule-' + date) alone is already
+// a correct existence check, no extra guard needed.
+function renderScheduleAnnotationInto(container, dateStr) {
+  container.innerHTML = '';
+  scheduleEvents
+    .filter(function(e) { return e.date === dateStr; })
+    .sort(function(a, b) { return a.startTime < b.startTime ? -1 : 1; })
+    .forEach(function(event) {
+      var chip = document.createElement('span');
+      chip.textContent = scheduleFormatClockTime(event.startTime) + ' ' + event.title;
+      container.appendChild(chip);
+    });
+}
+
+// Same-tab, direct-DOM-patch-if-present convention already used for
+// the Plans<->Ruler day-box mirror — called from every Schedule
+// mutation point that changes an event on a given date (save, delete,
+// reminder-fire) so an already-open Ruler tab reflects the change
+// without a manual refresh.
+function scheduleMirrorIntoWeeklyViz(dateStr) {
+  var el = document.getElementById('weeklyDaySchedule-' + dateStr);
+  if (el) renderScheduleAnnotationInto(el, dateStr);
+}
+
 // ---- Gate + navigation state ----
-// Gender gates entry to the rest of Track Alpha. It USED TO also set
-// an --alpha-accent color tone (.alpha-tone-warm) on the reticle
-// system, but that mechanism was the confirmed root cause of a
-// recurring "yellow glow" bug (see the comment on .alpha-chamber) and
-// has been retired — gender no longer affects color anywhere. It's a
-// one-time checkpoint (persisted locally, asked once), not a
-// personalization input. Local-only: this isn't synced to Supabase or
-// folded into any profile's account-wide `profiles` row, since it's
-// scoped to the Track Alpha experience specifically, not the account.
+// ALPHA_GENDER_KEY: the one-time male/female gate that used to sit in
+// front of Track Alpha has been removed entirely (it never affected
+// anything but its own gate screen — see the retired
+// renderAlphaGenderGate()). The key stays listed in
+// getAllScopedStorageKeys() above only so any value already saved on a
+// device before this removal still gets swept on next sign-out,
+// rather than lingering as orphaned local data forever.
 var ALPHA_GENDER_KEY = 'csrAlignAlphaGender';
-var alphaGender = localStorage.getItem(scopedKey(ALPHA_GENDER_KEY)) || null;
 
 var alphaSelectedProfileId = null;   // set once an improvement is opened
 var alphaActiveSubTab = 'input';     // 'input' | 'stats', within a profile detail view
@@ -13084,37 +14223,6 @@ function alphaTaxonomyPathLabel(profile) {
   return labels.join(' → ');
 }
 
-// ---- Gender gate ----
-// Deliberately the SAME .alpha-choice-btn class, same layout, for
-// both options — no gender-conditional color/copy anywhere below.
-function renderAlphaGenderGate(container) {
-  var card = document.createElement('div');
-  card.className = 'alpha-question-card alpha-gate-card';
-
-  var q = document.createElement('div');
-  q.className = 'alpha-question-text';
-  q.textContent = 'Before you begin, tell us who you are.';
-  card.appendChild(q);
-
-  var row = document.createElement('div');
-  row.className = 'alpha-choice-row';
-  [['male', 'Male'], ['female', 'Female']].forEach(function(pair) {
-    var btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'alpha-choice-btn';
-    btn.textContent = pair[1];
-    btn.addEventListener('click', function() {
-      alphaGender = pair[0];
-      localStorage.setItem(scopedKey(ALPHA_GENDER_KEY), alphaGender);
-      renderAlphaBrowser();
-    });
-    row.appendChild(btn);
-  });
-  card.appendChild(row);
-
-  container.appendChild(card);
-}
-
 // ---- Passphrase gate — unlocks the in-memory encryption key. See
 // the header comment on the encryption plumbing above for the full
 // tradeoff explanation (no persistence, no recovery, by design). ----
@@ -13439,26 +14547,16 @@ function alphaBuildScopeTile(labelText, extraTileClass, onClick, index, total) {
 // per-circle version: the hub is the "aim field" the cursor position
 // gets normalized against, but you don't have to be hovering it.
 //
-// alphaScopeAnimHandle/alphaScopeCursorHandler are module-level so
-// any re-render can tear down the PREVIOUS screen's loop and listener
-// before starting a new one — see alphaStopScopeAnimation, called at
-// the top of renderAlphaBrowser on every single render. document
-// itself is never destroyed, so a document-level listener that isn't
-// explicitly removed would keep accumulating one extra copy per
-// render for the lifetime of the page.
-var alphaScopeAnimHandle = null;
-var alphaScopeCursorHandler = null;
-function alphaStopScopeAnimation() {
-  if (alphaScopeAnimHandle !== null) {
-    cancelAnimationFrame(alphaScopeAnimHandle);
-    alphaScopeAnimHandle = null;
-  }
-  if (alphaScopeCursorHandler !== null) {
-    document.removeEventListener('mousemove', alphaScopeCursorHandler);
-    alphaScopeCursorHandler = null;
-  }
-}
-function alphaStartScopeAnimation(hub) {
+// Extracted into its own pure function so Track Alpha and Scheduling
+// can each own an independent animation lifecycle without either
+// duplicating this ~45 lines of cursor-normalization/easing math (a
+// drift risk if one copy's tuning ever changes and the other's
+// doesn't) or fighting over one shared module-level rAF handle.
+// Touches no module-level state at all — owns cursor/pan/handle state
+// in its own closure and hands the caller back a single teardown
+// function to store wherever makes sense for that feature's own stop
+// function. Zero behavior change from the pre-refactor version below.
+function startScopeReticleAnimation(hub) {
   var MAX_PAN = 16; // px the crosshair/ring can shift off-center inside a lens — same for all four, "one shared aim-point, four lenses"
 
   // prefers-reduced-motion: this is a direct, bounded response to the
@@ -13469,6 +14567,8 @@ function alphaStartScopeAnimation(hub) {
 
   var cursor = { x: 0, y: 0 };
   var panX = 0, panY = 0;
+  var animHandle = null;
+  var cursorHandler = null;
 
   function applyPan(instant) {
     var rect = hub.getBoundingClientRect();
@@ -13489,20 +14589,62 @@ function alphaStartScopeAnimation(hub) {
     hub.style.setProperty('--reticle-pan-y', panY.toFixed(1) + 'px');
   }
 
-  alphaScopeCursorHandler = function(e) {
+  cursorHandler = function(e) {
     cursor.x = e.clientX;
     cursor.y = e.clientY;
     if (reduceMotion) applyPan(true);
   };
-  document.addEventListener('mousemove', alphaScopeCursorHandler);
+  document.addEventListener('mousemove', cursorHandler);
 
-  if (reduceMotion) return; // instant per-event updates above; no continuous animation loop
-
-  function tick() {
-    applyPan(false);
-    alphaScopeAnimHandle = requestAnimationFrame(tick);
+  if (!reduceMotion) {
+    function tick() {
+      applyPan(false);
+      animHandle = requestAnimationFrame(tick);
+    }
+    animHandle = requestAnimationFrame(tick);
   }
-  alphaScopeAnimHandle = requestAnimationFrame(tick);
+
+  return function stopScopeReticleAnimation() {
+    if (animHandle !== null) {
+      cancelAnimationFrame(animHandle);
+      animHandle = null;
+    }
+    if (cursorHandler !== null) {
+      document.removeEventListener('mousemove', cursorHandler);
+      cursorHandler = null;
+    }
+  };
+}
+
+// alphaScopeStopFn is module-level so any re-render can tear down the
+// PREVIOUS screen's loop and listener before starting a new one — see
+// alphaStopScopeAnimation, called at the top of renderAlphaBrowser on
+// every single render. document itself is never destroyed, so a
+// document-level listener that isn't explicitly removed would keep
+// accumulating one extra copy per render for the lifetime of the page.
+// Same call signatures as before the refactor above — no call site
+// (renderAlphaTaxonomyStep, renderAlphaScopeHub, renderAlphaBrowser)
+// needed to change.
+var alphaScopeStopFn = null;
+function alphaStopScopeAnimation() {
+  if (alphaScopeStopFn) { alphaScopeStopFn(); alphaScopeStopFn = null; }
+}
+function alphaStartScopeAnimation(hub) {
+  alphaScopeStopFn = startScopeReticleAnimation(hub);
+}
+
+// Scheduling's own independent parallel — same lifecycle rules as
+// Alpha's above, own handle, so the two features' screens never fight
+// over one shared rAF/listener slot (which is different tabs today,
+// but sharing one handle would be fragile the moment that ever
+// changes, and there's no reason to accept that risk when it's this
+// cheap to avoid).
+var scheduleScopeStopFn = null;
+function scheduleStopScopeAnimation() {
+  if (scheduleScopeStopFn) { scheduleScopeStopFn(); scheduleScopeStopFn = null; }
+}
+function scheduleStartScopeAnimation(hub) {
+  scheduleScopeStopFn = startScopeReticleAnimation(hub);
 }
 
 function renderAlphaScopeHub(container) {
@@ -13755,11 +14897,6 @@ function renderAlphaBrowser() {
   // rendering this pass. Every other screen (forms, lists) keeps the
   // normal boxed instrument-panel chamber.
   if (chamber) chamber.classList.remove('alpha-chamber-void');
-
-  if (!alphaGender) {
-    renderAlphaGenderGate(container);
-    return;
-  }
 
   // Encryption key is only needed to sync to Supabase, so it's only
   // relevant once signed in — no currentUser means no cloud sync is
@@ -14177,6 +15314,7 @@ renderYearlyViz();
 renderAccomplishMonth();
 renderPlansWeekButtons();
 renderPlansWeekDays();
+renderScheduleUpcomingList();
 renderTodaysMission();
 renderSunriseForecast();
 updateLive();
