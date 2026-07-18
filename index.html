@@ -10080,23 +10080,36 @@ function renderOneClanCard(clan) {
               renderClanMembers(membersWrap, profResult.data, rulerMap, clan);
             });
         });
-    });
 
-  // Live updates: whenever anyone's shared ruler changes, re-render this clan.
-  // Wrapped defensively so one channel failing can never block other clans
-  // from rendering (a real bug we hit: an uncaught subscribe error here
-  // was silently stopping the whole render loop for every clan after it).
-  try {
-    var channel = supabaseClient.channel('clan-' + clan.id + '-' + Date.now())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'shared_rulers' }, function() {
-        renderOneClanCardRefresh(clan, membersWrap);
-      })
-      .subscribe();
-    activeClanChannels.push(channel);
-  } catch (e) {
-    // Live updates for this clan won't work, but the card itself
-    // still rendered above, so the rest of the UI is unaffected.
-  }
+      // Live updates: whenever a member of THIS clan's shared ruler
+      // changes, re-render this card. Filtered to this clan's actual
+      // member ids (built from the membership just fetched above)
+      // instead of a bare table-wide subscription — previously every
+      // open clan card refetched on ANY visible shared_rulers change
+      // across ALL of a multi-Legion user's clans, not just the one
+      // that card actually shows. Always correct either way (the
+      // refetch re-queries the right data), just wasteful.
+      // Membership changes (join/leave) after this subscribes aren't
+      // picked up until the next full clan-list rebuild (login
+      // refresh, join, leave) re-runs this function with fresh
+      // userIds — the same staleness window this app already accepts
+      // elsewhere rather than hand-rolling live membership diffing.
+      // Wrapped defensively so one channel failing can never block
+      // other clans from rendering (a real bug we hit: an uncaught
+      // subscribe error here was silently stopping the whole render
+      // loop for every clan after it).
+      try {
+        var channel = supabaseClient.channel('clan-' + clan.id + '-' + Date.now())
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'shared_rulers', filter: 'user_id=in.(' + userIds.join(',') + ')' }, function() {
+            renderOneClanCardRefresh(clan, membersWrap);
+          })
+          .subscribe();
+        activeClanChannels.push(channel);
+      } catch (e) {
+        // Live updates for this clan won't work, but the card itself
+        // still rendered above, so the rest of the UI is unaffected.
+      }
+    });
 }
 
 function renderOneClanCardRefresh(clan, membersWrap) {
