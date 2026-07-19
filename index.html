@@ -1574,7 +1574,12 @@
     border-radius: 8px;
     padding: 1rem;
     margin-bottom: 1.25rem;
+    cursor: pointer;
   }
+  /* Whole-card hover affordance now that the whole card (not just the
+     name text) opens this Legion's chat — skipped while already
+     active so the gold "currently open" border doesn't get masked. */
+  .clan-card:not(.is-chat-active):hover { border-color: #4a4a4a; }
   /* Highlights whichever Legion's chat is currently open below the
      list (see selectClanForChat() in the JS). */
   .clan-card.is-chat-active { border-color: var(--rd-gold); }
@@ -1586,8 +1591,7 @@
     flex-wrap: wrap;
     gap: 0.5rem;
   }
-  .clan-card-header .clan-name { font-size: 16px; color: #C5A46E; cursor: pointer; }
-  .clan-card-header .clan-name:hover { text-decoration: underline; }
+  .clan-card-header .clan-name { font-size: 16px; color: #C5A46E; }
   .clan-card-header .clan-meta { font-size: 11px; color: #777; }
   .clan-card-header .clan-leave {
     background: none;
@@ -10524,6 +10528,19 @@ function renderClansList(clanRows) {
 function renderOneClanCard(clan) {
   var card = document.createElement('div');
   card.className = 'clan-card' + (clan.id === selectedChatClanId ? ' is-chat-active' : '');
+  card.title = 'Open this Legion\'s chat';
+  // The whole card is the click target, not just the name text — a
+  // person clicking the card's border/padding/invite-code line
+  // (i.e. anywhere that visually reads as "the card") previously got
+  // no response at all, which is what actually happened on the live
+  // site: only the small name span had a listener. Guarded against
+  // Leave/Disband (its own distinct action) and individual member
+  // rows (their own "view Today" click), both of which live inside
+  // this same card and must not also flip the active chat clan.
+  card.addEventListener('click', function(e) {
+    if (e.target.closest('.clan-leave') || e.target.closest('.clan-member')) return;
+    selectClanForChat(clan, card);
+  });
 
   var header = document.createElement('div');
   header.className = 'clan-card-header';
@@ -10531,8 +10548,6 @@ function renderOneClanCard(clan) {
   var nameEl = document.createElement('div');
   nameEl.className = 'clan-name';
   nameEl.textContent = clan.name;
-  nameEl.title = 'Open this Legion\'s chat';
-  nameEl.addEventListener('click', function(e) { selectClanForChat(clan, e.currentTarget); });
 
   var metaEl = document.createElement('div');
   metaEl.className = 'clan-meta';
@@ -10541,7 +10556,8 @@ function renderOneClanCard(clan) {
   var leaveBtn = document.createElement('button');
   leaveBtn.className = 'clan-leave';
   leaveBtn.textContent = clan.owner_id === currentUser.id ? 'Disband' : 'Leave';
-  leaveBtn.addEventListener('click', function() {
+  leaveBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
     if (!window.confirm('Are you sure?')) return;
     if (clan.owner_id === currentUser.id) {
       supabaseClient.from('clans').delete().eq('id', clan.id).then(function() { loadAndRenderClans(); });
