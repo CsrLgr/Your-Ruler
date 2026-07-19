@@ -554,6 +554,68 @@
   }
   .send-modal-choice-row { display: flex; gap: 0.6rem; }
   .send-modal-choice-row button { flex: 1; }
+
+  /* ---- Set-password modal (auth bar "Set password") ---- */
+  .setpw-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 1rem;
+  }
+  .setpw-modal {
+    background: var(--rd-panel);
+    border: 1px solid var(--rd-edge);
+    border-radius: 10px;
+    width: 100%;
+    max-width: 340px;
+    padding: 1.25rem;
+  }
+  .setpw-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    font-size: 15px;
+    color: #C5A46E;
+  }
+  .setpw-modal-note {
+    font-size: 12px;
+    color: var(--rd-muted);
+    margin: 0 0 1rem 0;
+  }
+  .setpw-modal-field { margin-bottom: 0.85rem; }
+  .setpw-modal-field label {
+    display: block;
+    font-size: 11px;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.35rem;
+  }
+  .setpw-modal-field input[type="password"] {
+    width: 100%;
+    box-sizing: border-box;
+    background: #131A26;
+    border: 1px solid #333;
+    border-radius: 6px;
+    color: var(--rd-text);
+    font-family: Georgia, serif;
+    font-size: 13px;
+    padding: 0.55rem 0.7rem;
+  }
+  .setpw-modal-field input[type="password"]:focus { outline: 1px solid #C5A46E; }
+  .setpw-modal-error {
+    font-size: 12px;
+    color: #d98a8a;
+    margin: -0.35rem 0 0.85rem 0;
+  }
+  .setpw-modal-actions { display: flex; gap: 0.6rem; }
+  .setpw-modal-actions button { flex: 1; }
+
   #sendModalBody select {
     width: 100%;
     box-sizing: border-box;
@@ -8775,20 +8837,7 @@ function renderAuthBarLoggedIn(email) {
   setPasswordBtn.textContent = 'Set password';
   setPasswordBtn.title = 'Add a password so you can sign in without email next time';
   setPasswordBtn.addEventListener('click', function() {
-    var pw = window.prompt('Enter a password (min 6 characters):');
-    if (!pw) return;
-    if (pw.length < 6) {
-      renderAuthBarLoggedIn(email);
-      showAuthInlineMsg('Password must be at least 6 characters.');
-      return;
-    }
-    supabaseClient.auth.updateUser({ password: pw }).then(function(result) {
-      if (result.error) {
-        showAuthInlineMsg('Could not set password: ' + result.error.message);
-      } else {
-        showAuthInlineMsg('Password set! You can sign in with it next time.');
-      }
-    });
+    openSetPasswordModal(email);
   });
 
   var signOutBtn = document.createElement('button');
@@ -8833,6 +8882,141 @@ function showAuthInlineMsg(text) {
   msg.className = 'auth-msg';
   msg.textContent = text;
   authBar.appendChild(msg);
+}
+
+// ---- Set-password modal ----
+// Replaces a bare window.prompt() (previously used here): a native
+// prompt dialog always shows its input in plaintext with no way to
+// mask it, and offers no confirm-password field, so a typo silently
+// sets a password the user doesn't actually know. This is a real
+// type="password" form with a matching confirm field instead, styled
+// like the app's other overlay modals (send-modal/energy-modal).
+var setPasswordModalOverlay = null;
+
+function openSetPasswordModal(email) {
+  closeSetPasswordModal();
+
+  var overlay = document.createElement('div');
+  overlay.className = 'setpw-modal-overlay';
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) closeSetPasswordModal();
+  });
+
+  var modal = document.createElement('div');
+  modal.className = 'setpw-modal';
+
+  var header = document.createElement('div');
+  header.className = 'setpw-modal-header';
+  var title = document.createElement('span');
+  title.textContent = 'Set Password';
+  var closeBtn = document.createElement('button');
+  closeBtn.className = 'secondary';
+  closeBtn.textContent = 'Close';
+  closeBtn.addEventListener('click', closeSetPasswordModal);
+  header.appendChild(title);
+  header.appendChild(closeBtn);
+  modal.appendChild(header);
+
+  var note = document.createElement('p');
+  note.className = 'setpw-modal-note';
+  note.textContent = 'Add a password to ' + email + ' so you can sign in without email next time.';
+  modal.appendChild(note);
+
+  var pwField = document.createElement('div');
+  pwField.className = 'setpw-modal-field';
+  var pwLabel = document.createElement('label');
+  pwLabel.textContent = 'Password';
+  pwLabel.setAttribute('for', 'setpwInput1');
+  var pwInput = document.createElement('input');
+  pwInput.type = 'password';
+  pwInput.id = 'setpwInput1';
+  pwInput.autocomplete = 'new-password';
+  pwInput.placeholder = 'At least 6 characters';
+  pwField.appendChild(pwLabel);
+  pwField.appendChild(pwInput);
+  modal.appendChild(pwField);
+
+  var confirmField = document.createElement('div');
+  confirmField.className = 'setpw-modal-field';
+  var confirmLabel = document.createElement('label');
+  confirmLabel.textContent = 'Confirm password';
+  confirmLabel.setAttribute('for', 'setpwInput2');
+  var confirmInput = document.createElement('input');
+  confirmInput.type = 'password';
+  confirmInput.id = 'setpwInput2';
+  confirmInput.autocomplete = 'new-password';
+  confirmInput.placeholder = 'Re-enter password';
+  confirmField.appendChild(confirmLabel);
+  confirmField.appendChild(confirmInput);
+  modal.appendChild(confirmField);
+
+  var errorMsg = document.createElement('p');
+  errorMsg.className = 'setpw-modal-error';
+  errorMsg.style.display = 'none';
+  modal.appendChild(errorMsg);
+
+  var actions = document.createElement('div');
+  actions.className = 'setpw-modal-actions';
+  var cancelBtn = document.createElement('button');
+  cancelBtn.className = 'secondary';
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.addEventListener('click', closeSetPasswordModal);
+  var saveBtn = document.createElement('button');
+  saveBtn.textContent = 'Save password';
+  actions.appendChild(cancelBtn);
+  actions.appendChild(saveBtn);
+  modal.appendChild(actions);
+
+  function showError(text) {
+    errorMsg.textContent = text;
+    errorMsg.style.display = '';
+  }
+
+  function submit() {
+    var pw = pwInput.value;
+    var confirmPw = confirmInput.value;
+    if (!pw || pw.length < 6) {
+      showError('Password must be at least 6 characters.');
+      return;
+    }
+    if (pw !== confirmPw) {
+      showError('Passwords do not match.');
+      return;
+    }
+    errorMsg.style.display = 'none';
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
+    supabaseClient.auth.updateUser({ password: pw }).then(function(result) {
+      if (result.error) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save password';
+        showError('Could not set password: ' + result.error.message);
+      } else {
+        closeSetPasswordModal();
+        showAuthInlineMsg('Password set! You can sign in with it next time.');
+      }
+    });
+  }
+
+  saveBtn.addEventListener('click', submit);
+  confirmInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); submit(); }
+  });
+  pwInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); confirmInput.focus(); }
+  });
+
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  setPasswordModalOverlay = overlay;
+  pwInput.focus();
+}
+
+function closeSetPasswordModal() {
+  if (setPasswordModalOverlay) {
+    setPasswordModalOverlay.remove();
+    setPasswordModalOverlay = null;
+  }
 }
 
 function sendMagicLink(email) {
