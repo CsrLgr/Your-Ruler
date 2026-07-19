@@ -1333,6 +1333,14 @@
     flex: 1 1 380px;
     min-width: 280px;
   }
+  .entries-tier-notice {
+    font-size: 11px;
+    color: #777;
+    font-style: italic;
+    text-align: center;
+    padding: 0.75rem 0.5rem 0.25rem 0.5rem;
+    margin: 0;
+  }
   .entry-item {
     background: #111722;
     border: 1px solid #2a2a2a;
@@ -2723,6 +2731,15 @@
     padding: 0 0.5rem;
   }
   .yearly-month-focus:focus { outline: 1px solid var(--rd-gold-bright) !important; }
+  /* Future month, free tier — same dimmed/not-allowed treatment as
+     .yearly-week-box-locked, just on the gold-bordered focus input
+     instead of a plain week box. */
+  .yearly-month-focus-locked {
+    opacity: 0.5;
+    cursor: not-allowed;
+    font-style: italic;
+    font-weight: normal;
+  }
   .yearly-weeks {
     display: flex;
     flex: 1;
@@ -6487,13 +6504,35 @@ function updateDailyScore() {
   renderWeeklyScoreSummary();
 }
 
+// Free tier's "record and export max 30 days" cap applies here too,
+// not just to the export flow below (FREE_TIER_EXPORT_DAYS is shared
+// by both) — the Past Entries list itself only shows the last 30
+// days for free tier. Trader-category entries (TradingView sync) are
+// exempt, same exemption entryMatchesFilters() applies for export.
 function renderEntries() {
   var entries = loadEntries();
   var container = document.getElementById('entriesList');
   container.innerHTML = '';
-  entries.slice().reverse().forEach(function(entry) {
+
+  var isPaidUser = !!(currentUser && currentUserIsPaid);
+  var cutoff = isPaidUser ? null : new Date(Date.now() - FREE_TIER_EXPORT_DAYS * 24 * 60 * 60 * 1000);
+  var visibleEntries = cutoff
+    ? entries.filter(function(e) { return e.category === 'Trader' || new Date(e.createdAt) >= cutoff; })
+    : entries;
+  var hiddenCount = entries.length - visibleEntries.length;
+
+  visibleEntries.slice().reverse().forEach(function(entry) {
     container.appendChild(buildEntryElement(entry, entries));
   });
+
+  if (hiddenCount > 0) {
+    var notice = document.createElement('p');
+    notice.className = 'entries-tier-notice';
+    notice.textContent = hiddenCount + (hiddenCount === 1 ? ' older entry is' : ' older entries are') +
+      ' hidden — Free tier shows the last ' + FREE_TIER_EXPORT_DAYS + ' days. Upgrade for full history.';
+    container.appendChild(notice);
+  }
+
   updateDailyScore();
 }
 
@@ -7569,6 +7608,27 @@ function isYearlyWeekLocked(mondayDate) {
   return mondayDate > todayStart;
 }
 
+// Same past/current-vs-future rule as isYearlyWeekLocked above, one
+// level up: a future MONTH's focus cell is locked for free tier, the
+// current/past ones stay editable. Paid tier: never locked, any year.
+function isYearlyMonthLocked(year, monthIdx) {
+  if (currentUser && currentUserIsPaid) return false;
+  var now = new Date();
+  if (year > now.getFullYear()) return true;
+  if (year === now.getFullYear() && monthIdx > now.getMonth()) return true;
+  return false;
+}
+
+// The Yearly Focus box (the single free-text "theme for the year"
+// field, separate from the per-month/per-week cells below it) is a
+// paid-only field entirely — free tier can view whatever's already
+// there but never write to it, matching "cannot write on yearly view"
+// from the tier spec (the monthly/weekly cells below it follow the
+// past/current-only rule above instead, not this full lock).
+function isYearlyFocusLocked() {
+  return !(currentUser && currentUserIsPaid);
+}
+
 function freshYearlyYearData() {
   var months = [];
   for (var m = 0; m < 12; m++) {
@@ -7825,21 +7885,25 @@ function renderYearlyViz() {
     num.textContent = String(i + 1);
     header.appendChild(num);
 
-    // Monthly Focus is editable for every month, any tier — the
-    // forward-looking exception even inside an otherwise "read only"
-    // future month. Sits beside the month number on one row now (no
-    // separate "Monthly Focus" caption above it — removed per direct
-    // request), gold-bordered (vs. the week boxes' neutral edge color)
-    // so it still reads as "this month's focus" distinct from "these
-    // four weeks' focuses" below.
+    // Monthly Focus follows the same past/current-vs-future rule as
+    // the week boxes below it (isYearlyMonthLocked) — free tier can
+    // read every month's focus but only write past/current ones,
+    // future months stay locked same as their week boxes. Sits beside
+    // the month number on one row now (no separate "Monthly Focus"
+    // caption above it — removed per direct request), gold-bordered
+    // (vs. the week boxes' neutral edge color) so it still reads as
+    // "this month's focus" distinct from "these four weeks' focuses"
+    // below.
+    var monthLocked = isYearlyMonthLocked(yearlyCurrentViewYear, i);
     var focusWrap = document.createElement('div');
     focusWrap.className = 'yearly-month-focus-wrap';
 
     var focusInput = document.createElement('input');
     focusInput.type = 'text';
-    focusInput.className = 'yearly-month-focus';
-    focusInput.placeholder = 'Monthly focus...';
+    focusInput.className = 'yearly-month-focus' + (monthLocked ? ' yearly-month-focus-locked' : '');
+    focusInput.placeholder = monthLocked ? '🔒 Upgrade to plan ahead' : 'Monthly focus...';
     focusInput.value = getMonthlyFocusDisplay(monthKey, weekKeys);
+    focusInput.readOnly = monthLocked;
     // Only the card for the REAL current month gets this id — it's
     // how Vision's own Monthly Focus box (visionMonthFocusDisplayEl)
     // finds its two-way counterpart. Browsing a different year in
@@ -7847,24 +7911,31 @@ function renderYearlyViz() {
     // which is correct: Vision's box only ever means the real current
     // month, not whatever's being browsed here.
     if (isCurrentYear && i === currentMonthIdx) focusInput.id = 'yearlyMonthFocusCurrent';
-    (function(mKey) {
-      var focusValueAtFocus = focusInput.value;
+    if (!monthLocked) {
+      (function(mKey) {
+        var focusValueAtFocus = focusInput.value;
+        focusInput.addEventListener('focus', function() {
+          focusValueAtFocus = focusInput.value;
+        });
+        focusInput.addEventListener('input', function() {
+          saveMonthlyFocusLive(mKey, focusInput.value);
+          if (mKey === currentMonthKeyForVision() && visionMonthFocusDisplayEl
+              && document.activeElement !== visionMonthFocusDisplayEl) {
+            visionMonthFocusDisplayEl.value = focusInput.value;
+          }
+        });
+        focusInput.addEventListener('blur', function() {
+          if (focusInput.value !== focusValueAtFocus) {
+            logMonthlyFocusEdit(mKey, focusValueAtFocus);
+          }
+        });
+      })(monthKey);
+    } else {
       focusInput.addEventListener('focus', function() {
-        focusValueAtFocus = focusInput.value;
+        focusInput.blur();
+        showToast('Planning future months is a paid feature. Upgrade to unlock it.', 'error');
       });
-      focusInput.addEventListener('input', function() {
-        saveMonthlyFocusLive(mKey, focusInput.value);
-        if (mKey === currentMonthKeyForVision() && visionMonthFocusDisplayEl
-            && document.activeElement !== visionMonthFocusDisplayEl) {
-          visionMonthFocusDisplayEl.value = focusInput.value;
-        }
-      });
-      focusInput.addEventListener('blur', function() {
-        if (focusInput.value !== focusValueAtFocus) {
-          logMonthlyFocusEdit(mKey, focusValueAtFocus);
-        }
-      });
-    })(monthKey);
+    }
     focusWrap.appendChild(focusInput);
     header.appendChild(focusWrap);
     monthBlock.appendChild(header);
@@ -8372,14 +8443,19 @@ function saveThemeYear(text) {
 // Saved + not actively being edited -> border-free text view with an
 // Edit button; empty, or mid-edit, -> the bordered textarea. Blur
 // commits to view mode only if there's something to show, so an
-// empty box never collapses into an unclickable blank view.
+// empty box never collapses into an unclickable blank view. Free
+// tier always lands in view mode (isYearlyFocusLocked), even when
+// empty, so there's never a writable textarea sitting on screen for
+// them — the Edit button's own click handler below is what surfaces
+// the upgrade message.
 function renderYearlyFocusMode() {
   if (!yearlyFocusDisplayEl || !yearlyFocusViewEl) return;
   var text = localStorage.getItem(scopedKey(THEME_YEAR_KEY)) || '';
-  if (text) {
+  if (text || isYearlyFocusLocked()) {
     yearlyFocusDisplayEl.style.display = 'none';
     yearlyFocusViewEl.style.display = '';
-    yearlyFocusTextEl.textContent = text;
+    yearlyFocusTextEl.textContent = text || 'Upgrade to set a Yearly Focus.';
+    if (yearlyFocusEditBtn) yearlyFocusEditBtn.textContent = isYearlyFocusLocked() ? 'Upgrade' : 'Edit';
   } else {
     yearlyFocusDisplayEl.style.display = '';
     yearlyFocusViewEl.style.display = 'none';
@@ -8395,6 +8471,10 @@ if (yearlyFocusDisplayEl) {
 }
 if (yearlyFocusEditBtn) {
   yearlyFocusEditBtn.addEventListener('click', function() {
+    if (isYearlyFocusLocked()) {
+      showToast('Writing a Yearly Focus is a paid feature. Upgrade to unlock it.', 'error');
+      return;
+    }
     yearlyFocusViewEl.style.display = 'none';
     yearlyFocusDisplayEl.style.display = '';
     yearlyFocusDisplayEl.focus();
@@ -9218,6 +9298,13 @@ function refreshCurrentUserPaidStatus() {
       updateJournalImageUIVisibility();
       updateYearlyVizUIVisibility();
       if (typeof updateSectionShareRowsVisibility === 'function') updateSectionShareRowsVisibility();
+      // Every tier-gated screen re-derives its locked/unlocked state
+      // straight from currentUserIsPaid on each render, so a plain
+      // re-render (not a reload) is enough to reflect a tier change
+      // that happened mid-session.
+      if (typeof renderEntries === 'function') renderEntries();
+      if (typeof renderAlphaBrowser === 'function') renderAlphaBrowser();
+      if (typeof renderScheduleOverlay === 'function' && scheduleOverlayEl && scheduleOverlayEl.style.display !== 'none') renderScheduleOverlay();
     });
 }
 
@@ -9907,7 +9994,7 @@ document.getElementById('joinClanBtn').addEventListener('click', function() {
             // this exact call means the cap, same code+message check
             // createClanBtn's handler above already uses correctly.
             if (insertResult.error.message.indexOf('row-level security') !== -1 || insertResult.error.code === '42501') {
-              showClansMsg('Free tier is limited to 2 Legions. Upgrade to join more.', true);
+              showClansMsg('Free tier is limited to 3 Legions. Upgrade to join more.', true);
             } else if (insertResult.error.code === '23505') {
               showClansMsg('You\'re already in that Legion.', true);
             } else {
@@ -11095,7 +11182,7 @@ function appendToMemberWhiteboard(targetProfile, fromUser, message, onComplete) 
 //     includeRuler, includeJournal, includeMusts, includeWhiteboard,
 //     wasClipped }
 // ============================================================
-var FREE_TIER_EXPORT_DAYS = 14;
+var FREE_TIER_EXPORT_DAYS = 30;
 
 var exportRangeSelect = document.getElementById('exportRangeSelect');
 var exportCustomDates = document.getElementById('exportCustomDates');
@@ -11282,6 +11369,12 @@ function resolveExportFilters() {
     end = now;
   }
 
+  // Kept unclipped for the Trader category's own exemption below —
+  // TradingView-synced entries persist past the free-tier window
+  // regardless of tier, so they need the real requested start date,
+  // not whatever the free-tier clip below narrows it to.
+  var unclippedStart = start;
+
   var isPaidUser = !!(currentUser && currentUserIsPaid);
   var wasClipped = false;
   if (!isPaidUser) {
@@ -11299,6 +11392,7 @@ function resolveExportFilters() {
 
   return {
     dateStart: start,
+    dateStartUnclipped: unclippedStart,
     dateEnd: end,
     categories: allJournalCatsChecked ? 'all' : checkedJournalCats,
     includeJournal: !!exportSelectedTabs.journal,
@@ -11327,7 +11421,12 @@ function dateInRange(dateLike, start, end) {
 }
 
 function entryMatchesFilters(entry, filters) {
-  if (!dateInRange(entry.createdAt, filters.dateStart, filters.dateEnd)) return false;
+  // Trader entries (TradingView-synced) are exempt from the free-tier
+  // date clip specifically — they still respect an intentional custom
+  // range the user picked themselves, just not the automatic
+  // FREE_TIER_EXPORT_DAYS narrowing applied to every other category.
+  var effectiveStart = (entry.category === 'Trader' && filters.dateStartUnclipped) ? filters.dateStartUnclipped : filters.dateStart;
+  if (!dateInRange(entry.createdAt, effectiveStart, filters.dateEnd)) return false;
   if (filters.categories !== 'all' && filters.categories.indexOf(entry.category) === -1) return false;
   return true;
 }
@@ -13078,6 +13177,24 @@ function scheduleDrillHeader(titleText, onBack) {
   return header;
 }
 
+// ---- Free-tier plan limit ----
+// Free tier: 3 plans total, flat cap, no composition rule (unlike
+// Track Alpha's Health/Relationships/Finances split — a plan has no
+// analogous category to restrict by). Paid tier: unlimited. Only
+// gates the 3 CREATE tiles (Hour/Day/Multiple Days) in the scope hub
+// below — "My Plans" (browse) and editing/re-timing an existing plan
+// (which sets scheduleEditingEventId directly, bypassing this hub
+// entirely) are never blocked, matching Track Alpha's
+// browse-is-never-locked precedent.
+var SCHEDULE_FREE_TIER_MAX_PLANS = 3;
+function scheduleCreationBlockedReason() {
+  if (currentUserIsPaid) return null;
+  if (scheduleEvents.length >= SCHEDULE_FREE_TIER_MAX_PLANS) {
+    return 'Free tier is limited to ' + SCHEDULE_FREE_TIER_MAX_PLANS + ' plans. Upgrade for unlimited.';
+  }
+  return null;
+}
+
 // 4 floating, mouse-tracked reticle tiles via alphaBuildScopeTile
 // (index.html ~14471) — called DIRECTLY, not reimplemented, since
 // that function is already fully generic (label/class/onClick/
@@ -13099,15 +13216,26 @@ function renderScheduleScopeHub(container) {
     { key: 'browse', label: 'My Plans' }
   ];
   scopes.forEach(function(scope, i) {
-    var built = alphaBuildScopeTile(scope.label, scope.key === 'browse' ? 'alpha-scope-tile-snipes' : null, function() {
-      schedulePendingRange = null;
+    var blockedReason = scope.key === 'browse' ? null : scheduleCreationBlockedReason();
+    var extraClass = scope.key === 'browse' ? 'alpha-scope-tile-snipes' : (blockedReason ? 'alpha-scope-tile-locked' : null);
+    var built = alphaBuildScopeTile(scope.label, extraClass, function() {
       if (scope.key === 'browse') {
+        schedulePendingRange = null;
         scheduleCreatingScope = 'browse';
-      } else {
-        scheduleCreatingScope = scope.key;
-        scheduleWhenDate = null;
-        scheduleHourStart = null;
+        renderScheduleOverlay();
+        return;
       }
+      // Same "still a real click handler, not a disabled button"
+      // choice Track Alpha's scope hub makes — a locked tile needs to
+      // explain WHY via a toast, not silently do nothing.
+      if (blockedReason) {
+        showToast(blockedReason, 'error');
+        return;
+      }
+      schedulePendingRange = null;
+      scheduleCreatingScope = scope.key;
+      scheduleWhenDate = null;
+      scheduleHourStart = null;
       renderScheduleOverlay();
     }, i, scopes.length);
 
@@ -13116,6 +13244,11 @@ function renderScheduleScopeHub(container) {
       count.className = 'alpha-scope-tile-count';
       count.textContent = String(scheduleEvents.length);
       built.tileEl.appendChild(count);
+    }
+
+    if (blockedReason) {
+      built.tileEl.title = blockedReason;
+      built.tileEl.setAttribute('aria-disabled', 'true');
     }
 
     wrap.appendChild(built.floatEl);
@@ -14921,7 +15054,7 @@ function scheduleStartScopeAnimation(hub) {
 // must be Finances (always available, never locked out on its own
 // account), plus at most one more from Health OR Relationships (the
 // user's choice of ONE of those two; picking one locks the other).
-// Paid tier: a flat 5-profile cap, no composition restriction at all.
+// Paid tier: unlimited, no composition restriction at all.
 // Recomputed fresh from the live alphaProfiles array on every
 // scope-hub render — deleting a profile immediately re-unlocks
 // whichever tile it was blocking, no separate bookkeeping needed.
@@ -14929,23 +15062,17 @@ function scheduleStartScopeAnimation(hub) {
 // string when it's not (shown via showToast on click — see
 // renderAlphaScopeHub below).
 var ALPHA_FREE_TIER_MAX_SCOPES = 2;
-var ALPHA_PAID_TIER_MAX_SCOPES = 5;
 function alphaScopeCreationBlockedReason(categoryKey) {
+  if (currentUserIsPaid) return null;
+
   var counts = { health: 0, relationships: 0, finances: 0 };
   alphaProfiles.forEach(function(p) {
     if (Object.prototype.hasOwnProperty.call(counts, p.category)) counts[p.category]++;
   });
   var total = alphaProfiles.length;
 
-  if (currentUserIsPaid) {
-    if (total >= ALPHA_PAID_TIER_MAX_SCOPES) {
-      return 'You’ve reached the ' + ALPHA_PAID_TIER_MAX_SCOPES + '-scope limit.';
-    }
-    return null;
-  }
-
   if (total >= ALPHA_FREE_TIER_MAX_SCOPES) {
-    return 'Free tier is limited to ' + ALPHA_FREE_TIER_MAX_SCOPES + ' scopes. Upgrade for up to ' + ALPHA_PAID_TIER_MAX_SCOPES + '.';
+    return 'Free tier is limited to ' + ALPHA_FREE_TIER_MAX_SCOPES + ' scopes. Upgrade for unlimited.';
   }
   if (categoryKey === 'finances' && counts.finances >= 1) {
     return 'Free tier includes one Finances scope, and you already have it. Upgrade to create more.';
