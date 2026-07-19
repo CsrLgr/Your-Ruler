@@ -596,7 +596,9 @@
     letter-spacing: 0.06em;
     margin-bottom: 0.35rem;
   }
-  .setpw-modal-field input[type="password"] {
+  .setpw-modal-field input[type="password"],
+  .setpw-modal-field select,
+  .setpw-modal-field input[type="datetime-local"] {
     width: 100%;
     box-sizing: border-box;
     background: #131A26;
@@ -607,7 +609,9 @@
     font-size: 13px;
     padding: 0.55rem 0.7rem;
   }
-  .setpw-modal-field input[type="password"]:focus { outline: 1px solid #C5A46E; }
+  .setpw-modal-field input[type="password"]:focus,
+  .setpw-modal-field select:focus,
+  .setpw-modal-field input[type="datetime-local"]:focus { outline: 1px solid #C5A46E; }
   .setpw-modal-error {
     font-size: 12px;
     color: #d98a8a;
@@ -1609,6 +1613,50 @@
     padding: 0.3rem 0.6rem;
   }
   .clan-card-header .clan-leave:hover { border-color: #B33A52; color: #B33A52; }
+  .clan-card-header .clan-roster-btn,
+  .clan-card-header .clan-settings-btn {
+    font-size: 10px;
+    padding: 0.3rem 0.6rem;
+  }
+
+  /* ---- Roster modal (reuses .member-modal-overlay/.member-modal) ---- */
+  .legion-roster-list {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .legion-roster-row {
+    background: #131A26;
+    border-radius: 5px;
+    padding: 0.5rem 0.65rem;
+  }
+  .legion-roster-name { font-size: 12px; color: #ddd; }
+
+  /* ---- Settings modal — command transfer ---- */
+  .legion-settings-expiry-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0.5rem 0 0.75rem 0;
+    font-size: 12px;
+    color: #bbb;
+  }
+  .legion-settings-expiry-toggle-row input[type="checkbox"] { accent-color: #C5A46E; cursor: pointer; }
+  .legion-settings-expiry-note { font-size: 11px; color: #777; margin: 0 0 0.85rem 0; }
+
+  /* ---- Incoming transfer offer prompt ---- */
+  .legion-transfer-prompt {
+    background: #16110A;
+    border: 1px solid var(--rd-gold);
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 0 18px rgba(197,164,110,0.25);
+  }
+  .legion-transfer-prompt-text { font-size: 13px; color: var(--rd-text); margin: 0 0 0.3rem 0; }
+  .legion-transfer-prompt-expiry { font-size: 11px; color: #999; margin: 0 0 0.75rem 0; }
+  .legion-transfer-prompt-actions { display: flex; gap: 0.6rem; }
+  .legion-transfer-prompt-actions button { flex: 1; }
 
   .clan-member {
     margin-bottom: 0.5rem;
@@ -3813,6 +3861,7 @@
   /* ---- Form controls: dark red fields, gold text ---- */
   textarea, select,
   input[type="text"], input[type="email"], input[type="password"], input[type="date"], input[type="number"],
+  input[type="datetime-local"],
   .category-select, .weekly-day-input, .entry-edit-textarea, .yearly-week-box,
   .accomplish-line, .todays-mission-input, .auth-bar input {
     background: var(--rd-field) !important;
@@ -4614,6 +4663,14 @@
         </div>
       </div>
       <div class="clans-msg" id="clansMsg"></div>
+      <!-- Incoming Legion Commander transfer offers (legion_transfer_
+           requests where to_user_id = me and status = 'pending') — sits
+           above the clan list itself so it's the first thing seen on
+           this tab, not buried inside whichever clan card it belongs
+           to. Rendered by renderLegionTransferPrompts() in the JS,
+           refreshed on every loadAndRenderClans() pass and live via
+           subscribeToLegionTransferRealtime(). -->
+      <div id="legionTransferPromptsSection"></div>
       <div id="clansList"></div>
     </div>
 
@@ -9243,12 +9300,14 @@ function initAuth() {
       if (typeof refreshTradingViewFields === 'function') refreshTradingViewFields();
       if (typeof refreshInboxUnreadCount === 'function') refreshInboxUnreadCount();
       if (typeof subscribeToInboxRealtime === 'function') subscribeToInboxRealtime();
+      if (typeof subscribeToLegionTransferRealtime === 'function') subscribeToLegionTransferRealtime();
     } else {
       renderAuthBarLoggedOut();
       showClansLocked();
       if (typeof refreshTradingViewFields === 'function') refreshTradingViewFields();
       if (typeof refreshInboxUnreadCount === 'function') refreshInboxUnreadCount();
       if (typeof cleanupInboxChannel === 'function') cleanupInboxChannel();
+      if (typeof cleanupLegionTransferChannel === 'function') cleanupLegionTransferChannel();
     }
   });
 
@@ -9284,6 +9343,7 @@ function initAuth() {
       if (typeof refreshTradingViewFields === 'function') refreshTradingViewFields();
       if (typeof refreshInboxUnreadCount === 'function') refreshInboxUnreadCount();
       if (typeof subscribeToInboxRealtime === 'function') subscribeToInboxRealtime();
+      if (typeof subscribeToLegionTransferRealtime === 'function') subscribeToLegionTransferRealtime();
     } else {
       currentUser = null;
       currentUserIsPaid = false;
@@ -9301,6 +9361,7 @@ function initAuth() {
       if (typeof refreshTradingViewFields === 'function') refreshTradingViewFields();
       if (typeof refreshInboxUnreadCount === 'function') refreshInboxUnreadCount();
       if (typeof cleanupInboxChannel === 'function') cleanupInboxChannel();
+      if (typeof cleanupLegionTransferChannel === 'function') cleanupLegionTransferChannel();
     }
   });
 }
@@ -10381,6 +10442,43 @@ function subscribeToInboxRealtime() {
   }
 }
 
+// Legion Commander transfer — same per-session, established-on-login
+// shape as the Inbox channel above, just watching legion_transfer_
+// requests instead of entry_messages. Two separate filtered listeners
+// on one channel: incoming offers (to_user_id = me) refresh the
+// prompt banner immediately, and updates on requests I SENT
+// (from_user_id = me — accepted/rejected/expired elsewhere, e.g. a
+// second device) refresh the whole clan list so a Settings modal
+// left open or a now-stale owner label doesn't sit wrong until the
+// next manual reload.
+var legionTransferChannel = null;
+
+function cleanupLegionTransferChannel() {
+  if (legionTransferChannel) {
+    try { supabaseClient.removeChannel(legionTransferChannel); } catch (e) {}
+    legionTransferChannel = null;
+  }
+}
+
+function subscribeToLegionTransferRealtime() {
+  if (!supabaseClient || !currentUser) return;
+  cleanupLegionTransferChannel();
+  try {
+    legionTransferChannel = supabaseClient.channel('legion-transfer-' + currentUser.id + '-' + Date.now())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'legion_transfer_requests', filter: 'to_user_id=eq.' + currentUser.id }, function() {
+        if (typeof renderLegionTransferPrompts === 'function') renderLegionTransferPrompts();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'legion_transfer_requests', filter: 'from_user_id=eq.' + currentUser.id }, function() {
+        var clansPanel = document.getElementById('tab-clans');
+        if (clansPanel && clansPanel.classList.contains('active') && typeof loadAndRenderClans === 'function') loadAndRenderClans();
+      })
+      .subscribe();
+  } catch (e) {
+    // Live delivery won't arrive, but every prompt/Settings screen
+    // still re-queries fresh on its own open/refresh regardless.
+  }
+}
+
 // Inbox lives inside the Legions tab now — refresh both it and
 // Contacts whenever that tab is opened (in addition to the
 // auth-driven refresh inside loadAndRenderClans() below, which covers
@@ -10440,6 +10538,7 @@ function loadAndRenderClans() {
 
   renderInbox();
   renderContacts();
+  if (typeof renderLegionTransferPrompts === 'function') renderLegionTransferPrompts();
   clansListEl.innerHTML = '<p style="font-size:12px;color:#666;">Loading your Legions…</p>';
 
   supabaseClient.from('clan_members')
@@ -10652,7 +10751,8 @@ function renderOneClanCard(clan) {
   // rows (their own "view Today" click), both of which live inside
   // this same card and must not also flip the active chat clan.
   card.addEventListener('click', function(e) {
-    if (e.target.closest('.clan-leave') || e.target.closest('.clan-member')) return;
+    if (e.target.closest('.clan-leave') || e.target.closest('.clan-member')
+        || e.target.closest('.clan-roster-btn') || e.target.closest('.clan-settings-btn')) return;
     selectClanForChat(clan, card);
   });
 
@@ -10666,6 +10766,32 @@ function renderOneClanCard(clan) {
   var metaEl = document.createElement('div');
   metaEl.className = 'clan-meta';
   metaEl.textContent = 'Invite code: ' + clan.invite_code;
+
+  // Roster — everyone can view who's in the Legion and their role.
+  var rosterBtn = document.createElement('button');
+  rosterBtn.className = 'clan-roster-btn secondary';
+  rosterBtn.type = 'button';
+  rosterBtn.textContent = 'Roster';
+  rosterBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    openLegionRosterModal(clan);
+  });
+
+  // Settings (Commander only) — currently just houses the command
+  // transfer flow, but named generically rather than e.g.
+  // "Transfer Command" since this is the natural home for any future
+  // Legion-level admin controls, not just this one feature.
+  var settingsBtn = null;
+  if (clan.owner_id === currentUser.id) {
+    settingsBtn = document.createElement('button');
+    settingsBtn.className = 'clan-settings-btn secondary';
+    settingsBtn.type = 'button';
+    settingsBtn.textContent = '⚙ Settings';
+    settingsBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      openLegionSettingsModal(clan);
+    });
+  }
 
   var leaveBtn = document.createElement('button');
   leaveBtn.className = 'clan-leave';
@@ -10682,6 +10808,8 @@ function renderOneClanCard(clan) {
 
   header.appendChild(nameEl);
   header.appendChild(metaEl);
+  header.appendChild(rosterBtn);
+  if (settingsBtn) header.appendChild(settingsBtn);
   header.appendChild(leaveBtn);
   card.appendChild(header);
 
@@ -10797,6 +10925,441 @@ function getLegionTitle(profile, clan) {
   if (clan && clan.owner_id === profile.id) return 'Legion Commander';
   if (profile.is_paid) return 'Legion Warlord ' + profile.display_name;
   return 'Legion ' + profile.display_name;
+}
+
+// Shared by the Roster modal and the Settings modal's transfer-target
+// picker — both just need "every member of this clan, with is_paid
+// so roles/eligibility can be derived" (same shape renderOneClanCard
+// already fetches inline for its own member list, factored out here
+// rather than duplicated a third and fourth time).
+function fetchClanMemberProfiles(clanId, callback) {
+  if (!supabaseClient) { callback([]); return; }
+  supabaseClient.from('clan_members')
+    .select('user_id')
+    .eq('clan_id', clanId)
+    .then(function(memResult) {
+      if (memResult.error || !memResult.data || !memResult.data.length) { callback([]); return; }
+      var userIds = memResult.data.map(function(r) { return r.user_id; });
+      supabaseClient.from('profiles')
+        .select('id, display_name, is_paid')
+        .in('id', userIds)
+        .then(function(profResult) {
+          callback((profResult.data || []));
+        });
+    });
+}
+
+// ============================================================
+// Legion Commander transfer — team roster + Settings (initiate) +
+// incoming-offer prompt (accept/reject). "Commander" is never a
+// stored role, just clans.owner_id (see getLegionTitle above) — the
+// three RPCs this calls (initiate/accept/reject/cancel_legion_
+// transfer, 0021_legion_command_transfer.sql) are what actually move
+// it, each doing its own server-side authorization/eligibility check
+// rather than trusting anything computed here client-side.
+// ============================================================
+
+var legionRosterModalOverlay = null;
+function closeLegionRosterModal() {
+  if (legionRosterModalOverlay) { legionRosterModalOverlay.remove(); legionRosterModalOverlay = null; }
+}
+function openLegionRosterModal(clan) {
+  closeLegionRosterModal();
+
+  var overlay = document.createElement('div');
+  overlay.className = 'member-modal-overlay';
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) closeLegionRosterModal(); });
+
+  var modal = document.createElement('div');
+  modal.className = 'member-modal';
+
+  var header = document.createElement('div');
+  header.className = 'member-modal-header';
+  var title = document.createElement('span');
+  title.textContent = clan.name + ' — Roster';
+  var closeBtn = document.createElement('button');
+  closeBtn.className = 'secondary';
+  closeBtn.textContent = 'Close';
+  closeBtn.addEventListener('click', closeLegionRosterModal);
+  header.appendChild(title);
+  header.appendChild(closeBtn);
+  modal.appendChild(header);
+
+  var body = document.createElement('div');
+  body.innerHTML = '<p class="member-modal-loading">Loading…</p>';
+  modal.appendChild(body);
+
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  legionRosterModalOverlay = overlay;
+
+  fetchClanMemberProfiles(clan.id, function(profiles) {
+    body.innerHTML = '';
+    if (!profiles.length) {
+      body.innerHTML = '<p class="member-modal-loading">Could not load the roster — try again.</p>';
+      return;
+    }
+    // Commander first, then Warlords (paid), then everyone else —
+    // alphabetical by display name within each tier.
+    var ranked = profiles.slice().sort(function(a, b) {
+      function rank(p) {
+        if (clan.owner_id === p.id) return 0;
+        if (p.is_paid) return 1;
+        return 2;
+      }
+      var ra = rank(a), rb = rank(b);
+      if (ra !== rb) return ra - rb;
+      return (a.display_name || '').localeCompare(b.display_name || '');
+    });
+    var list = document.createElement('div');
+    list.className = 'legion-roster-list';
+    ranked.forEach(function(p) {
+      var row = document.createElement('div');
+      row.className = 'legion-roster-row';
+      var name = document.createElement('span');
+      name.className = 'legion-roster-name';
+      name.textContent = getLegionTitle(p, clan) + (p.id === currentUser.id ? ' (you)' : '');
+      row.appendChild(name);
+      list.appendChild(row);
+    });
+    body.appendChild(list);
+  });
+}
+
+// ---- Settings modal (Commander only) ----
+var legionSettingsModalOverlay = null;
+function closeLegionSettingsModal() {
+  if (legionSettingsModalOverlay) { legionSettingsModalOverlay.remove(); legionSettingsModalOverlay = null; }
+}
+function openLegionSettingsModal(clan) {
+  closeLegionSettingsModal();
+  if (clan.owner_id !== currentUser.id) return; // defensive — button is already owner-gated
+
+  var overlay = document.createElement('div');
+  overlay.className = 'member-modal-overlay';
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) closeLegionSettingsModal(); });
+
+  var modal = document.createElement('div');
+  modal.className = 'member-modal';
+
+  var header = document.createElement('div');
+  header.className = 'member-modal-header';
+  var title = document.createElement('span');
+  title.textContent = clan.name + ' — Settings';
+  var closeBtn = document.createElement('button');
+  closeBtn.className = 'secondary';
+  closeBtn.textContent = 'Close';
+  closeBtn.addEventListener('click', closeLegionSettingsModal);
+  header.appendChild(title);
+  header.appendChild(closeBtn);
+  modal.appendChild(header);
+
+  var body = document.createElement('div');
+  body.innerHTML = '<p class="member-modal-loading">Loading…</p>';
+  modal.appendChild(body);
+
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  legionSettingsModalOverlay = overlay;
+
+  renderLegionSettingsBody(clan, body);
+}
+
+// Re-fetches pending-request state fresh every time this is called
+// (initial open, after initiating, after cancelling) rather than
+// tracking it as separate mutable state — same "re-query, don't
+// hand-patch" approach the rest of this feature uses.
+function renderLegionSettingsBody(clan, body) {
+  body.innerHTML = '<p class="member-modal-loading">Loading…</p>';
+
+  supabaseClient.from('legion_transfer_requests')
+    .select('id, to_user_id, expires_at, created_at')
+    .eq('clan_id', clan.id)
+    .eq('status', 'pending')
+    .then(function(pendingResult) {
+      var pending = (pendingResult.data && pendingResult.data[0]) || null;
+
+      if (pending) {
+        renderLegionSettingsPendingView(clan, body, pending);
+        return;
+      }
+
+      fetchClanMemberProfiles(clan.id, function(profiles) {
+        var eligible = profiles.filter(function(p) { return p.is_paid && p.id !== currentUser.id; });
+        renderLegionSettingsInitiateForm(clan, body, eligible);
+      });
+    });
+}
+
+function renderLegionSettingsPendingView(clan, body, pending) {
+  body.innerHTML = '';
+  supabaseClient.from('profiles').select('id, display_name').eq('id', pending.to_user_id)
+    .then(function(result) {
+      var targetName = (result.data && result.data[0] && result.data[0].display_name) || 'this member';
+
+      var section = document.createElement('div');
+      section.className = 'member-modal-section';
+
+      var note = document.createElement('p');
+      note.className = 'member-modal-text';
+      note.textContent = 'A command transfer to ' + targetName + ' is pending their response.';
+      section.appendChild(note);
+
+      var expiryNote = document.createElement('p');
+      expiryNote.className = 'legion-settings-expiry-note';
+      expiryNote.textContent = pending.expires_at
+        ? ('Expires ' + new Date(pending.expires_at).toLocaleString())
+        : 'No expiration set.';
+      section.appendChild(expiryNote);
+
+      var errorEl = document.createElement('p');
+      errorEl.className = 'setpw-modal-error';
+      errorEl.style.display = 'none';
+      section.appendChild(errorEl);
+
+      var cancelBtn = document.createElement('button');
+      cancelBtn.className = 'secondary';
+      cancelBtn.type = 'button';
+      cancelBtn.textContent = 'Cancel Transfer';
+      cancelBtn.addEventListener('click', function() {
+        cancelBtn.disabled = true;
+        supabaseClient.rpc('cancel_legion_transfer', { p_request_id: pending.id }).then(function(rpcResult) {
+          if (rpcResult.error) {
+            cancelBtn.disabled = false;
+            errorEl.textContent = rpcResult.error.message;
+            errorEl.style.display = '';
+            return;
+          }
+          showToast('Transfer request cancelled.', 'success');
+          renderLegionSettingsBody(clan, body);
+        });
+      });
+      section.appendChild(cancelBtn);
+
+      body.appendChild(section);
+    });
+}
+
+function renderLegionSettingsInitiateForm(clan, body, eligible) {
+  body.innerHTML = '';
+
+  var section = document.createElement('div');
+  section.className = 'member-modal-section';
+
+  var heading = document.createElement('h4');
+  heading.textContent = 'Transfer Command';
+  section.appendChild(heading);
+
+  if (!eligible.length) {
+    var noneMsg = document.createElement('p');
+    noneMsg.className = 'member-modal-text';
+    noneMsg.textContent = 'No paid-tier members are available to receive command yet — command can only transfer to a paid-tier Legion member.';
+    section.appendChild(noneMsg);
+    body.appendChild(section);
+    return;
+  }
+
+  var note = document.createElement('p');
+  note.className = 'member-modal-text';
+  note.textContent = 'Choose a paid-tier member to offer command to. They can accept or decline — nothing changes unless they accept.';
+  section.appendChild(note);
+
+  var targetField = document.createElement('div');
+  targetField.className = 'setpw-modal-field';
+  var targetLabel = document.createElement('label');
+  targetLabel.textContent = 'Transfer to';
+  var targetSelect = document.createElement('select');
+  eligible.forEach(function(p) {
+    var opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.display_name;
+    targetSelect.appendChild(opt);
+  });
+  targetField.appendChild(targetLabel);
+  targetField.appendChild(targetSelect);
+  section.appendChild(targetField);
+
+  // Expiry is opt-in — default is no expiry at all, matching the spec
+  // ("no expiry by default"). The datetime input only appears once
+  // the toggle is checked.
+  var expiryToggleRow = document.createElement('div');
+  expiryToggleRow.className = 'legion-settings-expiry-toggle-row';
+  var expiryToggle = document.createElement('input');
+  expiryToggle.type = 'checkbox';
+  expiryToggle.id = 'legionTransferExpiryToggle';
+  var expiryToggleLabel = document.createElement('label');
+  expiryToggleLabel.setAttribute('for', 'legionTransferExpiryToggle');
+  expiryToggleLabel.textContent = 'Set an expiration';
+  expiryToggleRow.appendChild(expiryToggle);
+  expiryToggleRow.appendChild(expiryToggleLabel);
+  section.appendChild(expiryToggleRow);
+
+  var expiryField = document.createElement('div');
+  expiryField.className = 'setpw-modal-field';
+  expiryField.style.display = 'none';
+  var expiryInput = document.createElement('input');
+  expiryInput.type = 'datetime-local';
+  // Sensible default once the toggle turns it on: 24 hours from now.
+  var defaultExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  defaultExpiry.setMinutes(defaultExpiry.getMinutes() - defaultExpiry.getTimezoneOffset());
+  expiryInput.value = defaultExpiry.toISOString().slice(0, 16);
+  expiryField.appendChild(expiryInput);
+  section.appendChild(expiryField);
+
+  expiryToggle.addEventListener('change', function() {
+    expiryField.style.display = expiryToggle.checked ? '' : 'none';
+  });
+
+  var errorEl = document.createElement('p');
+  errorEl.className = 'setpw-modal-error';
+  errorEl.style.display = 'none';
+  section.appendChild(errorEl);
+
+  var submitBtn = document.createElement('button');
+  submitBtn.type = 'button';
+  submitBtn.textContent = 'Initiate Transfer';
+  submitBtn.addEventListener('click', function() {
+    var targetId = targetSelect.value;
+    var expiresAtIso = null;
+    if (expiryToggle.checked) {
+      if (!expiryInput.value) {
+        errorEl.textContent = 'Pick an expiration date/time, or turn the toggle off.';
+        errorEl.style.display = '';
+        return;
+      }
+      var parsed = new Date(expiryInput.value);
+      if (parsed <= new Date()) {
+        errorEl.textContent = 'Expiration must be in the future.';
+        errorEl.style.display = '';
+        return;
+      }
+      expiresAtIso = parsed.toISOString();
+    }
+
+    errorEl.style.display = 'none';
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending...';
+    supabaseClient.rpc('initiate_legion_transfer', {
+      p_clan_id: clan.id,
+      p_to_user_id: targetId,
+      p_expires_at: expiresAtIso
+    }).then(function(rpcResult) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Initiate Transfer';
+      if (rpcResult.error) {
+        errorEl.textContent = rpcResult.error.message;
+        errorEl.style.display = '';
+        return;
+      }
+      showToast('Command transfer sent — waiting for their response.', 'success');
+      renderLegionSettingsBody(clan, body);
+    });
+  });
+  section.appendChild(submitBtn);
+
+  body.appendChild(section);
+}
+
+// ---- Incoming transfer offers (accept/reject) ----
+// Already-expired rows are filtered out client-side too (not just
+// relied on server-side at accept-time) so a stale, unactionable
+// offer doesn't sit around inviting a click that'll just fail.
+function renderLegionTransferPrompts() {
+  var container = document.getElementById('legionTransferPromptsSection');
+  if (!container || !supabaseClient || !currentUser) return;
+
+  supabaseClient.from('legion_transfer_requests')
+    .select('id, clan_id, from_user_id, expires_at, created_at')
+    .eq('to_user_id', currentUser.id)
+    .eq('status', 'pending')
+    .then(function(result) {
+      container.innerHTML = '';
+      var rows = (result.data || []).filter(function(r) {
+        return !(r.expires_at && new Date(r.expires_at) < new Date());
+      });
+      if (!rows.length) return;
+
+      var clanIds = rows.map(function(r) { return r.clan_id; });
+      var fromIds = rows.map(function(r) { return r.from_user_id; });
+
+      Promise.all([
+        supabaseClient.from('clans').select('id, name').in('id', clanIds),
+        supabaseClient.from('profiles').select('id, display_name').in('id', fromIds)
+      ]).then(function(results) {
+        var clanNames = {};
+        (results[0].data || []).forEach(function(c) { clanNames[c.id] = c.name; });
+        var fromNames = {};
+        (results[1].data || []).forEach(function(p) { fromNames[p.id] = p.display_name; });
+
+        rows.forEach(function(req) {
+          container.appendChild(buildLegionTransferPromptCard(
+            req, clanNames[req.clan_id] || 'a Legion', fromNames[req.from_user_id] || 'the Commander'
+          ));
+        });
+      });
+    });
+}
+
+function buildLegionTransferPromptCard(req, clanName, fromName) {
+  var card = document.createElement('div');
+  card.className = 'legion-transfer-prompt';
+
+  var text = document.createElement('p');
+  text.className = 'legion-transfer-prompt-text';
+  text.textContent = fromName + ' wants to transfer command of ' + clanName + ' to you.';
+  card.appendChild(text);
+
+  if (req.expires_at) {
+    var expiry = document.createElement('p');
+    expiry.className = 'legion-transfer-prompt-expiry';
+    expiry.textContent = 'Expires ' + new Date(req.expires_at).toLocaleString();
+    card.appendChild(expiry);
+  }
+
+  var actions = document.createElement('div');
+  actions.className = 'legion-transfer-prompt-actions';
+
+  var acceptBtn = document.createElement('button');
+  acceptBtn.type = 'button';
+  acceptBtn.textContent = 'Accept Command';
+  acceptBtn.addEventListener('click', function() {
+    acceptBtn.disabled = true;
+    rejectBtn.disabled = true;
+    supabaseClient.rpc('accept_legion_transfer', { p_request_id: req.id }).then(function(result) {
+      if (result.error) {
+        acceptBtn.disabled = false;
+        rejectBtn.disabled = false;
+        showToast('Could not accept: ' + result.error.message, 'error');
+        return;
+      }
+      showToast('You are now the Legion Commander of ' + clanName + '.', 'success');
+      loadAndRenderClans();
+    });
+  });
+
+  var rejectBtn = document.createElement('button');
+  rejectBtn.type = 'button';
+  rejectBtn.className = 'secondary';
+  rejectBtn.textContent = 'Decline';
+  rejectBtn.addEventListener('click', function() {
+    acceptBtn.disabled = true;
+    rejectBtn.disabled = true;
+    supabaseClient.rpc('reject_legion_transfer', { p_request_id: req.id }).then(function(result) {
+      if (result.error) {
+        acceptBtn.disabled = false;
+        rejectBtn.disabled = false;
+        showToast('Could not decline: ' + result.error.message, 'error');
+        return;
+      }
+      showToast('Transfer declined.', 'success');
+      renderLegionTransferPrompts();
+    });
+  });
+
+  actions.appendChild(acceptBtn);
+  actions.appendChild(rejectBtn);
+  card.appendChild(actions);
+  return card;
 }
 
 function renderClanMembers(container, profiles, rulerMap, clan) {
