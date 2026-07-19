@@ -9956,6 +9956,22 @@ function pushJournalEntryToSupabase(entry) {
   if (!supabaseClient || !currentUser) return;
   var isShared = !!(entry.sharedLegionIds && entry.sharedLegionIds.length);
 
+  // Unshared entries must go out encrypted — refuse to sync at all
+  // (queue and retry) while the device key is still loading, rather
+  // than falling through to a plaintext push purely because of
+  // timing (e.g. saving seconds after sign-in, before the async key
+  // load resolves). Matches Track Alpha's fail-closed pattern
+  // (pushAlphaProfileToSupabase, which returns outright with no key).
+  // Shared entries skip this entirely — they're plaintext by design
+  // regardless of key state (Legion-mates' devices can't decrypt
+  // something encrypted under this device's own key anyway), so
+  // there's nothing to wait for.
+  if (!isShared && !journalEncryptionKey && !journalKeyUnsupported) {
+    ensureJournalKeyLoaded();
+    journalKeyRetryQueue.push(function() { pushJournalEntryToSupabase(entry); });
+    return;
+  }
+
   function send(text, history) {
     var payload = {
       id: entry.id,
@@ -11730,37 +11746,30 @@ function escapeHtml(str) {
 }
 
 // Appends a message from a paid clan-mate onto another member's
-// whiteboard, as a new undone task. Reads the current task list
-// first, adds the new task, then writes the combined array back —
-// this is what makes it "append" rather than "overwrite": we're not
-// patching a single field, we're submitting a whole new tasks array
-// that includes everything that was there before, plus the new one.
+// whiteboard, as a new undone task. Routed through the
+// append_member_whiteboard_message RPC (0022_whiteboard_message_rpc.sql)
+// — a direct client-side UPDATE on someone else's shared_sections row
+// can never work (shared_sections_update_own's RLS only allows
+// user_id = auth.uid()), so the read-then-append-then-write has to
+// happen server-side, under a SECURITY DEFINER function that does its
+// own paid-tier + Legion-mate authorization check instead of relying
+// on the base RLS at all.
 function appendToMemberWhiteboard(targetProfile, fromUser, message, onComplete) {
   if (!supabaseClient) return;
+  var fromName = (fromUser.email || 'A legion-mate').split('@')[0];
+  var formattedMessage = '[' + fromName + ']: ' + message;
 
-  supabaseClient.from('shared_sections')
-    .select('data')
-    .eq('user_id', targetProfile.id)
-    .eq('section', 'whiteboard')
-    .then(function(result) {
-      var existingData = result.data && result.data[0] && result.data[0].data;
-      var existingTasks = (existingData && Array.isArray(existingData.tasks)) ? existingData.tasks : [];
-      var fromName = (fromUser.email || 'A legion-mate').split('@')[0];
-      var newTask = { text: '[' + fromName + ']: ' + message, done: false };
-      var combinedTasks = existingTasks.concat([newTask]);
-
-      supabaseClient.from('shared_sections')
-        .update({ data: { tasks: combinedTasks }, updated_at: new Date().toISOString() })
-        .eq('user_id', targetProfile.id)
-        .eq('section', 'whiteboard')
-        .then(function(updateResult) {
-          if (updateResult.error) {
-            window.alert('Could not send message: ' + updateResult.error.message);
-            return;
-          }
-          if (typeof onComplete === 'function') onComplete(combinedTasks);
-        });
-    });
+  supabaseClient.rpc('append_member_whiteboard_message', {
+    p_target_user_id: targetProfile.id,
+    p_message: formattedMessage
+  }).then(function(result) {
+    if (result.error) {
+      window.alert('Could not send message: ' + result.error.message);
+      return;
+    }
+    var tasks = (result.data && Array.isArray(result.data.tasks)) ? result.data.tasks : [];
+    if (typeof onComplete === 'function') onComplete(tasks);
+  });
 }
 
 
@@ -13277,20 +13286,37 @@ function journalGetOrCreateDeviceKey(userId) {
 // effect is immediately discarded by the reload pullOnceIfNeeded()
 // triggers right after — so without this second, independent load
 // call (wired into the normal steady-state sign-in path, not the pull
-// path), every push after that reload settles would silently fall
-// back to plaintext (pushSharedSection/pushJournalEntryToSupabase
-// both just skip encryption when journalEncryptionKey is null, same
-// "degraded, not broken" behavior as everywhere else this key is
-// used). Guarded so it only ever kicks off one load per session.
+// path), pushes after that reload settles would have nothing to wait
+// on. Guarded so it only ever kicks off one load per session.
+//
+// journalKeyRetryQueue: pushJournalEntryToSupabase()/pushSchedule
+// EventToSupabase() refuse to sync an unshared/not-yet-known-shared
+// row while the key is still mid-load (see each function's own
+// comment) — rather than losing that push entirely, they queue a
+// retry here, flushed once the load settles either way (key ready,
+// or confirmed unsupported — at which point those two functions'
+// own plaintext-fallback path is the correct, accepted degraded
+// behavior for a browser that genuinely can't do WebCrypto, same as
+// it always was). This closes a real gap the queue used to have: a
+// save that happened to land in the loading window previously synced
+// in plaintext with no retry and no way to tell afterward.
+var journalKeyRetryQueue = [];
+function flushJournalKeyRetryQueue() {
+  var queued = journalKeyRetryQueue;
+  journalKeyRetryQueue = [];
+  queued.forEach(function(fn) { fn(); });
+}
 function ensureJournalKeyLoaded() {
   if (!currentUser || journalEncryptionKey || journalKeyLoading || journalKeyUnsupported) return;
   journalKeyLoading = true;
   journalGetOrCreateDeviceKey(currentUser.id).then(function(key) {
     journalEncryptionKey = key;
     journalKeyLoading = false;
+    flushJournalKeyRetryQueue();
   }).catch(function() {
     journalKeyUnsupported = true;
     journalKeyLoading = false;
+    flushJournalKeyRetryQueue();
   });
 }
 
@@ -13572,7 +13598,16 @@ function pushScheduleEventToSupabase(event) {
     enqueueSync('scheduleEvent:' + event.id, buildScheduleEventRow(event, event.encryptedDataRaw), syncPerformers.scheduleEvent);
     return;
   }
-  ensureJournalKeyLoaded();
+  // Same fail-closed guard as pushJournalEntryToSupabase — a plan's
+  // description/notes always get encrypted (no "shared" exception the
+  // way Ledgers has), so there's never a legitimate reason to push
+  // before the key is ready. Queue and retry instead of encrypting
+  // against a still-null key, which would silently send plaintext.
+  if (!journalEncryptionKey && !journalKeyUnsupported) {
+    ensureJournalKeyLoaded();
+    journalKeyRetryQueue.push(function() { pushScheduleEventToSupabase(event); });
+    return;
+  }
   journalEncryptPayload({ description: event.description || '', notes: event.notes || '' }).then(function(encData) {
     enqueueSync('scheduleEvent:' + event.id, buildScheduleEventRow(event, encData), syncPerformers.scheduleEvent);
   });
