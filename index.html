@@ -1871,14 +1871,34 @@
   .tab-panel.active { display: block; }
 
   /* ---- Title + tagline: ~25% larger than the original 30px, not
-     the earlier full-dominance scale — weighty, not oversized. ---- */
+     the earlier full-dominance scale — weighty, not oversized. ----
+     "Command Center" (was "Coming Soon") — OCRA per direct request
+     instead of the app-wide Space Grotesk (see the sweep rule's note
+     above), pushed wide via letter-spacing + a synthetic-bold weight
+     (OCRA's one .ttf file has no true bold cut, so 700 here renders
+     as the browser's own faux-bold — still visibly thicker strokes,
+     which combined with the letter-spacing is what actually reads as
+     "wider letterforms"). Same font-size/line-height/layout position
+     as before — no box, no height change, just the letterforms and a
+     much stronger multi-layer glow than the original single soft
+     shadow. font-family/font-weight need !important here — there's a
+     later blanket "* { font-family/font-weight !important }" rule
+     (search "Total typographic unification") that otherwise wins
+     outright regardless of this selector's own specificity, same
+     fight the Track Alpha OCRA sweep elsewhere already has to win. */
   .header h1 {
     color: var(--rd-gold-bright);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    font-family: 'OCRA', 'Courier New', monospace !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.16em;
     font-size: 38px;
     line-height: 1.1;
-    text-shadow: 0 0 16px rgba(197,164,110,0.5);
+    text-shadow:
+      0 0 6px rgba(217,189,138,0.95),
+      0 0 16px rgba(197,164,110,0.85),
+      0 0 32px rgba(197,164,110,0.65),
+      0 0 60px rgba(197,164,110,0.45);
   }
   .header .tagline { color: var(--rd-gold); }
   .header p { color: var(--rd-muted); }
@@ -3657,8 +3677,15 @@
     font-family: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif !important;
     font-weight: 500;
   }
+  /* .header h1 ("Command Center", the landing-page title) deliberately
+     opted OUT of this generic Space Grotesk sweep — it still matches
+     via the bare "h1" selector above, but its own .header h1 rule
+     further down (higher specificity: one class + one element vs.
+     just one element) wins for font-family/weight/letter-spacing,
+     giving it OCRA + a wider/bolder look distinct from every other
+     heading in the app. */
   h1, h2, h3, h4,
-  .tab-title, .header h1, .todays-mission-text,
+  .tab-title, .todays-mission-text,
   .clan-name, .member-modal-header, .block-detail-title {
     font-family: 'Space Grotesk', sans-serif;
     font-weight: 700;
@@ -4086,7 +4113,7 @@
 <!-- Site banner: title + tagline, above the tab nav so it's shared
      across all four tabs rather than living inside the Ruler tab. -->
 <div class="header site-banner">
-  <h1>Coming Soon</h1>
+  <h1>Command Center</h1>
   <p class="tagline">For Powerful Humans</p>
 </div>
 
