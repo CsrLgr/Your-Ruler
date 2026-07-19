@@ -3007,6 +3007,31 @@
     .alpha-scope-tile:hover, .alpha-scope-tile:focus-visible { transform: scale(1.08); }
   }
 
+  /* Locked scope tile (free-tier limit reached, see
+     alphaScopeCreationBlockedReason()) — opacity+filter on the tile
+     itself dims every decorative child uniformly (ring/crosshair/
+     bullseye/spokes) without needing to override each of their own
+     hover rules individually. Hover/focus reverts to the tile's own
+     RESTING transform/border/shadow instead of the normal "armed and
+     ready" glow-up — a locked tile should never look interactive,
+     even when hovered. Stays a real, clickable <button> though (not
+     the disabled attribute) so a click still fires and can show the
+     upgrade message rather than silently doing nothing. */
+  .alpha-scope-tile-locked {
+    opacity: 0.4;
+    filter: grayscale(0.5);
+    cursor: not-allowed;
+  }
+  .alpha-scope-tile-locked:hover,
+  .alpha-scope-tile-locked:focus-visible {
+    transform: translateZ(0) scale(1);
+    border-color: var(--alpha-blue-dim);
+    box-shadow:
+      0 16px 40px -14px rgba(0,0,0,0.9),
+      0 0 26px var(--alpha-blue-dim),
+      inset 0 0 22px rgba(0,0,0,0.7);
+  }
+
   /* Tick-mark graduated ring — a full conic gradient masked down to a
      thin band, so it reads as a scope's calibration ring rather than
      a filled disc. Always electric blue (--alpha-blue, hardcoded —
@@ -3438,12 +3463,22 @@
     margin: 0 auto;
     display: flex;
     gap: 1.5rem;
-    align-items: flex-start;
+    /* stretch (the flex default) — not flex-start — so the write
+       column and the export column match heights; #workArea below
+       then grows to fill whatever that stretched height turns out to
+       be, rather than sitting at its own min-height with dead space
+       underneath it. */
+    align-items: stretch;
     flex-wrap: wrap;
   }
-  .journal-write-col { flex: 2 1 420px; min-width: 300px; }
+  .journal-write-col { flex: 2 1 420px; min-width: 300px; display: flex; flex-direction: column; }
   .journal-export-col { flex: 1 1 260px; min-width: 240px; }
-  .journal-write-col #workArea { min-height: 320px; font-size: 15px; }
+  /* flex: 1 lets the textarea consume whatever vertical space is left
+     in the (now height-matched) write column after its siblings
+     (controls row, image row, etc.) take their own natural height —
+     min-height stays as a floor for narrow/short viewports where the
+     export column is shorter or the layout has wrapped to one column. */
+  .journal-write-col #workArea { min-height: 320px; font-size: 15px; flex: 1; }
   .journal-export-col .export-section { margin: 0; }
   .journal-export-col .export-row,
   .journal-export-col .export-controls { flex-direction: column; align-items: stretch; }
@@ -3762,12 +3797,16 @@
   button.secondary:hover { background: var(--rd-panel-2) !important; border-color: var(--rd-gold) !important; }
 
   /* ============================================================
-     Scheduling (Plans tab "+ Schedule Event") — reuses .send-modal-
+     Scheduling (Plans tab "+ Make a Plan") — reuses .send-modal-
      overlay for the backdrop and .alpha-chamber for the cockpit shell
-     (see the HTML in tab-life), so only the calendar-grid/day-view/
-     editor-specific pieces below are actually new. Same
-     cubic-bezier(.2,.8,.2,1) easing used throughout Track Alpha, for
-     visual consistency with the rest of this app's card-style UI.
+     (see the HTML in tab-life), plus .alpha-scope-hub/alphaBuildScopeTile
+     directly for the floating-reticle drill steps (scope hub, Year,
+     Week-of-month) and .alpha-detail-header/.alpha-profile-list/
+     .alpha-profile-card for My Plans — only the chip-grid pickers
+     (Month/Day/Hour) and the editor's own fields below are actually
+     new CSS. Same cubic-bezier(.2,.8,.2,1) easing used throughout
+     Track Alpha, for visual consistency with the rest of this app's
+     card-style UI.
      ============================================================ */
   .schedule-chamber {
     width: 100%;
@@ -3781,7 +3820,7 @@
 
   /* Fresh entrance animation per screen render (a new element every
      time, not a reused one — see renderScheduleOverlay()) — the
-     "zooming into place" feel for every month/day/editor transition. */
+     "zooming into place" feel for every drill-step/editor transition. */
   @keyframes scheduleScreenIn {
     from { opacity: 0; transform: scale(0.96); }
     to { opacity: 1; transform: scale(1); }
@@ -3820,6 +3859,7 @@
     font-size: 11px;
     color: var(--rd-muted);
     white-space: nowrap;
+    flex-shrink: 0;
   }
   .schedule-upcoming-title {
     font-size: 12px;
@@ -3830,143 +3870,42 @@
     white-space: nowrap;
   }
 
-  /* ---- Month grid ---- */
-  .schedule-month-header {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 1rem;
-    margin-bottom: 1rem;
-  }
-  .schedule-month-label {
-    font-size: 16px;
-    min-width: 160px;
-    text-align: center;
-  }
-  .schedule-month-grid {
+  /* ---- Chip-grid pickers (Month/Day/Hour steps) — a regular grid of
+     small chamber-styled buttons, not the floating reticle scatter:
+     see the CSS comment block above for why (Track Alpha's own tile
+     mechanic was never tuned past ~6 items). ---- */
+  .schedule-chip-grid {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 0.4rem;
+    grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+    gap: 0.5rem;
   }
-  .schedule-month-weekdays {
-    margin-bottom: 0.3rem;
+  .schedule-hour-chip-grid {
+    grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
   }
-  .schedule-weekday-label {
-    font-size: 10px;
-    text-align: center;
-    color: var(--rd-muted);
-  }
-  .schedule-day-cell {
-    position: relative;
-    aspect-ratio: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid var(--rd-edge);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: transform 0.3s cubic-bezier(.2,.8,.2,1), border-color 0.3s ease, box-shadow 0.3s ease;
-  }
-  .schedule-day-cell:hover, .schedule-day-cell:focus-visible {
-    border-color: var(--rd-gold);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 14px rgba(0,0,0,0.3);
-    outline: none;
-  }
-  .schedule-day-cell.is-today {
-    border-color: var(--alpha-blue, #2FD8FF);
-  }
-  .schedule-day-cell-empty {
-    border-color: transparent;
-    cursor: default;
-  }
-  .schedule-day-cell-empty:hover {
-    transform: none;
-    box-shadow: none;
-  }
-  .schedule-day-num {
-    font-size: 13px;
-  }
-  .schedule-day-dot {
-    position: absolute;
-    bottom: 6px;
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: var(--alpha-blue, #2FD8FF);
-  }
-
-  /* ---- Day view ---- */
-  .schedule-day-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.6rem;
-    margin-bottom: 1rem;
-    flex-wrap: wrap;
-  }
-  .schedule-day-view-label {
-    font-size: 14px;
-    flex: 1;
-    text-align: center;
-  }
-  .schedule-day-view {
-    display: flex;
-    flex-direction: column;
-  }
-  .schedule-hour-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.6rem;
-    padding: 0.4rem 0;
-    border-bottom: 1px solid rgba(197,164,110,0.12);
-    cursor: pointer;
-  }
-  .schedule-hour-label {
-    width: 60px;
-    flex-shrink: 0;
-    font-size: 11px;
-    color: var(--rd-muted);
-    padding-top: 0.15rem;
-  }
-  .schedule-hour-events {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-    min-height: 1.4rem;
-  }
-  .schedule-event-chip {
+  .schedule-chip {
     background: var(--rd-panel-2);
     border: 1px solid var(--rd-edge);
     border-radius: 6px;
-    padding: 0.5rem 0.6rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.6rem;
+    padding: 0.6rem 0.4rem;
+    color: var(--rd-text);
     cursor: pointer;
     transition: transform 0.25s cubic-bezier(.2,.8,.2,1), border-color 0.25s ease, box-shadow 0.25s ease;
   }
-  .schedule-event-chip:hover, .schedule-event-chip:focus-visible {
+  .schedule-chip:hover, .schedule-chip:focus-visible {
     border-color: var(--rd-gold);
     transform: translateY(-1px);
     box-shadow: 0 4px 14px rgba(0,0,0,0.3);
     outline: none;
   }
-  .schedule-event-chip-title {
-    font-size: 12px;
-    flex: 1;
-  }
-  .schedule-event-chip-time {
-    font-size: 10px;
-    color: var(--rd-muted);
-    white-space: nowrap;
-  }
-  .schedule-event-delete-btn {
-    font-size: 10px;
-    padding: 0.25rem 0.5rem;
-    flex-shrink: 0;
+
+  /* ---- "When?" / "How long?" steps — plain .alpha-question-card
+     containing a native <input type="date">, styled via
+     .alpha-answer-input like every other text input in this app (see
+     the event editor's own Title field). No bespoke date-grid CSS
+     needed anymore — the streamlined flow replaced tile/cell
+     navigation with direct date input. ---- */
+  .alpha-answer-input[type="date"] {
+    color-scheme: dark;
   }
 
   /* ---- Event editor ---- */
@@ -3976,6 +3915,18 @@
     gap: 0.9rem;
     max-width: 480px;
     margin: 0 auto;
+  }
+  .schedule-timeframe-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    font-size: 13px;
+    padding: 0.6rem 0.75rem;
+    background: var(--rd-panel-2);
+    border: 1px solid var(--rd-edge);
+    border-radius: 6px;
   }
   .schedule-editor-warning {
     font-size: 11px;
@@ -4012,9 +3963,7 @@
   }
 
   @media (max-width: 700px) {
-    .schedule-day-cell { border-radius: 6px; }
-    .schedule-day-num { font-size: 11px; }
-    .schedule-hour-label { width: 48px; font-size: 10px; }
+    .schedule-chip { padding: 0.5rem 0.3rem; font-size: 12px; }
   }
 
   /* ---- Total typographic unification: one face, one weight,
@@ -4307,7 +4256,14 @@
 
 <!-- ============================ TAB 2: LIFE ============================ -->
 <div class="tab-panel" id="tab-life">
-  <h2 class="tab-title">Plans</h2>
+  <div class="ledgers-header-row">
+    <h2 class="tab-title">Plans</h2>
+    <!-- Scheduling entry point — up top next to the tab title per
+         direct request (was previously its own section further down,
+         see #scheduleUpcomingSection below, which still holds the
+         Upcoming Events list). Opens #scheduleOverlay. -->
+    <button type="button" class="secondary" id="scheduleOpenBtn">+ Make a Plan</button>
+  </div>
 
   <!-- Musts & In-between moved to the Ruler tab, alongside Block Detail. -->
   <!-- This Month (left half) + the Week/Day panel (right half), side by
@@ -4349,13 +4305,12 @@
     </div>
   </div>
 
-  <!-- Scheduling entry point + always-visible upcoming list — the
-       month/day/editor flow itself lives in #scheduleOverlay below,
-       opened by scheduleOpenBtn. See renderScheduleUpcomingList() in
-       the JS. -->
+  <!-- Always-visible upcoming list — scheduleOpenBtn itself now lives
+       in the header row above, next to the "Plans" title. The
+       month/day/editor flow lives in #scheduleOverlay below. See
+       renderScheduleUpcomingList() in the JS. -->
   <div class="life-section" id="scheduleUpcomingSection">
     <span class="section-label">Upcoming Events</span>
-    <button type="button" class="secondary" id="scheduleOpenBtn">+ Schedule Event</button>
     <div class="schedule-upcoming-list" id="scheduleUpcomingList"></div>
   </div>
 
@@ -4397,7 +4352,7 @@
     <div class="alpha-chamber schedule-chamber">
       <div class="alpha-chamber-header">
         <p class="alpha-tagline">Full command of your time.</p>
-        <h2 class="tab-title alpha-chamber-title">Schedule</h2>
+        <h2 class="tab-title alpha-chamber-title">Make a Plan</h2>
         <button type="button" class="secondary schedule-overlay-close" id="scheduleOverlayClose">Close</button>
       </div>
       <div class="alpha-browser schedule-browser" id="scheduleBrowser"></div>
@@ -7484,7 +7439,7 @@ function renderWeeklyViz() {
 
     // Read-only Scheduling annotation — reads the already-local
     // scheduleEvents array only, no Supabase call. See
-    // renderScheduleAnnotationInto()/scheduleMirrorIntoWeeklyViz() in
+    // renderScheduleAnnotationInto()/scheduleMirrorAllWeeklyViz() in
     // the Scheduling JS block.
     if (typeof renderScheduleAnnotationInto === 'function') {
       var scheduleList = document.createElement('div');
@@ -9558,9 +9513,11 @@ function pullAllUserDataFromSupabase(onComplete) {
           var extra = stillEncrypted ? {} : (decrypted || {});
           return {
             id: r.id,
-            date: r.event_date,
-            startTime: r.start_time,
-            durationMinutes: r.duration_minutes,
+            scope: r.scope,
+            startDate: r.start_date,
+            endDate: r.end_date,
+            startHour: r.start_hour,
+            endHour: r.end_hour,
             title: r.title,
             category: r.category,
             reminderOffsetMinutes: r.reminder_offset_minutes,
@@ -12559,15 +12516,28 @@ var alphaProfiles = loadAlphaProfiles();
 var alphaEntries = loadAlphaEntries();
 
 // ============================================================
-// Scheduling (Plans tab "+ Schedule Event") — local-first, same
-// pattern as Track Alpha's profiles/entries above: local array is
+// Scheduling (Plans tab "+ Make a Plan") — local-first, same pattern
+// as Track Alpha's profiles/entries above: local array is
 // authoritative, Supabase is a cross-device sync target. Only
 // description/notes are encrypted (journalEncryptPayload, the SAME
 // device key Journal already uses — no new key for this feature);
-// title/date/time/duration/category/reminder settings stay plaintext
-// so the calendar itself works correctly cross-device even though
-// those two fields don't (see 0017_schedule_events.sql's header for
-// the full reasoning). Never shared to a Legion.
+// scope/dates/hour/title/category/reminder settings stay plaintext so
+// the calendar itself works correctly cross-device even though those
+// two fields don't (see 0018_schedule_events_scope_redesign.sql's
+// header for the full reasoning). Never shared to a Legion.
+//
+// TIMEFRAME MODEL: streamlined to 2 questions — "Hour, Day, or
+// Multiple Days?" (scope, via a Track Alpha-style scope hub — see
+// renderScheduleScopeHub below) then "When?" (a direct date input,
+// no tile drilling). From there the UX adapts per scope: Hour asks
+// which hour RANGE within that day; Day goes straight to the details
+// form; Multiple Days asks for an end date or a duration preset. Every
+// event still normalizes to one inclusive [startDate, endDate] day
+// range regardless of scope (startHour/endHour add precision only
+// when scope === 'hour') — that's what lets every consumer
+// (Ruler-widget annotation, Upcoming list, "does this event touch
+// date X") use one uniform range comparison instead of scope-specific
+// branching.
 // ============================================================
 var SCHEDULE_EVENTS_KEY = 'csrAlignScheduleEvents';
 
@@ -12588,23 +12558,67 @@ function scheduleGenerateId() {
 
 var scheduleEvents = loadScheduleEvents();
 
+// ---- Date/range math ----
+function scheduleAddDays(dateStr, days) {
+  var d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  return localDateString(d);
+}
+function scheduleFormatHourLabel(hour) {
+  var period = hour < 12 ? 'AM' : 'PM';
+  var h12 = hour % 12;
+  if (h12 === 0) h12 = 12;
+  return h12 + ' ' + period;
+}
+function scheduleFormatShortDate(d) {
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+// Human summary of a {scope, startDate, endDate, startHour, endHour}
+// range — used by the editor's read-only timeframe line, the
+// Upcoming list, and My Plans.
+function scheduleFormatRangeLabel(range) {
+  var startObj = new Date(range.startDate + 'T00:00:00');
+  var endObj = new Date(range.endDate + 'T00:00:00');
+  if (range.scope === 'hour') {
+    return scheduleFormatHourLabel(range.startHour) + ' – ' + scheduleFormatHourLabel(range.endHour) + ', ' + startObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  if (range.scope === 'day') {
+    return startObj.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  }
+  // multi
+  return scheduleFormatShortDate(startObj) + ' – ' + endObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 // ---- Overlay navigation state ----
-// scheduleViewYear/scheduleViewMonth: which month the grid screen is
-// showing (seeded to today's real year/month the first time the
-// overlay opens). scheduleSelectedDate: null = month grid; a
-// "YYYY-MM-DD" string = day view for that date. scheduleEditorOpen
-// gates the editor screen on top of that (true whether creating or
-// editing) — scheduleEditingEventId is null for create, an id for
-// edit; scheduleEditorPrefillTime ("HH:MM") is set only when an empty
-// hour row was clicked, so a NEW event's Start time field opens
-// pre-filled. The editor always returns to the day view it came from
-// (scheduleSelectedDate is untouched by opening/closing it).
-var scheduleViewYear = null;
-var scheduleViewMonth = null;
-var scheduleSelectedDate = null;
+// scheduleCreatingScope: null (scope hub showing) | 'hour'|'day'|
+// 'multi' (mid-flow for a new/re-timed event) | 'browse' (My Plans,
+// the "see everything" tile mirroring Track Alpha's Current Snipes).
+// scheduleWhenDate: set once "When?" is answered — null means still on
+// that step. scheduleHourStart: only meaningful mid-'hour'-flow after
+// scheduleWhenDate is set — null means picking the START hour, a
+// number means the start is locked and the same step is now picking
+// the END hour. schedulePendingRange: the just-completed flow's
+// computed range, waiting to be shown/saved in the editor.
+// scheduleEditingEventId: null = creating; an id = editing that event
+// — deliberately left SET (not cleared) across a "Change Timeframe"
+// re-flow, since that's what tells the completion logic in
+// renderScheduleOverlay() to update THIS event's range rather than
+// create a new one.
+var scheduleCreatingScope = null;
+var scheduleWhenDate = null;
+var scheduleHourStart = null;
+var schedulePendingRange = null;
 var scheduleEditorOpen = false;
 var scheduleEditingEventId = null;
-var scheduleEditorPrefillTime = null;
+
+function scheduleResetCreateState() {
+  scheduleCreatingScope = null;
+  scheduleWhenDate = null;
+  scheduleHourStart = null;
+  schedulePendingRange = null;
+  scheduleEditorOpen = false;
+  scheduleEditingEventId = null;
+}
 
 // ---- Overlay open/close ----
 var scheduleOverlayEl = document.getElementById('scheduleOverlay');
@@ -12618,12 +12632,7 @@ function closeScheduleOverlay() {
 }
 if (document.getElementById('scheduleOpenBtn')) {
   document.getElementById('scheduleOpenBtn').addEventListener('click', function() {
-    var today = new Date();
-    if (scheduleViewYear === null) scheduleViewYear = today.getFullYear();
-    if (scheduleViewMonth === null) scheduleViewMonth = today.getMonth();
-    scheduleSelectedDate = null;
-    scheduleEditingEventId = null;
-    scheduleEditorPrefillTime = null;
+    scheduleResetCreateState();
     if (scheduleOverlayEl) scheduleOverlayEl.style.display = 'flex';
     renderScheduleOverlay();
   });
@@ -12638,16 +12647,19 @@ if (scheduleOverlayEl) {
 }
 
 // Encrypts only the two free-text fields into one envelope — see the
-// header comment above and 0017_schedule_events.sql for why the rest
-// of the row stays plaintext. Mirrors pushAlphaProfileToSupabase's
-// shape (12238-12254) but keyed on journalEncryptionKey, not Alpha's.
+// header comment above and 0018_schedule_events_scope_redesign.sql
+// for why the rest of the row stays plaintext. Mirrors
+// pushAlphaProfileToSupabase's shape (12238-12254) but keyed on
+// journalEncryptionKey, not Alpha's.
 function buildScheduleEventRow(event, encData) {
   return {
     id: event.id,
     user_id: currentUser.id,
-    event_date: event.date,
-    start_time: event.startTime,
-    duration_minutes: event.durationMinutes,
+    scope: event.scope,
+    start_date: event.startDate,
+    end_date: event.endDate,
+    start_hour: (typeof event.startHour === 'number') ? event.startHour : null,
+    end_hour: (typeof event.endHour === 'number') ? event.endHour : null,
     title: event.title,
     category: event.category,
     reminder_offset_minutes: (typeof event.reminderOffsetMinutes === 'number') ? event.reminderOffsetMinutes : null,
@@ -12682,17 +12694,16 @@ registerSyncPerformer('scheduleEvent', function(payload) {
 
 // Local-first create/edit, keyed on scheduleEditingEventId (set by
 // whichever screen opened the editor). reminderShown always resets to
-// false on save — editing an event's time/reminder settings should be
-// able to notify again, and re-deriving "was this specific edit a
-// meaningful timing change" isn't worth the complexity versus just
-// always giving a freshly-saved event a clean reminder state.
+// false on save — editing an event's timeframe/reminder settings
+// should be able to notify again, and re-deriving "was this specific
+// edit a meaningful timing change" isn't worth the complexity versus
+// just always giving a freshly-saved event a clean reminder state.
 function saveScheduleEvent(fields) {
   var now = new Date().toISOString();
-  var event, previousDate;
+  var event;
   if (scheduleEditingEventId) {
     event = scheduleEvents.find(function(e) { return e.id === scheduleEditingEventId; });
     if (!event) return null;
-    previousDate = event.date;
     Object.assign(event, fields, { reminderShown: false, updatedAt: now });
   } else {
     event = Object.assign({ id: scheduleGenerateId(), createdAt: now }, fields, { reminderShown: false, updatedAt: now });
@@ -12707,14 +12718,12 @@ function saveScheduleEvent(fields) {
   if (!event.detailsUnavailable) event.encryptedDataRaw = null;
   saveScheduleEvents(scheduleEvents);
   pushScheduleEventToSupabase(event);
-  if (typeof scheduleMirrorIntoWeeklyViz === 'function') {
-    // If editing moved the event to a different date, the OLD date's
-    // widget (if it happens to be on screen) still shows the
-    // now-stale event until this refreshes it too — not just the new
-    // date's.
-    if (previousDate && previousDate !== event.date) scheduleMirrorIntoWeeklyViz(previousDate);
-    scheduleMirrorIntoWeeklyViz(event.date);
-  }
+  // Refreshes every rolling-window date's widget unconditionally
+  // (cheap — 7 local-array reads, no Supabase calls) rather than
+  // trying to figure out exactly which date(s) an edit touched: since
+  // an event can now span a whole week/month, a single-date targeted
+  // refresh isn't enough anyway.
+  if (typeof scheduleMirrorAllWeeklyViz === 'function') scheduleMirrorAllWeeklyViz();
   if (typeof renderScheduleUpcomingList === 'function') renderScheduleUpcomingList();
   return event;
 }
@@ -12726,7 +12735,6 @@ function saveScheduleEvent(fields) {
 // upsert-oriented sync queue (which has no delete semantics). Not
 // auto-retried if offline — same accepted tradeoff those already use.
 function deleteScheduleEvent(id) {
-  var deleted = scheduleEvents.find(function(e) { return e.id === id; });
   scheduleEvents = scheduleEvents.filter(function(e) { return e.id !== id; });
   saveScheduleEvents(scheduleEvents);
   if (supabaseClient && currentUser) {
@@ -12734,13 +12742,8 @@ function deleteScheduleEvent(id) {
       if (result.error) showToast('Could not delete on the server: ' + result.error.message, 'error');
     });
   }
-  if (deleted) {
-    if (typeof scheduleMirrorIntoWeeklyViz === 'function') scheduleMirrorIntoWeeklyViz(deleted.date);
-    if (typeof renderScheduleUpcomingList === 'function') renderScheduleUpcomingList();
-    if (scheduleSelectedDate && deleted.date === scheduleSelectedDate && typeof renderScheduleOverlay === 'function') {
-      renderScheduleOverlay();
-    }
-  }
+  if (typeof scheduleMirrorAllWeeklyViz === 'function') scheduleMirrorAllWeeklyViz();
+  if (typeof renderScheduleUpcomingList === 'function') renderScheduleUpcomingList();
 }
 
 // In-app reminder scan — no push/background notifications exist in
@@ -12761,34 +12764,41 @@ function scheduleCheckReminders() {
   var now = new Date();
   scheduleEvents.forEach(function(event) {
     if (event.reminderOffsetMinutes == null || event.reminderShown) return;
-    // "YYYY-MM-DDTHH:MM:00", no Z suffix — parsed as local wall-clock
-    // time, same convention the rest of this app's date-string code
-    // uses (contrast pure day-bucket math elsewhere, which deliberately
-    // uses a UTC anchor since it only ever needs a date, not a real hour).
-    var eventStart = new Date(event.date + 'T' + event.startTime + ':00');
-    if (isNaN(eventStart.getTime())) return;
-    var dueAt = new Date(eventStart.getTime() - event.reminderOffsetMinutes * 60000);
+    // Anchor = startDate at startHour (scope 'hour') or startDate at
+    // midnight (every other scope — there's no specific clock time to
+    // anchor a week/month/longer/day-scoped reminder to, so "the very
+    // start of the event's first day" is the simplest, most predictable
+    // rule). "YYYY-MM-DDTHH:MM:00", no Z suffix — local wall-clock time,
+    // same convention the rest of this app's date-string code uses.
+    var hh = (typeof event.startHour === 'number') ? event.startHour : 0;
+    var hhStr = (hh < 10 ? '0' : '') + hh;
+    var anchor = new Date(event.startDate + 'T' + hhStr + ':00:00');
+    if (isNaN(anchor.getTime())) return;
+    var dueAt = new Date(anchor.getTime() - event.reminderOffsetMinutes * 60000);
     if (now < dueAt) return;
     event.reminderShown = true;
-    showToast('Reminder: ' + event.title + ' at ' + event.startTime, 'info');
+    showToast('Reminder: ' + event.title + ' (' + scheduleFormatRangeLabel(event) + ')', 'info');
     saveScheduleEvents(scheduleEvents);
     // Full event, not a hand-rolled partial payload — both this and a
     // normal edit-save converge on the same 'scheduleEvent:<id>' queue
     // slot, so only a writer that sends the complete intended row state
     // is safe against last-write-wins clobbering an in-flight edit.
     pushScheduleEventToSupabase(event);
-    if (typeof scheduleMirrorIntoWeeklyViz === 'function') scheduleMirrorIntoWeeklyViz(event.date);
+    if (typeof scheduleMirrorAllWeeklyViz === 'function') scheduleMirrorAllWeeklyViz();
   });
 }
 
 // ============================================================
-// Overlay dispatcher + screens (month grid -> day view -> editor).
-// Parallel to renderAlphaBrowser (13850+) — same "stop any previous
-// screen's animation loop, clear, chamber-void toggle, then gate down
-// to exactly one screen" shape — but a smaller, direct dispatcher
-// rather than reusing that function, since Scheduling's gates
-// (editor-open / date-selected / neither) are its own concern, not
-// Track Alpha's.
+// Overlay dispatcher + the streamlined 2-question flow (scope hub ->
+// "When?" -> per-scope follow-up -> event editor). Parallel to
+// renderAlphaBrowser (13850+) — same "stop any previous screen's
+// animation loop, clear, chamber-void toggle, then gate down to
+// exactly one screen" shape — but a smaller, direct dispatcher rather
+// than reusing that function, since Scheduling's gates are its own
+// concern, not Track Alpha's. Every flow-transition decision lives
+// HERE, not scattered across each step's own click handlers — a step
+// only ever sets state (scheduleWhenDate, scheduleHourStart,
+// schedulePendingRange) and calls back into this function.
 // ============================================================
 function renderScheduleOverlay() {
   var container = document.getElementById('scheduleBrowser');
@@ -12811,260 +12821,312 @@ function renderScheduleOverlay() {
     renderScheduleEventEditor(screen);
     return;
   }
-  if (scheduleSelectedDate) {
-    renderScheduleDayView(screen, scheduleSelectedDate);
+  if (scheduleCreatingScope === 'browse') {
+    renderScheduleBrowseAll(screen);
     return;
   }
-  renderScheduleMonthGrid(screen);
+  if (scheduleCreatingScope) {
+    if (scheduleWhenDate === null) {
+      renderScheduleWhenStep(screen);
+      return;
+    }
+    // "If Day, it locks to that single day and goes straight to the
+    // plan details form" — no separate render step, just compute the
+    // range immediately and hand off to the editor.
+    if (scheduleCreatingScope === 'day') {
+      schedulePendingRange = { scope: 'day', startDate: scheduleWhenDate, endDate: scheduleWhenDate, startHour: null, endHour: null };
+      scheduleCreatingScope = null;
+      // scheduleEditingEventId is deliberately left AS-IS here — see
+      // its declaration comment above. null means this was a fresh
+      // create; a real id means it was a "Change Timeframe" re-flow
+      // for that existing event.
+      scheduleEditorOpen = true;
+      renderScheduleOverlay();
+      return;
+    }
+    if (scheduleCreatingScope === 'hour') {
+      renderScheduleHourRangeStep(screen);
+      return;
+    }
+    if (scheduleCreatingScope === 'multi') {
+      renderScheduleMultiEndStep(screen);
+      return;
+    }
+  }
+  renderScheduleScopeHub(screen);
 }
 
-function scheduleDaysInMonth(year, month) {
-  return new Date(year, month + 1, 0).getDate();
-}
-// Monday-first offset (0=Monday..6=Sunday) for the leading blank grid
-// cells, matching the rest of this app's week-start convention (see
-// getRollingWindowDates()).
-function scheduleFirstWeekdayOfMonth(year, month) {
-  return (new Date(year, month, 1).getDay() + 6) % 7;
-}
-
-function renderScheduleMonthGrid(container) {
+// Shared Back + title row for every step screen — reuses
+// .alpha-detail-header/.alpha-detail-title/.alpha-secondary-btn
+// verbatim, no new CSS. onBack is step-specific (unlike the previous
+// path-array drill, there's no generic "pop one level" anymore — the
+// flow is only 2-3 screens deep, so each step just knows what it's
+// stepping back from).
+function scheduleDrillHeader(titleText, onBack) {
   var header = document.createElement('div');
-  header.className = 'schedule-month-header';
+  header.className = 'alpha-detail-header';
+  var title = document.createElement('div');
+  title.className = 'alpha-detail-title';
+  title.textContent = titleText;
+  var backBtn = document.createElement('button');
+  backBtn.type = 'button';
+  backBtn.className = 'alpha-secondary-btn';
+  backBtn.textContent = '← Back';
+  backBtn.addEventListener('click', onBack);
+  header.appendChild(title);
+  header.appendChild(backBtn);
+  return header;
+}
 
-  var prevBtn = document.createElement('button');
-  prevBtn.type = 'button';
-  prevBtn.className = 'secondary';
-  prevBtn.textContent = '‹';
-  prevBtn.addEventListener('click', function() {
-    scheduleViewMonth -= 1;
-    if (scheduleViewMonth < 0) { scheduleViewMonth = 11; scheduleViewYear -= 1; }
+// 4 floating, mouse-tracked reticle tiles via alphaBuildScopeTile
+// (index.html ~14471) — called DIRECTLY, not reimplemented, since
+// that function is already fully generic (label/class/onClick/
+// index/total only, no Alpha-specific state). Question 1 — "Hour,
+// Day, or Multiple Days?" — plus "My Plans", mirroring Track Alpha's
+// own hub exactly: 3 category tiles + a 4th "Current Snipes"
+// browse-everything tile.
+function renderScheduleScopeHub(container) {
+  var chamber = container.closest('.schedule-chamber');
+  if (chamber) chamber.classList.add('alpha-chamber-void');
+
+  var wrap = document.createElement('div');
+  wrap.className = 'alpha-scope-hub';
+
+  var scopes = [
+    { key: 'hour', label: 'Hour' },
+    { key: 'day', label: 'Day' },
+    { key: 'multi', label: 'Multiple Days' },
+    { key: 'browse', label: 'My Plans' }
+  ];
+  scopes.forEach(function(scope, i) {
+    var built = alphaBuildScopeTile(scope.label, scope.key === 'browse' ? 'alpha-scope-tile-snipes' : null, function() {
+      schedulePendingRange = null;
+      if (scope.key === 'browse') {
+        scheduleCreatingScope = 'browse';
+      } else {
+        scheduleCreatingScope = scope.key;
+        scheduleWhenDate = null;
+        scheduleHourStart = null;
+      }
+      renderScheduleOverlay();
+    }, i, scopes.length);
+
+    if (scope.key === 'browse') {
+      var count = document.createElement('span');
+      count.className = 'alpha-scope-tile-count';
+      count.textContent = String(scheduleEvents.length);
+      built.tileEl.appendChild(count);
+    }
+
+    wrap.appendChild(built.floatEl);
+  });
+  container.appendChild(wrap);
+  scheduleStartScopeAnimation(wrap);
+}
+
+// Question 2 — "When?" — a direct date input, no tile navigation.
+// Defaults to today so answering is a single click for the common
+// case. Same for all 3 scopes; what happens after is entirely the
+// dispatcher's call (see renderScheduleOverlay above).
+function renderScheduleWhenStep(container) {
+  container.appendChild(scheduleDrillHeader('When?', function() {
+    scheduleCreatingScope = null;
+    renderScheduleOverlay();
+  }));
+
+  var card = document.createElement('div');
+  card.className = 'alpha-question-card';
+
+  var dateInput = document.createElement('input');
+  dateInput.type = 'date';
+  dateInput.className = 'alpha-answer-input';
+  dateInput.value = todayLocalDateString();
+  card.appendChild(dateInput);
+
+  var continueBtn = document.createElement('button');
+  continueBtn.type = 'button';
+  continueBtn.className = 'alpha-continue-btn';
+  continueBtn.textContent = 'Continue';
+  continueBtn.addEventListener('click', function() {
+    scheduleWhenDate = dateInput.value || todayLocalDateString();
     renderScheduleOverlay();
   });
+  card.appendChild(continueBtn);
 
-  var label = document.createElement('span');
-  label.className = 'schedule-month-label';
-  label.textContent = MONTH_NAMES[scheduleViewMonth] + ' ' + scheduleViewYear;
+  container.appendChild(card);
+}
 
-  var nextBtn = document.createElement('button');
-  nextBtn.type = 'button';
-  nextBtn.className = 'secondary';
-  nextBtn.textContent = '›';
-  nextBtn.addEventListener('click', function() {
-    scheduleViewMonth += 1;
-    if (scheduleViewMonth > 11) { scheduleViewMonth = 0; scheduleViewYear += 1; }
+// Hour follow-up — "which hours from that day": one chip-grid step
+// that runs twice (start hour, then end hour), tracked by
+// scheduleHourStart being null vs set, same "reuse one variable as
+// the phase indicator" pattern the previous 'longer' two-pass drill
+// used. Only hours strictly after the start are selectable for the
+// end, so every hour-scoped event has a real, non-zero duration.
+function renderScheduleHourRangeStep(container) {
+  var pickingEnd = scheduleHourStart !== null;
+  container.appendChild(scheduleDrillHeader(pickingEnd ? 'Which hour does it end?' : 'Which hour does it start?', function() {
+    if (pickingEnd) { scheduleHourStart = null; } else { scheduleWhenDate = null; }
     renderScheduleOverlay();
-  });
-
-  header.appendChild(prevBtn);
-  header.appendChild(label);
-  header.appendChild(nextBtn);
-  container.appendChild(header);
-
-  var weekdayRow = document.createElement('div');
-  weekdayRow.className = 'schedule-month-grid schedule-month-weekdays';
-  ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].forEach(function(wd) {
-    var cell = document.createElement('div');
-    cell.className = 'schedule-weekday-label';
-    cell.textContent = wd;
-    weekdayRow.appendChild(cell);
-  });
-  container.appendChild(weekdayRow);
+  }));
 
   var grid = document.createElement('div');
-  grid.className = 'schedule-month-grid';
-
-  var offset = scheduleFirstWeekdayOfMonth(scheduleViewYear, scheduleViewMonth);
-  var totalDays = scheduleDaysInMonth(scheduleViewYear, scheduleViewMonth);
-  var todayStr = todayLocalDateString();
-
-  for (var i = 0; i < offset; i++) {
-    var empty = document.createElement('div');
-    empty.className = 'schedule-day-cell schedule-day-cell-empty';
-    grid.appendChild(empty);
-  }
-
-  for (var day = 1; day <= totalDays; day++) {
-    (function(day) {
-      var dateStr = localDateString(new Date(scheduleViewYear, scheduleViewMonth, day));
-      var cell = document.createElement('div');
-      cell.className = 'schedule-day-cell' + (dateStr === todayStr ? ' is-today' : '');
-      cell.tabIndex = 0;
-
-      var num = document.createElement('span');
-      num.className = 'schedule-day-num';
-      num.textContent = String(day);
-      cell.appendChild(num);
-
-      if (scheduleEvents.some(function(e) { return e.date === dateStr; })) {
-        var dot = document.createElement('span');
-        dot.className = 'schedule-day-dot';
-        dot.setAttribute('aria-hidden', 'true');
-        cell.appendChild(dot);
-      }
-
-      function openDay() {
-        scheduleSelectedDate = dateStr;
+  grid.className = 'schedule-chip-grid schedule-hour-chip-grid';
+  for (var hour = 0; hour < 24; hour++) {
+    (function(hour) {
+      if (pickingEnd && hour <= scheduleHourStart) return;
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'schedule-chip';
+      chip.textContent = scheduleFormatHourLabel(hour);
+      chip.addEventListener('click', function() {
+        if (pickingEnd) {
+          schedulePendingRange = { scope: 'hour', startDate: scheduleWhenDate, endDate: scheduleWhenDate, startHour: scheduleHourStart, endHour: hour };
+          scheduleCreatingScope = null;
+          scheduleEditorOpen = true;
+        } else {
+          scheduleHourStart = hour;
+        }
         renderScheduleOverlay();
-      }
-      cell.addEventListener('click', openDay);
-      cell.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDay(); }
       });
-
-      grid.appendChild(cell);
-    })(day);
+      grid.appendChild(chip);
+    })(hour);
   }
-
   container.appendChild(grid);
 }
 
-function scheduleFormatHourLabel(hour) {
-  var period = hour < 12 ? 'AM' : 'PM';
-  var h12 = hour % 12;
-  if (h12 === 0) h12 = 12;
-  return h12 + ' ' + period;
-}
+// Multiple-Days follow-up — "an end date or duration": preset chips
+// for the common cases (each just computes an end date and finishes
+// the same way an explicit pick would) plus a real end-date input for
+// anything else. Either path calls the same finish() so validation
+// (end >= start) only lives in one place.
+var SCHEDULE_DURATION_PRESETS = [
+  { label: '2 days', days: 1 },
+  { label: '3 days', days: 2 },
+  { label: '1 week', days: 6 },
+  { label: '2 weeks', days: 13 },
+  { label: '1 month', days: 29 }
+];
+function renderScheduleMultiEndStep(container) {
+  container.appendChild(scheduleDrillHeader('How long?', function() {
+    scheduleWhenDate = null;
+    renderScheduleOverlay();
+  }));
 
-// startTime "HH:MM" + durationMinutes -> "9:00 AM – 10:30 AM"
-function scheduleFormatTimeRange(startTime, durationMinutes) {
-  var parts = (startTime || '0:0').split(':');
-  var startMin = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
-  var endMin = startMin + (durationMinutes || 0);
-  function fmt(totalMin) {
-    var h = Math.floor((totalMin % 1440) / 60);
-    var m = totalMin % 60;
-    var period = h < 12 ? 'AM' : 'PM';
-    var h12 = h % 12;
-    if (h12 === 0) h12 = 12;
-    return h12 + ':' + (m < 10 ? '0' : '') + m + ' ' + period;
+  var card = document.createElement('div');
+  card.className = 'alpha-question-card';
+
+  function finish(endDate) {
+    if (endDate < scheduleWhenDate) {
+      showToast('End date must be on or after the start date.', 'error');
+      return;
+    }
+    schedulePendingRange = { scope: 'multi', startDate: scheduleWhenDate, endDate: endDate, startHour: null, endHour: null };
+    scheduleCreatingScope = null;
+    scheduleEditorOpen = true;
+    renderScheduleOverlay();
   }
-  return fmt(startMin) + ' – ' + fmt(endMin);
+
+  var presetGrid = document.createElement('div');
+  presetGrid.className = 'schedule-chip-grid';
+  SCHEDULE_DURATION_PRESETS.forEach(function(preset) {
+    var chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'schedule-chip';
+    chip.textContent = preset.label;
+    chip.addEventListener('click', function() { finish(scheduleAddDays(scheduleWhenDate, preset.days)); });
+    presetGrid.appendChild(chip);
+  });
+  card.appendChild(presetGrid);
+
+  var orLabel = document.createElement('p');
+  orLabel.className = 'schedule-field-label';
+  orLabel.textContent = 'or pick an exact end date';
+  card.appendChild(orLabel);
+
+  var endInput = document.createElement('input');
+  endInput.type = 'date';
+  endInput.className = 'alpha-answer-input';
+  endInput.min = scheduleWhenDate;
+  endInput.value = scheduleAddDays(scheduleWhenDate, 1);
+  card.appendChild(endInput);
+
+  var continueBtn = document.createElement('button');
+  continueBtn.type = 'button';
+  continueBtn.className = 'alpha-continue-btn';
+  continueBtn.textContent = 'Continue';
+  continueBtn.addEventListener('click', function() { finish(endInput.value || scheduleAddDays(scheduleWhenDate, 1)); });
+  card.appendChild(continueBtn);
+
+  container.appendChild(card);
 }
 
-function renderScheduleDayView(container, dateStr) {
+// "My Plans" — mirrors renderAlphaCurrentSnipes (index.html ~14699)
+// exactly: every existing event, grouped by scope instead of by
+// category, reusing .alpha-detail-header/.alpha-profile-list/
+// .alpha-profile-card/.alpha-improvement-section verbatim. This is
+// the primary way to browse/manage what's already scheduled — click a
+// card to jump straight into its edit form, skipping the flow
+// entirely.
+var SCHEDULE_SCOPE_LABELS = { hour: 'Hour', day: 'Day', multi: 'Multiple Days' };
+function renderScheduleBrowseAll(container) {
   var header = document.createElement('div');
-  header.className = 'schedule-day-header';
-
+  header.className = 'alpha-detail-header';
+  var title = document.createElement('div');
+  title.className = 'alpha-detail-title';
+  title.textContent = 'My Plans';
   var backBtn = document.createElement('button');
   backBtn.type = 'button';
-  backBtn.className = 'secondary';
-  backBtn.textContent = '← Back';
+  backBtn.className = 'alpha-secondary-btn';
+  backBtn.textContent = '← Back to Scopes';
   backBtn.addEventListener('click', function() {
-    scheduleSelectedDate = null;
+    scheduleCreatingScope = null;
     renderScheduleOverlay();
   });
-
-  var dateObj = new Date(dateStr + 'T00:00:00');
-  var label = document.createElement('span');
-  label.className = 'schedule-day-view-label';
-  label.textContent = dateObj.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-
-  var addBtn = document.createElement('button');
-  addBtn.type = 'button';
-  addBtn.textContent = '+ Add Event';
-  addBtn.addEventListener('click', function() {
-    scheduleEditorOpen = true;
-    scheduleEditingEventId = null;
-    scheduleEditorPrefillTime = null;
-    renderScheduleOverlay();
-  });
-
+  header.appendChild(title);
   header.appendChild(backBtn);
-  header.appendChild(label);
-  header.appendChild(addBtn);
   container.appendChild(header);
 
-  var dayEvents = scheduleEvents.filter(function(e) { return e.date === dateStr; });
-  var byHour = {};
-  dayEvents.forEach(function(e) {
-    var hour = parseInt((e.startTime || '0:0').split(':')[0], 10) || 0;
-    if (!byHour[hour]) byHour[hour] = [];
-    byHour[hour].push(e);
-  });
-  Object.keys(byHour).forEach(function(h) {
-    byHour[h].sort(function(a, b) { return a.startTime < b.startTime ? -1 : 1; });
-  });
-
-  var list = document.createElement('div');
-  list.className = 'schedule-day-view';
-
-  for (var hour = 0; hour < 24; hour++) {
-    (function(hour) {
-      var row = document.createElement('div');
-      row.className = 'schedule-hour-row';
-
-      var hourLabel = document.createElement('span');
-      hourLabel.className = 'schedule-hour-label';
-      hourLabel.textContent = scheduleFormatHourLabel(hour);
-      row.appendChild(hourLabel);
-
-      var eventsWrap = document.createElement('div');
-      eventsWrap.className = 'schedule-hour-events';
-
-      (byHour[hour] || []).forEach(function(event) {
-        var chip = document.createElement('div');
-        chip.className = 'schedule-event-chip';
-        chip.tabIndex = 0;
-
-        var titleEl = document.createElement('div');
-        titleEl.className = 'schedule-event-chip-title';
-        titleEl.textContent = event.title;
-        chip.appendChild(titleEl);
-
-        var timeEl = document.createElement('div');
-        timeEl.className = 'schedule-event-chip-time';
-        timeEl.textContent = scheduleFormatTimeRange(event.startTime, event.durationMinutes) + (event.category ? ' · ' + event.category : '');
-        chip.appendChild(timeEl);
-
-        var deleteBtn = document.createElement('button');
-        deleteBtn.type = 'button';
-        deleteBtn.className = 'secondary schedule-event-delete-btn';
-        deleteBtn.textContent = 'Delete';
-        deleteBtn.addEventListener('click', function(e) {
-          e.stopPropagation();
-          if (!window.confirm('Delete "' + event.title + '"?')) return;
-          deleteScheduleEvent(event.id);
-        });
-        chip.appendChild(deleteBtn);
-
-        function openEdit() {
-          scheduleEditorOpen = true;
-          scheduleEditingEventId = event.id;
-          scheduleEditorPrefillTime = null;
-          renderScheduleOverlay();
-        }
-        chip.addEventListener('click', openEdit);
-        chip.addEventListener('keydown', function(e) {
-          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEdit(); }
-        });
-
-        eventsWrap.appendChild(chip);
-      });
-
-      row.appendChild(eventsWrap);
-
-      // Clicking empty space in an hour row (the row background, the
-      // hour label, or the empty events-wrap area) opens the editor
-      // pre-filled to that hour. A click on an event chip (or its
-      // title/time/delete children) still bubbles up to this same
-      // listener, but its target is the chip/child, not one of these
-      // three container elements, so it's correctly ignored here —
-      // the chip's own listener (attached directly to it) already
-      // handled it.
-      row.addEventListener('click', function(e) {
-        if (e.target !== row && e.target !== hourLabel && e.target !== eventsWrap) return;
-        scheduleEditorOpen = true;
-        scheduleEditingEventId = null;
-        scheduleEditorPrefillTime = (hour < 10 ? '0' : '') + hour + ':00';
-        renderScheduleOverlay();
-      });
-
-      list.appendChild(row);
-    })(hour);
+  if (!scheduleEvents.length) {
+    var empty = document.createElement('p');
+    empty.className = 'alpha-empty';
+    empty.textContent = 'Nothing planned yet — pick Hour, Day, or Multiple Days to create your first plan.';
+    container.appendChild(empty);
+    return;
   }
 
-  container.appendChild(list);
+  ['hour', 'day', 'multi'].forEach(function(scopeKey) {
+    var inScope = scheduleEvents
+      .filter(function(e) { return e.scope === scopeKey; })
+      .sort(function(a, b) { return a.startDate < b.startDate ? -1 : (a.startDate > b.startDate ? 1 : 0); });
+    if (!inScope.length) return;
+
+    var section = document.createElement('div');
+    section.className = 'alpha-improvement-section';
+    var heading = document.createElement('span');
+    heading.className = 'alpha-improvement-section-label';
+    heading.textContent = SCHEDULE_SCOPE_LABELS[scopeKey];
+    section.appendChild(heading);
+
+    var list = document.createElement('div');
+    list.className = 'alpha-profile-list';
+    inScope.forEach(function(event) {
+      var card = document.createElement('div');
+      card.className = 'alpha-profile-card';
+      var name = document.createElement('span');
+      name.className = 'alpha-profile-card-name';
+      name.textContent = event.title + ' — ' + scheduleFormatRangeLabel(event);
+      name.addEventListener('click', function() {
+        schedulePendingRange = null;
+        scheduleEditingEventId = event.id;
+        scheduleEditorOpen = true;
+        renderScheduleOverlay();
+      });
+      card.appendChild(name);
+      list.appendChild(card);
+    });
+    section.appendChild(list);
+    container.appendChild(section);
+  });
 }
 
 // ---- Event editor ----
@@ -13082,12 +13144,6 @@ var SCHEDULE_REMINDER_OPTIONS = [
   { label: '3 days before', value: 4320 },
   { label: '1 week before', value: 10080 }
 ];
-var SCHEDULE_DURATION_OPTIONS = [15, 30, 45, 60, 90, 120, 180, 240];
-function scheduleFormatDurationLabel(mins) {
-  if (mins < 60) return mins + ' min';
-  var hrs = Math.floor(mins / 60), rem = mins % 60;
-  return hrs + ' hr' + (rem ? ' ' + rem + ' min' : '');
-}
 
 function scheduleFieldRow(labelText, inputEl) {
   var row = document.createElement('div');
@@ -13106,17 +13162,45 @@ function scheduleFieldRow(labelText, inputEl) {
 // (pre-fills every field from the existing event). Reuses
 // .alpha-question-card/.alpha-answer-input/.alpha-continue-btn/
 // .alpha-secondary-btn verbatim for visual consistency with the rest
-// of this app's card-style forms.
+// of this app's card-style forms. The timeframe itself is READ-ONLY
+// here (schedulePendingRange for a fresh/re-timed pick, or the
+// existing event's own scope/dates otherwise) — "Change Timeframe"
+// re-enters the scope-drill rather than exposing raw date/time inputs.
 function renderScheduleEventEditor(container) {
   var editingEvent = scheduleEditingEventId ? scheduleEvents.find(function(e) { return e.id === scheduleEditingEventId; }) : null;
+  var rangeInfo = schedulePendingRange || (editingEvent ? { scope: editingEvent.scope, startDate: editingEvent.startDate, endDate: editingEvent.endDate, startHour: editingEvent.startHour, endHour: editingEvent.endHour } : null);
 
   var card = document.createElement('div');
   card.className = 'alpha-question-card schedule-editor-card';
 
   var heading = document.createElement('div');
   heading.className = 'alpha-question-text';
-  heading.textContent = editingEvent ? 'Edit Event' : 'New Event';
+  heading.textContent = editingEvent ? 'Edit Plan' : 'New Plan';
   card.appendChild(heading);
+
+  var timeframeRow = document.createElement('div');
+  timeframeRow.className = 'schedule-timeframe-summary';
+  var timeframeLabel = document.createElement('span');
+  timeframeLabel.textContent = rangeInfo ? scheduleFormatRangeLabel(rangeInfo) : '—';
+  timeframeRow.appendChild(timeframeLabel);
+  var changeBtn = document.createElement('button');
+  changeBtn.type = 'button';
+  changeBtn.className = 'secondary';
+  changeBtn.textContent = 'Change Timeframe →';
+  changeBtn.addEventListener('click', function() {
+    // scheduleEditingEventId deliberately stays set (not cleared) when
+    // editingEvent exists — see its declaration comment: that's what
+    // tells the dispatcher to update THIS event once the new flow
+    // finishes, instead of creating a separate one.
+    scheduleEditorOpen = false;
+    schedulePendingRange = null;
+    scheduleCreatingScope = null;
+    scheduleWhenDate = null;
+    scheduleHourStart = null;
+    renderScheduleOverlay();
+  });
+  timeframeRow.appendChild(changeBtn);
+  card.appendChild(timeframeRow);
 
   // See saveScheduleEvent()/pushScheduleEventToSupabase() for the
   // matching save-side logic that makes this promise true: leaving
@@ -13132,7 +13216,7 @@ function renderScheduleEventEditor(container) {
   var titleInput = document.createElement('input');
   titleInput.type = 'text';
   titleInput.className = 'alpha-answer-input';
-  titleInput.placeholder = 'Event title';
+  titleInput.placeholder = 'Plan title';
   titleInput.value = editingEvent ? (editingEvent.title || '') : '';
   card.appendChild(scheduleFieldRow('Title', titleInput));
 
@@ -13145,26 +13229,6 @@ function renderScheduleEventEditor(container) {
   });
   categorySelect.value = editingEvent ? (editingEvent.category || 'Other') : 'Other';
   card.appendChild(scheduleFieldRow('Category', categorySelect));
-
-  var dateInput = document.createElement('input');
-  dateInput.type = 'date';
-  dateInput.value = editingEvent ? editingEvent.date : (scheduleSelectedDate || todayLocalDateString());
-  card.appendChild(scheduleFieldRow('Date', dateInput));
-
-  var timeInput = document.createElement('input');
-  timeInput.type = 'time';
-  timeInput.value = editingEvent ? editingEvent.startTime : (scheduleEditorPrefillTime || '09:00');
-  card.appendChild(scheduleFieldRow('Start time', timeInput));
-
-  var durationSelect = document.createElement('select');
-  SCHEDULE_DURATION_OPTIONS.forEach(function(mins) {
-    var opt = document.createElement('option');
-    opt.value = String(mins);
-    opt.textContent = scheduleFormatDurationLabel(mins);
-    durationSelect.appendChild(opt);
-  });
-  durationSelect.value = editingEvent ? String(editingEvent.durationMinutes || 60) : '60';
-  card.appendChild(scheduleFieldRow('Duration', durationSelect));
 
   var descTextarea = document.createElement('textarea');
   descTextarea.placeholder = (editingEvent && editingEvent.detailsUnavailable) ? 'Unavailable on this device' : 'Description...';
@@ -13189,28 +13253,34 @@ function renderScheduleEventEditor(container) {
   function closeEditor() {
     scheduleEditorOpen = false;
     scheduleEditingEventId = null;
-    scheduleEditorPrefillTime = null;
+    schedulePendingRange = null;
+    scheduleWhenDate = null;
+    scheduleHourStart = null;
   }
 
   var saveBtn = document.createElement('button');
   saveBtn.type = 'button';
   saveBtn.className = 'alpha-continue-btn';
-  saveBtn.textContent = editingEvent ? 'Save Changes' : 'Create Event';
+  saveBtn.textContent = editingEvent ? 'Save Changes' : 'Create Plan';
   saveBtn.addEventListener('click', function() {
     var title = titleInput.value.trim();
     if (!title) { titleInput.focus(); return; }
+    if (!rangeInfo) { showToast('Pick a timeframe first.', 'error'); return; }
     var reminderVal = reminderSelect.value === '' ? null : parseInt(reminderSelect.value, 10);
     saveScheduleEvent({
       title: title,
       category: categorySelect.value,
-      date: dateInput.value || todayLocalDateString(),
-      startTime: timeInput.value || '09:00',
-      durationMinutes: parseInt(durationSelect.value, 10) || 60,
+      scope: rangeInfo.scope,
+      startDate: rangeInfo.startDate,
+      endDate: rangeInfo.endDate,
+      startHour: rangeInfo.startHour,
+      endHour: rangeInfo.endHour,
       description: descTextarea.value,
       notes: notesTextarea.value,
       reminderOffsetMinutes: reminderVal
     });
     closeEditor();
+    scheduleCreatingScope = 'browse'; // land on My Plans so the save is visibly reflected
     renderScheduleOverlay();
   });
   card.appendChild(saveBtn);
@@ -13219,11 +13289,12 @@ function renderScheduleEventEditor(container) {
     var deleteBtn = document.createElement('button');
     deleteBtn.type = 'button';
     deleteBtn.className = 'alpha-secondary-btn';
-    deleteBtn.textContent = 'Delete Event';
+    deleteBtn.textContent = 'Delete Plan';
     deleteBtn.addEventListener('click', function() {
       if (!window.confirm('Delete "' + editingEvent.title + '"?')) return;
       deleteScheduleEvent(editingEvent.id);
       closeEditor();
+      scheduleCreatingScope = 'browse';
       renderScheduleOverlay();
     });
     card.appendChild(deleteBtn);
@@ -13234,7 +13305,9 @@ function renderScheduleEventEditor(container) {
   cancelBtn.className = 'alpha-secondary-btn';
   cancelBtn.textContent = '← Back';
   cancelBtn.addEventListener('click', function() {
+    var wasEditing = !!editingEvent;
     closeEditor();
+    scheduleCreatingScope = wasEditing ? 'browse' : null;
     renderScheduleOverlay();
   });
   card.appendChild(cancelBtn);
@@ -13244,29 +13317,22 @@ function renderScheduleEventEditor(container) {
 
 // ---- Upcoming Events mini-list (always visible in the Plans tab,
 // outside the overlay) ----
-function scheduleFormatClockTime(hhmm) {
-  var parts = (hhmm || '0:0').split(':');
-  var h = parseInt(parts[0], 10), m = parseInt(parts[1], 10) || 0;
-  var period = h < 12 ? 'AM' : 'PM';
-  var h12 = h % 12;
-  if (h12 === 0) h12 = 12;
-  return h12 + ':' + (m < 10 ? '0' : '') + m + ' ' + period;
-}
-
+// "Upcoming" = hasn't fully ended yet (endDate >= today) — an
+// in-progress multi-day/week/month event still shows, not just
+// events that haven't started.
 function renderScheduleUpcomingList() {
   var el = document.getElementById('scheduleUpcomingList');
   if (!el) return;
   el.innerHTML = '';
 
   var todayStr = todayLocalDateString();
-  var now = new Date();
-  var nowHHMM = (now.getHours() < 10 ? '0' : '') + now.getHours() + ':' + (now.getMinutes() < 10 ? '0' : '') + now.getMinutes();
-
   var upcoming = scheduleEvents
-    .filter(function(e) { return e.date > todayStr || (e.date === todayStr && e.startTime >= nowHHMM); })
+    .filter(function(e) { return e.endDate >= todayStr; })
     .sort(function(a, b) {
-      if (a.date !== b.date) return a.date < b.date ? -1 : 1;
-      return a.startTime < b.startTime ? -1 : 1;
+      if (a.startDate !== b.startDate) return a.startDate < b.startDate ? -1 : 1;
+      var ah = (typeof a.startHour === 'number') ? a.startHour : -1;
+      var bh = (typeof b.startHour === 'number') ? b.startHour : -1;
+      return ah - bh;
     })
     .slice(0, 5);
 
@@ -13285,8 +13351,7 @@ function renderScheduleUpcomingList() {
 
     var when = document.createElement('span');
     when.className = 'schedule-upcoming-when';
-    var dayLabel = event.date === todayStr ? 'Today' : new Date(event.date + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    when.textContent = dayLabel + ' · ' + scheduleFormatClockTime(event.startTime);
+    when.textContent = scheduleFormatRangeLabel(event);
     row.appendChild(when);
 
     var title = document.createElement('span');
@@ -13294,11 +13359,14 @@ function renderScheduleUpcomingList() {
     title.textContent = event.title;
     row.appendChild(title);
 
+    // Jumps straight into editing this specific event, skipping My
+    // Plans/the drill entirely — the most useful thing a click here
+    // can do.
     function jump() {
-      scheduleSelectedDate = event.date;
-      scheduleEditorOpen = false;
-      scheduleEditingEventId = null;
-      scheduleEditorPrefillTime = null;
+      schedulePendingRange = null;
+      scheduleCreatingScope = null;
+      scheduleEditingEventId = event.id;
+      scheduleEditorOpen = true;
       if (scheduleOverlayEl) scheduleOverlayEl.style.display = 'flex';
       renderScheduleOverlay();
     }
@@ -13315,34 +13383,35 @@ function renderScheduleUpcomingList() {
 // Read-only, additive rendering into the Ruler tab's rolling 7-day
 // widget (renderWeeklyViz) — reads the already-local scheduleEvents
 // array only, no Supabase call, and never touches blocks[]/
-// stampBlock/merge_ruler_blocks. Unlike the Plans<->Ruler day-box
-// mirror (which is conditioned on isTodaysWeek/plansActiveWeekIndex,
-// since Plans' day boxes are keyed by week-slot-index and only line
-// up with Ruler's fixed Mon-Sun window when the currently-viewed
-// Plans week happens to BE this week), scheduleEvents is keyed by
-// real absolute date the same way getDayRecord/getRollingWindowDates
-// are — getElementById('weeklyDaySchedule-' + date) alone is already
-// a correct existence check, no extra guard needed.
+// stampBlock/merge_ruler_blocks. Range-touch check (dateStr falls
+// inside [startDate, endDate]) rather than exact-match, since an
+// event can now span many days.
 function renderScheduleAnnotationInto(container, dateStr) {
   container.innerHTML = '';
   scheduleEvents
-    .filter(function(e) { return e.date === dateStr; })
-    .sort(function(a, b) { return a.startTime < b.startTime ? -1 : 1; })
+    .filter(function(e) { return dateStr >= e.startDate && dateStr <= e.endDate; })
+    .sort(function(a, b) {
+      var ah = (typeof a.startHour === 'number') ? a.startHour : -1;
+      var bh = (typeof b.startHour === 'number') ? b.startHour : -1;
+      return ah - bh;
+    })
     .forEach(function(event) {
       var chip = document.createElement('span');
-      chip.textContent = scheduleFormatClockTime(event.startTime) + ' ' + event.title;
+      chip.textContent = (typeof event.startHour === 'number' ? scheduleFormatHourLabel(event.startHour) + ' ' : '') + event.title;
       container.appendChild(chip);
     });
 }
 
-// Same-tab, direct-DOM-patch-if-present convention already used for
-// the Plans<->Ruler day-box mirror — called from every Schedule
-// mutation point that changes an event on a given date (save, delete,
-// reminder-fire) so an already-open Ruler tab reflects the change
-// without a manual refresh.
-function scheduleMirrorIntoWeeklyViz(dateStr) {
-  var el = document.getElementById('weeklyDaySchedule-' + dateStr);
-  if (el) renderScheduleAnnotationInto(el, dateStr);
+// Refreshes EVERY rolling-window date's widget unconditionally (cheap
+// — 7 local-array reads, no Supabase calls) rather than a single
+// targeted date: since an event can now span a whole week/month, a
+// save/delete/reminder-fire on one event can affect several of the 7
+// visible dates at once, not just one.
+function scheduleMirrorAllWeeklyViz() {
+  var els = document.querySelectorAll('[id^="weeklyDaySchedule-"]');
+  els.forEach(function(el) {
+    renderScheduleAnnotationInto(el, el.id.replace('weeklyDaySchedule-', ''));
+  });
 }
 
 // ---- Gate + navigation state ----
@@ -14647,6 +14716,46 @@ function scheduleStartScopeAnimation(hub) {
   scheduleScopeStopFn = startScopeReticleAnimation(hub);
 }
 
+// ---- Free-tier scope limits ----
+// Free tier: 2 profiles total, composition-restricted — exactly one
+// must be Finances (always available, never locked out on its own
+// account), plus at most one more from Health OR Relationships (the
+// user's choice of ONE of those two; picking one locks the other).
+// Paid tier: a flat 5-profile cap, no composition restriction at all.
+// Recomputed fresh from the live alphaProfiles array on every
+// scope-hub render — deleting a profile immediately re-unlocks
+// whichever tile it was blocking, no separate bookkeeping needed.
+// Returns null when creation is allowed, or a user-facing reason
+// string when it's not (shown via showToast on click — see
+// renderAlphaScopeHub below).
+var ALPHA_FREE_TIER_MAX_SCOPES = 2;
+var ALPHA_PAID_TIER_MAX_SCOPES = 5;
+function alphaScopeCreationBlockedReason(categoryKey) {
+  var counts = { health: 0, relationships: 0, finances: 0 };
+  alphaProfiles.forEach(function(p) {
+    if (Object.prototype.hasOwnProperty.call(counts, p.category)) counts[p.category]++;
+  });
+  var total = alphaProfiles.length;
+
+  if (currentUserIsPaid) {
+    if (total >= ALPHA_PAID_TIER_MAX_SCOPES) {
+      return 'You’ve reached the ' + ALPHA_PAID_TIER_MAX_SCOPES + '-scope limit.';
+    }
+    return null;
+  }
+
+  if (total >= ALPHA_FREE_TIER_MAX_SCOPES) {
+    return 'Free tier is limited to ' + ALPHA_FREE_TIER_MAX_SCOPES + ' scopes. Upgrade for up to ' + ALPHA_PAID_TIER_MAX_SCOPES + '.';
+  }
+  if (categoryKey === 'finances' && counts.finances >= 1) {
+    return 'Free tier includes one Finances scope, and you already have it. Upgrade to create more.';
+  }
+  if ((categoryKey === 'health' || categoryKey === 'relationships') && (counts.health >= 1 || counts.relationships >= 1)) {
+    return 'Free tier includes one scope from Health or Relationships, and you’ve already used it. Upgrade to unlock both.';
+  }
+  return null;
+}
+
 function renderAlphaScopeHub(container) {
   var chamber = container.closest('.alpha-chamber');
   if (chamber) chamber.classList.add('alpha-chamber-void');
@@ -14661,14 +14770,25 @@ function renderAlphaScopeHub(container) {
     { key: 'snipes', label: 'Current Snipes' }
   ];
   scopes.forEach(function(scope, i) {
-    var built = alphaBuildScopeTile(scope.label, scope.key === 'snipes' ? 'alpha-scope-tile-snipes' : null, function() {
+    // Browsing (Current Snipes) is never blocked — only creation is.
+    var blockedReason = scope.key === 'snipes' ? null : alphaScopeCreationBlockedReason(scope.key);
+    var extraClass = scope.key === 'snipes' ? 'alpha-scope-tile-snipes' : (blockedReason ? 'alpha-scope-tile-locked' : null);
+    var built = alphaBuildScopeTile(scope.label, extraClass, function() {
       if (scope.key === 'snipes') {
         alphaShowingSnipes = true;
-      } else {
-        alphaCreating = true;
-        alphaCreatePath = [scope.key];
-        alphaCreatePendingCustomGroup = null;
+        renderAlphaBrowser();
+        return;
       }
+      // Deliberately still a real click handler, not a disabled
+      // button — a locked tile needs to explain WHY via a toast, not
+      // silently do nothing.
+      if (blockedReason) {
+        showToast(blockedReason, 'error');
+        return;
+      }
+      alphaCreating = true;
+      alphaCreatePath = [scope.key];
+      alphaCreatePendingCustomGroup = null;
       renderAlphaBrowser();
     }, i, scopes.length);
 
@@ -14677,6 +14797,11 @@ function renderAlphaScopeHub(container) {
       count.className = 'alpha-scope-tile-count';
       count.textContent = String(alphaProfiles.length);
       built.tileEl.appendChild(count);
+    }
+
+    if (blockedReason) {
+      built.tileEl.title = blockedReason;
+      built.tileEl.setAttribute('aria-disabled', 'true');
     }
 
     wrap.appendChild(built.floatEl);

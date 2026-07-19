@@ -210,38 +210,67 @@ decision, and what still needs a manual step outside this codebase
     as an error. The `data`/`text`/`history` columns involved were
     already `jsonb`/`text` with no shape constraint, so no schema
     change was needed either.
-- **Scheduling (Plans tab "+ Schedule Event")** —
-  `supabase/migrations/0017_schedule_events.sql`. A new `schedule_events`
-  table, own-row-only RLS (`for all using/with check (user_id =
-  auth.uid())`, matching `alpha_profiles`/`alpha_entries` — never
-  shared to a Legion, no `is_shared` concept at all). Deliberately a
-  **split** encryption model, not all-or-nothing: `title`/`event_date`/
-  `start_time`/`duration_minutes`/`category`/reminder settings are
-  plaintext on purpose — that's the "what and when" every signed-in
-  device needs for the calendar to actually work cross-device. Only
-  `description`/`notes` (the genuinely sensitive freeform content) are
-  encrypted, folded into one `encrypted_data` envelope via the
-  **existing** journal device key (`journalEncryptionKey`/
-  `journalEncryptPayload`/`journalDecryptPayload`) — no new key for
-  this feature. That key is device-bound and non-extractable (same
-  tradeoff already documented above for Journal), so those two fields
-  specifically won't decrypt on a device other than the one that wrote
-  them — the client detects this (`journalDecryptPayload` already
-  self-catches and returns the ciphertext envelope unchanged on
-  failure) and shows "unavailable on this device" rather than raw
-  ciphertext. **Save-side data-loss guard:** editing an event whose
-  description/notes are currently unavailable, and leaving both fields
-  blank, preserves the original ciphertext untouched rather than
-  silently overwriting it with two freshly-"encrypted" empty strings —
-  only actually typing new content on that device replaces it (see
+- **Scheduling (Plans tab "+ Make a Plan")** —
+  `supabase/migrations/0019_schedule_events_streamlined.sql`
+  (supersedes `0017`/`0018` entirely — drops and recreates
+  `schedule_events` yet again with a different column shape, same
+  precedent `0005_alpha_taxonomy_encryption_ready.sql` set for Track
+  Alpha's own taxonomy change; confirmed with the user first each time
+  that no real data existed yet to preserve). Own-row-only RLS (`for
+  all using/with check (user_id = auth.uid())`, matching
+  `alpha_profiles`/`alpha_entries` — never shared to a Legion, no
+  `is_shared` concept at all).
+  **Timeframe model — streamlined to 2 questions**: "Hour, Day, or
+  Multiple Days?" (scope, via a Track Alpha-style scope hub —
+  `alphaBuildScopeTile` called directly, the same generic tile
+  function Track Alpha's own hub uses) then "When?" (a direct date
+  input, no tile drilling — replaced the earlier Year→Month→Day tile
+  navigation entirely). From there the UX adapts per scope: Hour asks
+  for an hour RANGE within that day (start hour, then end hour, only
+  hours strictly after the start selectable — `end_hour` is new, this
+  version's only real schema addition); Day locks to that single day
+  and goes straight to the details form; Multiple Days asks for an end
+  date or a duration preset (2 days/3 days/1 week/2 weeks/1 month).
+  `scope` narrowed from 5 values to 3 (`hour`/`day`/`multi`) — Week/
+  Month/Longer were really all "a multi-day range" wearing different
+  labels, so there's no need to track which named preset an event was
+  created through, just the actual dates. Every event still normalizes
+  to one inclusive `[start_date, end_date]` day range regardless of
+  scope, computed once per flow-completion in `renderScheduleOverlay`'s
+  dispatcher — this is what lets every consumer (Ruler-widget
+  annotation, Upcoming list) use one uniform date-range comparison
+  instead of scope-specific branching.
+  **Encryption is unchanged from the original design** — still a
+  **split** model, not all-or-nothing: `title`/`scope`/`start_date`/
+  `end_date`/`start_hour`/`end_hour`/`category`/reminder settings are
+  plaintext on purpose (the "what and when" every signed-in device
+  needs for the calendar to actually work cross-device). Only
+  `description`/`notes` are encrypted, folded into one `encrypted_data`
+  envelope via the **existing** journal device key
+  (`journalEncryptionKey`/`journalEncryptPayload`/
+  `journalDecryptPayload`) — no new key for this feature. That key is
+  device-bound and non-extractable (same tradeoff already documented
+  above for Journal), so those two fields specifically won't decrypt
+  on a device other than the one that wrote them — the client detects
+  this (`journalDecryptPayload` already self-catches and returns the
+  ciphertext envelope unchanged on failure) and shows "unavailable on
+  this device" rather than raw ciphertext. **Save-side data-loss
+  guard, unchanged:** editing an event whose description/notes are
+  currently unavailable, and leaving both fields blank, preserves the
+  original ciphertext untouched rather than silently overwriting it
+  with two freshly-"encrypted" empty strings — only actually typing
+  new content on that device replaces it (see
   `pushScheduleEventToSupabase()`'s `detailsUnavailable`/
-  `encryptedDataRaw` handling). Reminders are in-app only (no push
-  infrastructure exists anywhere in this app — `sw.js` is pure
-  offline-cache); the client-side reminder scan piggybacks on the
-  existing 1s clock tick rather than adding a new timer. Integrates
-  with the Ruler tab's rolling 7-day widget read-only/additively
-  (`renderScheduleAnnotationInto`) — never touches `blocks[]`/
-  `stampBlock`/`merge_ruler_blocks`, which stay exactly as they were.
+  `encryptedDataRaw` handling).
+  Reminders are in-app only (no push infrastructure exists anywhere in
+  this app — `sw.js` is pure offline-cache); the client-side reminder
+  scan piggybacks on the existing 1s clock tick rather than adding a
+  new timer, anchored to `start_date` at `start_hour` (scope `hour`)
+  or midnight (every other scope, which has no specific clock time to
+  anchor to). Integrates with the Ruler tab's rolling 7-day widget
+  read-only/additively (`renderScheduleAnnotationInto`, range-touch
+  check) — never touches `blocks[]`/`stampBlock`/`merge_ruler_blocks`,
+  which stay exactly as they were.
 - **Per-user localStorage namespacing** — every local key (Journal
   entries, Ruler blocks, Track Alpha's local cache, the Telegram bot
   token, the TradingView webhook secret, etc.) is wrapped through
@@ -362,13 +391,16 @@ decision, and what still needs a manual step outside this codebase
    still is — `CREATE OR REPLACE` against its exact current
    definition changes nothing). Optional to run; only matters for
    restoring the schema from migrations alone in the future.
-   **`0017_schedule_events.sql` — needs to be run.** New table for the
-   Scheduling feature (Plans tab). Verify with:
-   `select column_name from information_schema.columns where
-   table_name = 'schedule_events';` — should return `id`, `user_id`,
-   `event_date`, `start_time`, `duration_minutes`, `title`,
-   `category`, `reminder_offset_minutes`, `reminder_shown`,
-   `encrypted_data`, `created_at`, `updated_at`.
+   **`0017_schedule_events.sql` / `0018_schedule_events_scope_redesign.sql`
+   — both superseded, do not run.** `0019_schedule_events_streamlined.sql`
+   drops and recreates `schedule_events` yet again (scope narrowed to
+   `hour`/`day`/`multi`, new `end_hour` column) — run `0019` only.
+   **`0019_schedule_events_streamlined.sql` — needs to be run.**
+   Verify with: `select column_name from information_schema.columns
+   where table_name = 'schedule_events';` — should return `id`,
+   `user_id`, `scope`, `start_date`, `end_date`, `start_hour`,
+   `end_hour`, `title`, `category`, `reminder_offset_minutes`,
+   `reminder_shown`, `encrypted_data`, `created_at`, `updated_at`.
 2. **Flip Pages source to "GitHub Actions"**: repo Settings > Pages >
    Build and deployment > Source. Until this changes, Pages keeps
    serving `main` directly and the new workflow's output, while it
