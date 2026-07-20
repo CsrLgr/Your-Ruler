@@ -1381,6 +1381,7 @@
     text-decoration: underline;
   }
   .entry-text { font-size: 12px; color: #ccc; white-space: pre-wrap; }
+  .entry-text-unavailable { color: #777; font-style: italic; }
   .entry-bottom-row {
     display: flex;
     justify-content: space-between;
@@ -6566,7 +6567,14 @@ function loadEntries() {
           // Local cache is always plaintext by design — encryption
           // (journalEncryptString/journalEncryptPayload) only applies
           // to what's pushed to Supabase, in pushJournalEntryToSupabase().
-          encrypted: !!e.encrypted
+          // The one exception: an entry written on a different device
+          // stays genuinely undecryptable here — detailsUnavailable/
+          // textRaw carry that state through local storage round-trips
+          // exactly like the rest of this object, see the pull task in
+          // pullAllUserDataFromSupabase() for where they're first set.
+          encrypted: !!e.encrypted,
+          detailsUnavailable: !!e.detailsUnavailable,
+          textRaw: e.textRaw || null
         };
       });
     } catch(e) { return []; }
@@ -6722,8 +6730,10 @@ function buildEntryElement(entry) {
   div.appendChild(topRow);
 
   var textDiv = document.createElement('div');
-  textDiv.className = 'entry-text';
-  textDiv.textContent = entry.text;
+  textDiv.className = 'entry-text' + (entry.detailsUnavailable ? ' entry-text-unavailable' : '');
+  textDiv.textContent = entry.detailsUnavailable
+    ? '🔒 Written on another device — unavailable here.'
+    : entry.text;
   div.appendChild(textDiv);
 
   if (entry.imagePaths && entry.imagePaths.length && supabaseClient && currentUser) {
@@ -6811,6 +6821,15 @@ function buildEntryElement(entry) {
         target.text = newText;
         target.category = newCategory;
         target.edited = true;
+        // A real retype recovers the entry — it no longer needs the
+        // undecryptable-elsewhere placeholder/preserved ciphertext,
+        // and pushJournalEntryToSupabase's guard would otherwise keep
+        // treating it as "nothing to send but the old raw ciphertext"
+        // forever, silently discarding this edit.
+        if (target.detailsUnavailable && newText) {
+          target.detailsUnavailable = false;
+          target.textRaw = null;
+        }
         saveEntries(allEntries);
         pushJournalEntryToSupabase(target);
         renderEntries();
@@ -9895,17 +9914,33 @@ function pullAllUserDataFromSupabase(onComplete) {
       if (!rows.length) { resolve(); return; }
       Promise.all(rows.map(function(r) {
         return Promise.all([journalDecryptString(r.text), journalDecryptPayload(r.history)]).then(function(decrypted) {
+          // journalDecryptString() falls back to returning the raw
+          // {iv, ciphertext} envelope unchanged when it can't actually
+          // decrypt (most commonly: this entry was written on a
+          // different device, whose key this device can never have) —
+          // previously that raw JSON string got stored as entry.text
+          // and rendered verbatim, which is the "past entries show raw
+          // ciphertext" bug. Same detailsUnavailable/raw-preservation
+          // pattern the Scheduled Events task below already uses: text
+          // becomes empty (not garbled JSON) for display, the actual
+          // ciphertext is kept in textRaw so re-saving this entry
+          // without retyping it can't destroy content only the
+          // original device can still read (see
+          // pushJournalEntryToSupabase's matching guard).
+          var stillEncrypted = journalStillEncrypted(decrypted[0]);
           return {
             id: r.id,
             date: r.entry_date,
             createdAt: r.entry_created_at,
-            text: decrypted[0],
+            text: stillEncrypted ? '' : decrypted[0],
             category: r.category,
             score: r.score,
             sharedLegionIds: r.shared_legion_ids || [],
             edited: !!r.edited,
             history: Array.isArray(decrypted[1]) ? decrypted[1] : [],
             imagePaths: r.image_paths || [],
+            detailsUnavailable: stillEncrypted,
+            textRaw: stillEncrypted ? r.text : null,
             encrypted: false
           };
         });
@@ -10068,22 +10103,6 @@ function pushJournalEntryToSupabase(entry) {
   if (!supabaseClient || !currentUser) return;
   var isShared = !!(entry.sharedLegionIds && entry.sharedLegionIds.length);
 
-  // Unshared entries must go out encrypted — refuse to sync at all
-  // (queue and retry) while the device key is still loading, rather
-  // than falling through to a plaintext push purely because of
-  // timing (e.g. saving seconds after sign-in, before the async key
-  // load resolves). Matches Track Alpha's fail-closed pattern
-  // (pushAlphaProfileToSupabase, which returns outright with no key).
-  // Shared entries skip this entirely — they're plaintext by design
-  // regardless of key state (Legion-mates' devices can't decrypt
-  // something encrypted under this device's own key anyway), so
-  // there's nothing to wait for.
-  if (!isShared && !journalEncryptionKey && !journalKeyUnsupported) {
-    ensureJournalKeyLoaded();
-    journalKeyRetryQueue.push(function() { pushJournalEntryToSupabase(entry); });
-    return;
-  }
-
   function send(text, history) {
     var payload = {
       id: entry.id,
@@ -10100,6 +10119,37 @@ function pushJournalEntryToSupabase(entry) {
       updated_at: new Date().toISOString()
     };
     enqueueSync('journalEntry:' + currentUser.id + ':' + entry.id, payload, syncPerformers.journalEntry);
+  }
+
+  // entry.detailsUnavailable (set by the pull task above) means this
+  // device couldn't decrypt the existing text — it was encrypted on a
+  // different device. If entry.text is still blank here, the user
+  // never actually retyped it (see buildEntryElement()'s placeholder
+  // and the edit-save handler, which clears detailsUnavailable/textRaw
+  // the moment real text is entered) — re-encrypting an empty string
+  // under THIS device's key would silently destroy content only the
+  // original device can still read. Preserve the untouched ciphertext
+  // (entry.textRaw) instead. Same guard pushScheduleEventToSupabase
+  // already uses for the identical situation on Scheduled Events.
+  if (entry.detailsUnavailable && !entry.text && entry.textRaw) {
+    send(entry.textRaw, entry.history || []);
+    return;
+  }
+
+  // Unshared entries must go out encrypted — refuse to sync at all
+  // (queue and retry) while the device key is still loading, rather
+  // than falling through to a plaintext push purely because of
+  // timing (e.g. saving seconds after sign-in, before the async key
+  // load resolves). Matches Track Alpha's fail-closed pattern
+  // (pushAlphaProfileToSupabase, which returns outright with no key).
+  // Shared entries skip this entirely — they're plaintext by design
+  // regardless of key state (Legion-mates' devices can't decrypt
+  // something encrypted under this device's own key anyway), so
+  // there's nothing to wait for.
+  if (!isShared && !journalEncryptionKey && !journalKeyUnsupported) {
+    ensureJournalKeyLoaded();
+    journalKeyRetryQueue.push(function() { pushJournalEntryToSupabase(entry); });
+    return;
   }
 
   if (!isShared && journalEncryptionKey) {
@@ -13448,6 +13498,21 @@ function journalDecryptString(cipherJson) {
   try { enc = JSON.parse(cipherJson); } catch (e) { return Promise.resolve(cipherJson); }
   if (!enc || !enc.iv || !enc.ciphertext) return Promise.resolve(cipherJson);
   return decryptText(enc, journalEncryptionKey).catch(function() { return cipherJson; });
+}
+// True if a journalDecryptString() result is still the raw {iv,
+// ciphertext} envelope it started as — i.e. decryption didn't
+// actually happen (wrong/missing key, most commonly: this entry was
+// written on a different device, whose key this one can never have).
+// Distinct from "genuinely empty" or "was already plaintext", both of
+// which return something that does NOT parse back into that shape.
+function journalStillEncrypted(str) {
+  if (!str) return false;
+  try {
+    var parsed = JSON.parse(str);
+    return !!(parsed && parsed.iv && parsed.ciphertext);
+  } catch (e) {
+    return false;
+  }
 }
 // Object/array-in, object/array-out — for jsonb columns
 // (shared_sections.data, journal_entries.history). Shape-agnostic:
