@@ -9713,8 +9713,15 @@ function refreshCurrentUserPaidStatus() {
   // own row and only ever moves paid -> free, never the reverse.
   // Awaited (via .then, not fire-and-forget) so the .select() right
   // after it always reads the post-expiry-check value, not a stale
-  // one from a split second earlier.
+  // one from a split second earlier. evaluate_partner_program()
+  // (0025_partner_program.sql) is the same lazy self-check pattern,
+  // applied to the Partner Program's day-30 win/lose gate — chained
+  // after expire_stale_subscription so a 'won' Partner Program result (which
+  // sets is_paid back to true) is never clobbered by a stale
+  // subscription-expiry check racing after it.
   supabaseClient.rpc('expire_stale_subscription').then(function() {
+    return supabaseClient.rpc('evaluate_partner_program');
+  }).then(function() {
     return supabaseClient.from('profiles')
       .select('is_paid')
       .eq('id', currentUser.id);
@@ -15638,6 +15645,221 @@ ALPHA_QUESTIONNAIRE_MODULES.intimate = ALPHA_RELATIONSHIP_MODULE;
 ALPHA_QUESTIONNAIRE_MODULES.innerCircle = ALPHA_RELATIONSHIP_MODULE;
 ALPHA_QUESTIONNAIRE_MODULES.world = ALPHA_RELATIONSHIP_MODULE;
 ALPHA_QUESTIONNAIRE_MODULES.custom = ALPHA_RELATIONSHIP_MODULE;
+
+// ---- Finances / Increase Income — Command Center Partner Program ----
+// Unlike every other module above, this one has no per-profile
+// session log — its entire state (partner_status, partner_started_at,
+// recruit/conversion counts) lives server-side on the caller's own
+// profiles row (0025_partner_program.sql), gated by RLS so the client
+// can only ever read it or call the three narrow RPCs that move it
+// forward. All three module hooks point at the same live dashboard —
+// there's nothing meaningfully different to show on a "setup" screen
+// vs. the Input/Stats tabs, and always showing the same real status
+// means there's exactly one place this can drift out of sync with the
+// server, not three.
+//
+// Numbers shown here come from get_partner_progress(), which computes
+// recruit_count/conversion_count with the SAME join shape
+// evaluate_partner_program() uses to decide the actual day-30 outcome
+// (see the migration) — so what's displayed can never promise
+// something the server-side gate won't honor.
+var ALPHA_PARTNER_PROGRAM_MODULE = {
+  renderOutput: function(container, profile) { renderPartnerProgramPanel(container, true); },
+  renderInput: function(container, profile) { renderPartnerProgramPanel(container, false); },
+  renderStats: function(container, profile) { renderPartnerProgramPanel(container, false); },
+  ownsSetupCompletion: true
+};
+ALPHA_QUESTIONNAIRE_MODULES.increaseIncome = ALPHA_PARTNER_PROGRAM_MODULE;
+
+// isSetupStep: renderAlphaSetupStep (the one-time post-creation
+// screen) has no back/continue nav of its own once ownsSetupCompletion
+// opts out of the generic Continue button — this panel supplies one.
+// renderAlphaProfileDetail (Input/Stats tabs) already has its own
+// header "← Back", so a second one here would just be a redundant
+// duplicate of a control already on screen.
+function renderPartnerProgramPanel(container, isSetupStep) {
+  var card = document.createElement('div');
+  card.className = 'alpha-question-card';
+  var heading = document.createElement('div');
+  heading.className = 'alpha-question-text';
+  heading.textContent = 'Command Center Partner Program';
+  card.appendChild(heading);
+
+  var body = document.createElement('div');
+  card.appendChild(body);
+  container.appendChild(card);
+
+  if (isSetupStep) {
+    var backBtn = document.createElement('button');
+    backBtn.type = 'button';
+    backBtn.className = 'alpha-continue-btn';
+    backBtn.textContent = '← Back to Improvements';
+    backBtn.style.marginTop = '0.75rem';
+    backBtn.addEventListener('click', function() {
+      alphaSetupProfileId = null;
+      renderAlphaBrowser();
+    });
+    container.appendChild(backBtn);
+  }
+
+  if (!supabaseClient || !currentUser) {
+    var signInNote = document.createElement('p');
+    signInNote.className = 'alpha-placeholder-note';
+    signInNote.textContent = 'Sign in to see the Partner Program.';
+    body.appendChild(signInNote);
+    return;
+  }
+
+  var loading = document.createElement('p');
+  loading.className = 'alpha-placeholder-note';
+  loading.textContent = 'Loading…';
+  body.appendChild(loading);
+
+  supabaseClient.rpc('get_partner_progress').then(function(result) {
+    // The container this was rendering into may already have been torn
+    // down (user navigated away, or a newer refreshCurrentUserPaidStatus
+    // call re-rendered this same panel again) by the time this resolves
+    // — writing into a detached node would be wasted work at best, or a
+    // stale render clobbering a newer one at worst.
+    if (!body.isConnected) return;
+    body.innerHTML = '';
+    if (result.error) {
+      var err = document.createElement('p');
+      err.className = 'alpha-placeholder-note';
+      err.textContent = 'Could not load Partner Program status: ' + result.error.message;
+      body.appendChild(err);
+      return;
+    }
+    renderPartnerProgramBody(body, result.data || { status: null });
+  });
+}
+
+function renderPartnerProgramBody(body, progress) {
+  var status = progress.status;
+
+  if (status === 'won') {
+    var wonNote = document.createElement('p');
+    wonNote.className = 'alpha-question-text';
+    wonNote.textContent = 'Partner Program complete — you earned permanent paid access. Thank you for growing Command Center.';
+    body.appendChild(wonNote);
+    appendPartnerStatsRow(body, progress, null);
+    return;
+  }
+
+  if (status === 'lost') {
+    var lostNote = document.createElement('p');
+    lostNote.className = 'alpha-placeholder-note';
+    lostNote.textContent = 'Your 30-day Partner Program window closed without reaching 3 paid conversions, so paid access from the program has ended. (If you have your own active subscription, that stays unaffected.)';
+    body.appendChild(lostNote);
+    appendPartnerStatsRow(body, progress, null);
+    return;
+  }
+
+  if (status === 'active') {
+    var started = new Date(progress.started_at);
+    var deadline = new Date(started.getTime() + 30 * 24 * 60 * 60 * 1000);
+    var msLeft = deadline.getTime() - Date.now();
+    var daysLeft = Math.max(0, Math.ceil(msLeft / (24 * 60 * 60 * 1000)));
+
+    var statusNote = document.createElement('p');
+    statusNote.className = 'alpha-question-text';
+    if (msLeft <= 0) {
+      statusNote.textContent = 'Your 30-day window has closed — final results update the next time you open the app.';
+    } else {
+      statusNote.textContent = (progress.conversion_count || 0) >= 3
+        ? 'Target hit — keep the app open through day 30 to lock in permanent paid access.'
+        : 'Recruit ' + Math.max(0, 3 - (progress.conversion_count || 0)) + ' more paid conversion' + ((3 - (progress.conversion_count || 0)) === 1 ? '' : 's') + ' before the countdown ends.';
+    }
+    body.appendChild(statusNote);
+
+    var countdown = document.createElement('div');
+    countdown.className = 'alpha-stat-tile';
+    countdown.style.marginBottom = '0.75rem';
+    var countdownVal = document.createElement('div');
+    countdownVal.className = 'alpha-stat-value';
+    countdownVal.textContent = msLeft <= 0 ? '0 days' : (daysLeft + (daysLeft === 1 ? ' day' : ' days'));
+    var countdownLbl = document.createElement('div');
+    countdownLbl.className = 'alpha-stat-label';
+    countdownLbl.textContent = 'Remaining';
+    countdown.appendChild(countdownVal);
+    countdown.appendChild(countdownLbl);
+    body.appendChild(countdown);
+
+    appendPartnerStatsRow(body, progress, null);
+
+    var howTo = document.createElement('p');
+    howTo.className = 'alpha-placeholder-note';
+    howTo.textContent = 'Create up to 5 Legions and invite 10 members to each — your referral link (Settings → Affiliate Program) is what ties a new signup back to you, and Legion membership is what confirms they actually joined. Both are required for someone to count as a recruit.';
+    body.appendChild(howTo);
+
+    var goToLegions = document.createElement('button');
+    goToLegions.type = 'button';
+    goToLegions.className = 'alpha-secondary-btn';
+    goToLegions.textContent = 'Go to Legions →';
+    goToLegions.addEventListener('click', function() {
+      var legionsTab = document.querySelector('.tab-btn[data-tab="tab-clans"]');
+      if (legionsTab) legionsTab.click();
+    });
+    body.appendChild(goToLegions);
+    return;
+  }
+
+  // Not opted in yet.
+  var explain = document.createElement('p');
+  explain.className = 'alpha-placeholder-note';
+  explain.textContent = 'Opt in and you get paid access immediately for 30 days. Build 5 Legions with 10 members each (50 recruits total) — if 3 or more of them convert to paid before day 31, you keep paid access permanently. Fewer than 3, and it expires back to free at day 30.';
+  body.appendChild(explain);
+
+  if (currentUserIsPaid) {
+    var alreadyPaid = document.createElement('p');
+    alreadyPaid.className = 'alpha-placeholder-note';
+    alreadyPaid.textContent = 'You already have paid access, so there’s nothing for the Partner Program to grant you right now.';
+    body.appendChild(alreadyPaid);
+    return;
+  }
+
+  var startBtn = document.createElement('button');
+  startBtn.type = 'button';
+  startBtn.className = 'alpha-continue-btn';
+  startBtn.textContent = 'Start Partner Program';
+  startBtn.addEventListener('click', function() {
+    startBtn.disabled = true;
+    startBtn.textContent = 'Starting…';
+    supabaseClient.rpc('enable_partner_program').then(function(result) {
+      if (result.error) {
+        startBtn.disabled = false;
+        startBtn.textContent = 'Start Partner Program';
+        showToast('Could not start Partner Program: ' + result.error.message, 'error');
+        return;
+      }
+      showToast('Partner Program started — you have paid access for 30 days.', 'success');
+      refreshCurrentUserPaidStatus();
+    });
+  });
+  body.appendChild(startBtn);
+}
+
+function appendPartnerStatsRow(body, progress) {
+  var row = document.createElement('div');
+  row.className = 'alpha-stats-row';
+  [
+    ['Recruits', (progress.recruit_count || 0) + ' / 50'],
+    ['Paid Conversions', (progress.conversion_count || 0) + ' / 3']
+  ].forEach(function(pair) {
+    var tile = document.createElement('div');
+    tile.className = 'alpha-stat-tile';
+    var val = document.createElement('div');
+    val.className = 'alpha-stat-value';
+    val.textContent = pair[1];
+    var lbl = document.createElement('div');
+    lbl.className = 'alpha-stat-label';
+    lbl.textContent = pair[0];
+    tile.appendChild(val);
+    tile.appendChild(lbl);
+    row.appendChild(tile);
+  });
+  body.appendChild(row);
+}
 
 // ---- Taxonomy helpers ----
 // alphaResolveNode/alphaCountProfilesUnder/alphaCustomGroupNames (the
