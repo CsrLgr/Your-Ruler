@@ -88,6 +88,7 @@ TradingView webhook function.
 | `NOWPAYMENTS_IPN_SECRET` | Step 3 above | Edge Function secret |
 | `NOWPAYMENTS_PLAN_ID` | Step 4 above | Edge Function secret |
 | `NOWPAYMENTS_INTERVAL_DAYS` | Same number as the Plan's `interval_day` | Edge Function secret |
+| `AFFILIATE_COMMISSION_PERCENT` | Your choice, e.g. `20` for 20% (optional — defaults to 20) | Edge Function secret |
 
 Set them from the repo root once the functions exist:
 ```
@@ -95,7 +96,21 @@ supabase secrets set NOWPAYMENTS_API_KEY=...
 supabase secrets set NOWPAYMENTS_IPN_SECRET=...
 supabase secrets set NOWPAYMENTS_PLAN_ID=...
 supabase secrets set NOWPAYMENTS_INTERVAL_DAYS=30
+supabase secrets set AFFILIATE_COMMISSION_PERCENT=20
 ```
+
+## Affiliate program (Phase 2)
+
+No separate account/dashboard setup needed — the referral code,
+wallet address, and commission tracking are entirely this app's own
+schema (`0024_affiliate_program.sql`), not a NOWPayments feature.
+`affiliate_commissions` rows are created automatically whenever a
+referred user's payment comes through `nowpayments-webhook`, but
+there's no payout automation yet — a wallet address is captured
+(client-side encrypted) so a real payout mechanism has somewhere to
+send to once one exists. Until then, commissions just accumulate as
+"owed" (`status = 'pending'`) for manual payout however you already
+handle that outside the app.
 
 Notably **absent**: any client-side key. The app never loads a
 NOWPayments SDK — `create-payment` builds the subscription entirely

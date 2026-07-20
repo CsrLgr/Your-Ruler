@@ -4798,12 +4798,28 @@
     </div>
 
     <div class="settings-section">
-      <span class="section-label">Affiliate Link</span>
-      <p class="settings-section-note">Your personal referral link. Stored only on this device.</p>
-      <input type="text" id="affiliateLinkInput" placeholder="https://...">
-      <div class="settings-actions">
-        <button type="button" id="affiliateLinkSaveBtn">Save</button>
-        <button type="button" class="secondary" id="affiliateLinkCopyBtn">Copy</button>
+      <span class="section-label">Affiliate Program</span>
+      <p class="settings-section-note" id="affiliateStatusNote">Sign in to see the Affiliate Program.</p>
+
+      <div class="settings-actions" id="affiliateEnableRow" style="display:none;">
+        <button type="button" id="affiliateEnableBtn">Enable Affiliate Program</button>
+      </div>
+
+      <div id="affiliateEnabledPanel" style="display:none;">
+        <label class="telegram-field-label" for="affiliateReferralLinkInput">Your Referral Link</label>
+        <input type="text" id="affiliateReferralLinkInput" readonly>
+        <div class="settings-actions">
+          <button type="button" class="secondary" id="affiliateReferralLinkCopyBtn">Copy</button>
+        </div>
+
+        <label class="telegram-field-label" for="affiliateWalletInput">Payout Wallet Address (USDC)</label>
+        <p class="settings-section-note">Encrypted on this device before it's ever sent or stored — nobody but you can read it back, including on another device.</p>
+        <input type="text" id="affiliateWalletInput" placeholder="Your USDC wallet address" autocomplete="off">
+        <div class="settings-actions">
+          <button type="button" id="affiliateWalletSaveBtn">Save Wallet Address</button>
+        </div>
+
+        <p class="settings-section-note" id="affiliateCommissionsNote"></p>
       </div>
     </div>
 
@@ -6235,18 +6251,150 @@ if (membershipUpgradeBtn) {
   });
 }
 
-// ---- Affiliate Link (Settings tab) ----
-var AFFILIATE_LINK_KEY = 'csrAlignAffiliateLink';
-var affiliateLinkInput = document.getElementById('affiliateLinkInput');
-affiliateLinkInput.value = localStorage.getItem(scopedKey(AFFILIATE_LINK_KEY)) || '';
-document.getElementById('affiliateLinkSaveBtn').addEventListener('click', function() {
-  var link = affiliateLinkInput.value.trim();
-  localStorage.setItem(scopedKey(AFFILIATE_LINK_KEY), link);
-  pushSharedSection('affiliateLink', link);
-  showToast('Affiliate link saved.', 'success');
+// ---- Affiliate Program (Settings tab) ----
+// Paid-tier gated (enable_affiliate_program RPC re-checks this
+// server-side too, not just here). affiliateWalletAddress mirrors the
+// "local cache is always plaintext, encryption only applies to what's
+// stored server-side" model Ledgers already established — decrypted
+// once into this variable, re-encrypted only at save time.
+var affiliateEnabled = false;
+var affiliateReferralCode = null;
+var affiliateWalletAddress = '';
+// True if wallet_address_encrypted is still the raw {iv, ciphertext}
+// envelope after a decrypt attempt — same journalStillEncrypted-style
+// cross-device situation Ledgers entries can hit (this wallet address
+// was saved from a different device, whose key this one can never
+// have). Distinct from "no wallet saved yet" (affiliateWalletAddress
+// stays '' either way, this flag is what tells the UI which case it
+// is).
+var affiliateWalletUnavailable = false;
+var affiliateCommissionCount = 0;
+
+function renderAffiliateSection() {
+  var note = document.getElementById('affiliateStatusNote');
+  var enableRow = document.getElementById('affiliateEnableRow');
+  var enabledPanel = document.getElementById('affiliateEnabledPanel');
+  if (!note || !enableRow || !enabledPanel) return;
+
+  if (!currentUser) {
+    note.textContent = 'Sign in to see the Affiliate Program.';
+    enableRow.style.display = 'none';
+    enabledPanel.style.display = 'none';
+    return;
+  }
+  if (!currentUserIsPaid) {
+    note.textContent = 'The Affiliate Program is a paid feature.';
+    enableRow.style.display = 'none';
+    enabledPanel.style.display = 'none';
+    return;
+  }
+  if (!affiliateEnabled) {
+    note.textContent = 'Earn a commission when someone you refer becomes a paid member.';
+    enableRow.style.display = '';
+    enabledPanel.style.display = 'none';
+    return;
+  }
+
+  note.textContent = '';
+  enableRow.style.display = 'none';
+  enabledPanel.style.display = '';
+
+  var linkInput = document.getElementById('affiliateReferralLinkInput');
+  linkInput.value = 'https://mycommandcenterapp.com/?ref=' + (affiliateReferralCode || '');
+
+  var walletInput = document.getElementById('affiliateWalletInput');
+  // Never overwrite mid-keystroke, same guard the Yearly Focus box
+  // uses for the same reason — this can re-render while the user is
+  // actively typing (e.g. a Realtime-driven refresh elsewhere).
+  if (document.activeElement !== walletInput) {
+    walletInput.value = affiliateWalletAddress || '';
+  }
+  walletInput.placeholder = affiliateWalletUnavailable
+    ? 'Saved on another device — unavailable here. Re-enter to update.'
+    : 'Your USDC wallet address';
+
+  var commissionsNote = document.getElementById('affiliateCommissionsNote');
+  commissionsNote.textContent = affiliateCommissionCount +
+    (affiliateCommissionCount === 1 ? ' commission earned so far.' : ' commissions earned so far.');
+}
+renderAffiliateSection();
+
+// Re-fetches everything fresh (not just the wallet) — called on
+// sign-in and whenever tier status is re-checked (see
+// refreshCurrentUserPaidStatus()'s own call to this). Defers itself
+// via the shared journalKeyRetryQueue exactly like a Ledgers push
+// does when the device key isn't ready yet: journalDecryptPayload()
+// can't tell "key still loading" apart from "key loaded but wrong"
+// from its return value alone (both fall back to the raw envelope
+// unchanged), so refreshing before the key resolves would show a
+// perfectly normal same-device wallet as a false-positive "saved on
+// another device" — waiting sidesteps that ambiguity entirely rather
+// than trying to resolve it after the fact.
+function refreshAffiliateState() {
+  if (!supabaseClient || !currentUser) {
+    affiliateEnabled = false;
+    affiliateReferralCode = null;
+    affiliateWalletAddress = '';
+    affiliateWalletUnavailable = false;
+    affiliateCommissionCount = 0;
+    renderAffiliateSection();
+    return;
+  }
+  if (!journalEncryptionKey && !journalKeyUnsupported) {
+    ensureJournalKeyLoaded();
+    journalKeyRetryQueue.push(refreshAffiliateState);
+    return;
+  }
+
+  supabaseClient.from('profiles')
+    .select('affiliate_enabled, referral_code, wallet_address_encrypted')
+    .eq('id', currentUser.id)
+    .then(function(result) {
+      var row = result.data && result.data[0];
+      affiliateEnabled = !!(row && row.affiliate_enabled);
+      affiliateReferralCode = row ? row.referral_code : null;
+      var walletEnc = row ? row.wallet_address_encrypted : null;
+      return journalDecryptPayload(walletEnc);
+    }).then(function(decrypted) {
+      if (typeof decrypted === 'string') {
+        affiliateWalletAddress = decrypted;
+        affiliateWalletUnavailable = false;
+      } else if (decrypted && decrypted.iv && decrypted.ciphertext) {
+        affiliateWalletAddress = '';
+        affiliateWalletUnavailable = true;
+      } else {
+        affiliateWalletAddress = '';
+        affiliateWalletUnavailable = false;
+      }
+      if (!affiliateEnabled) { renderAffiliateSection(); return null; }
+      return supabaseClient.from('affiliate_commissions')
+        .select('id', { count: 'exact', head: true })
+        .eq('referrer_user_id', currentUser.id);
+    }).then(function(result) {
+      if (result) affiliateCommissionCount = (typeof result.count === 'number') ? result.count : 0;
+      renderAffiliateSection();
+    });
+}
+
+document.getElementById('affiliateEnableBtn').addEventListener('click', function() {
+  if (!supabaseClient || !currentUser) return;
+  var btn = document.getElementById('affiliateEnableBtn');
+  btn.disabled = true;
+  supabaseClient.rpc('enable_affiliate_program').then(function(result) {
+    btn.disabled = false;
+    if (result.error) {
+      showToast('Could not enable Affiliate Program: ' + result.error.message, 'error');
+      return;
+    }
+    affiliateEnabled = true;
+    affiliateReferralCode = result.data;
+    renderAffiliateSection();
+    showToast('Affiliate Program enabled!', 'success');
+  });
 });
-document.getElementById('affiliateLinkCopyBtn').addEventListener('click', function() {
-  var val = affiliateLinkInput.value.trim();
+
+document.getElementById('affiliateReferralLinkCopyBtn').addEventListener('click', function() {
+  var val = document.getElementById('affiliateReferralLinkInput').value;
   if (!val) { showToast('Nothing to copy yet.', 'error'); return; }
   navigator.clipboard.writeText(val).then(function() {
     showToast('Copied to clipboard.', 'success');
@@ -6254,6 +6402,44 @@ document.getElementById('affiliateLinkCopyBtn').addEventListener('click', functi
     showToast('Could not copy — copy it manually.', 'error');
   });
 });
+
+// Same fail-closed reasoning as pushJournalEntryToSupabase — never
+// send a wallet address anywhere without encrypting it first, and
+// never encrypt against a not-yet-loaded key (which would silently
+// produce nothing to encrypt against, not an error).
+function saveAffiliateWallet() {
+  if (!supabaseClient || !currentUser) return;
+  var input = document.getElementById('affiliateWalletInput');
+  var saveBtn = document.getElementById('affiliateWalletSaveBtn');
+  var value = input.value.trim();
+
+  if (!journalEncryptionKey && !journalKeyUnsupported) {
+    ensureJournalKeyLoaded();
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Preparing encryption...';
+    journalKeyRetryQueue.push(function() {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save Wallet Address';
+      saveAffiliateWallet();
+    });
+    return;
+  }
+
+  saveBtn.disabled = true;
+  journalEncryptPayload(value).then(function(encrypted) {
+    return supabaseClient.from('profiles').update({ wallet_address_encrypted: encrypted }).eq('id', currentUser.id);
+  }).then(function(result) {
+    saveBtn.disabled = false;
+    if (result.error) {
+      showToast('Could not save wallet address: ' + result.error.message, 'error');
+      return;
+    }
+    affiliateWalletAddress = value;
+    affiliateWalletUnavailable = false;
+    showToast('Wallet address saved.', 'success');
+  });
+}
+document.getElementById('affiliateWalletSaveBtn').addEventListener('click', saveAffiliateWallet);
 
 // Converts one trade_alerts row into a Ledgers entry. 'Trader' is
 // already one of this app's default journal categories, so no new
@@ -8778,6 +8964,26 @@ var PULL_FAILURE_WARNING_KEY = 'csrAlignPullFailureWarning';
   window.history.replaceState({}, '', newUrl);
 })();
 
+// A shared affiliate link (?ref=<code>) can land here well before the
+// visitor ever signs up — capture it into localStorage immediately,
+// on every load, regardless of sign-in state, same reasoning
+// PULL_FAILURE_WARNING_KEY's own "capture now, act on it later" shape
+// uses. attemptPendingReferralCapture() (defined near initAuth() below)
+// is what actually calls record_referral(), once there's a real
+// session to attribute it to — this half just makes sure the code
+// survives from "clicked a link" to "finished creating an account"
+// without depending on the URL still carrying it by then.
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var refCode = params.get('ref');
+  if (!refCode) return;
+  localStorage.setItem('csrAlignPendingReferralCode', refCode);
+  params.delete('ref');
+  var newSearch = params.toString();
+  var newUrl = window.location.pathname + (newSearch ? '?' + newSearch : '') + window.location.hash;
+  window.history.replaceState({}, '', newUrl);
+})();
+
 // ============================================================
 // Sync queue — every write that needs to reach Supabase goes through
 // here instead of being called directly. If the write fails (offline,
@@ -9395,6 +9601,7 @@ function initAuth() {
       renderAuthBarLoggedIn(session.user.email);
       ensureProfileTimezone(session.user);
       currentUser = session.user;
+      attemptPendingReferralCapture();
       pullOnceIfNeeded(currentUser.id);
       ensureJournalKeyLoaded();
       refreshAllUIFromCorrectScope();
@@ -9440,6 +9647,7 @@ function initAuth() {
       renderAuthBarLoggedIn(session.user.email);
       ensureProfileTimezone(session.user);
       currentUser = session.user;
+      attemptPendingReferralCapture();
       pullOnceIfNeeded(currentUser.id);
       ensureJournalKeyLoaded();
       refreshAllUIFromCorrectScope();
@@ -9493,6 +9701,7 @@ function refreshCurrentUserPaidStatus() {
     updateJournalImageUIVisibility();
     updateYearlyVizUIVisibility();
     if (typeof renderMembershipSection === 'function') renderMembershipSection();
+    if (typeof refreshAffiliateState === 'function') refreshAffiliateState();
     return;
   }
   // Crypto subscriptions have no "cancelled" webhook to actively
@@ -9524,6 +9733,7 @@ function refreshCurrentUserPaidStatus() {
     if (typeof renderAlphaBrowser === 'function') renderAlphaBrowser();
     if (typeof renderScheduleOverlay === 'function' && scheduleOverlayEl && scheduleOverlayEl.style.display !== 'none') renderScheduleOverlay();
     if (typeof renderMembershipSection === 'function') renderMembershipSection();
+    if (typeof refreshAffiliateState === 'function') refreshAffiliateState();
   });
 }
 
@@ -9536,6 +9746,31 @@ function ensureProfileTimezone(user) {
     .update({ timezone: tz })
     .eq('id', user.id)
     .then(function(){});
+}
+
+// Affiliate referral capture — the ?ref=<code> URL param itself was
+// already stashed into localStorage and stripped from the address bar
+// at load time (see the IIFE near PULL_FAILURE_WARNING_KEY, which
+// runs regardless of sign-in state since a visitor might sign up
+// minutes after first landing on a shared link). This is the other
+// half: once there's an actual signed-in session to attribute it to,
+// try record_referral() ONE time per (tab session, pending code) —
+// sessionStorage guard mirrors USER_DATA_PULLED_KEY's own
+// once-per-tab-session shape. Cleared from localStorage on any
+// resolution (success, "no such code", or a network failure) rather
+// than retried indefinitely — a missed attribution is low-stakes
+// compared to the complexity of a real retry policy here.
+var REFERRAL_CAPTURE_ATTEMPTED_KEY = 'csrAlignReferralCaptureAttempted';
+var PENDING_REFERRAL_CODE_KEY = 'csrAlignPendingReferralCode';
+function attemptPendingReferralCapture() {
+  if (!supabaseClient || !currentUser) return;
+  if (sessionStorage.getItem(REFERRAL_CAPTURE_ATTEMPTED_KEY)) return;
+  var pendingCode = localStorage.getItem(PENDING_REFERRAL_CODE_KEY);
+  if (!pendingCode) return;
+  sessionStorage.setItem(REFERRAL_CAPTURE_ATTEMPTED_KEY, '1');
+  supabaseClient.rpc('record_referral', { p_referral_code: pendingCode })
+    .then(function() { localStorage.removeItem(PENDING_REFERRAL_CODE_KEY); })
+    .catch(function() { localStorage.removeItem(PENDING_REFERRAL_CODE_KEY); });
 }
 
 initAuth();

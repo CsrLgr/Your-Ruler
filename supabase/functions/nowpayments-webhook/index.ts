@@ -13,6 +13,7 @@
 //
 // Required secrets (see NOWPAYMENTS_SETUP.md):
 //   supabase secrets set NOWPAYMENTS_IPN_SECRET=...
+//   supabase secrets set AFFILIATE_COMMISSION_PERCENT=20   (optional, defaults to 20)
 // SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are auto-injected.
 //
 // ---- Signature verification ----
@@ -60,6 +61,10 @@ const NOWPAYMENTS_IPN_SECRET = Deno.env.get('NOWPAYMENTS_IPN_SECRET')!;
 // back, so it's kept as its own secret, single source of truth
 // alongside NOWPAYMENTS_PLAN_ID in create-payment.
 const NOWPAYMENTS_INTERVAL_DAYS = Number(Deno.env.get('NOWPAYMENTS_INTERVAL_DAYS') ?? '30');
+// What cut of a converted payment a referrer's commission row
+// records (0024_affiliate_program.sql). No payout automation exists
+// yet — this only affects what gets recorded as owed.
+const AFFILIATE_COMMISSION_PERCENT = Number(Deno.env.get('AFFILIATE_COMMISSION_PERCENT') ?? '20');
 
 function sortKeysDeep(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(sortKeysDeep);
@@ -146,11 +151,54 @@ Deno.serve(async (req) => {
         throw new Error('No subscription id on a finished payment payload: ' + JSON.stringify(payload));
       }
       const periodEnd = new Date(Date.now() + NOWPAYMENTS_INTERVAL_DAYS * 24 * 60 * 60 * 1000).toISOString();
-      const { error } = await admin
+      const { data: paidProfiles, error } = await admin
         .from('profiles')
         .update({ is_paid: true, nowpayments_period_end: periodEnd })
-        .eq('nowpayments_subscription_id', String(subscriptionId));
+        .eq('nowpayments_subscription_id', String(subscriptionId))
+        .select('id, referred_by_user_id');
       if (error) throw error;
+
+      // ---- Affiliate commission (0024_affiliate_program.sql) ----
+      // Only fires when the person who just converted actually has a
+      // referrer on file (record_referral(), index.html) — most
+      // payments won't. amount's exact source field is unverified
+      // against a live NOWPayments payload (same caveat as
+      // subscription_id above) — checks a few plausible names and
+      // simply records a null amount rather than failing the whole
+      // upgrade if none of them match; the row itself (who referred
+      // whom, for which payment) is what matters most, the dollar
+      // figure can be corrected later without needing a schema change.
+      const paidProfile = paidProfiles && paidProfiles[0];
+      if (paidProfile && paidProfile.referred_by_user_id) {
+        const rawAmount = payload.price_amount ?? payload.pay_amount ?? payload.actually_paid;
+        const amount = typeof rawAmount === 'number' ? rawAmount * (AFFILIATE_COMMISSION_PERCENT / 100) : null;
+
+        const { error: commissionErr } = await admin.from('affiliate_commissions').insert({
+          referrer_user_id: paidProfile.referred_by_user_id,
+          referred_user_id: paidProfile.id,
+          payment_reference: String(paymentId),
+          amount: amount,
+          currency: 'USD'
+        });
+        // 23505 = this exact payment_reference was already recorded
+        // (expected on some redelivery paths, harmless) — anything
+        // else surfaces as a real webhook failure so it's visible in
+        // the function logs rather than silently dropped.
+        if (commissionErr && commissionErr.code !== '23505') {
+          throw commissionErr;
+        }
+
+        // ---- Hook for future earn-your-way-in logic ----
+        // Once a real reward mechanism exists: COUNT this referrer's
+        // rows in affiliate_commissions (referrer_user_id =
+        // paidProfile.referred_by_user_id) and, once it reaches 3,
+        // grant is_paid = true directly on THEIR profile (same
+        // .update({is_paid:true}) shape used above, targeting the
+        // referrer's id instead of the payer's). Deliberately not
+        // built yet — left here as the exact spot it belongs, not a
+        // placeholder function, so it's obvious this is the one
+        // addition needed later, not a new subsystem.
+      }
     }
     // Every other status (waiting/confirming/confirmed/partially_paid/
     // failed/expired/refunded) is acknowledged and otherwise ignored —
