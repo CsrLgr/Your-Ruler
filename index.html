@@ -3609,6 +3609,50 @@
     padding: 1rem 1.1rem;
   }
 
+  /* ---- Flexible-metrics questionnaires (buildAlphaFlexibleMetricsModule,
+     and the metrics layered onto ALPHA_RELATIONSHIP_MODULE) — same gold/
+     black cockpit language as the rest of Track Alpha, just roomier and
+     with clearer typographic hierarchy for a setup-style long-scroll page
+     rather than a dense daily list. */
+  .alpha-metric-page {
+    max-width: 700px;
+    padding: 1.75rem 2rem;
+    border-radius: 12px;
+    border-color: rgba(197,164,110,0.3);
+  }
+  .alpha-metric-page > *:not(:last-child) { margin-bottom: 1rem; }
+
+  .alpha-metric-list { display: flex; flex-direction: column; margin-bottom: 0.9rem; }
+  .alpha-metric-row {
+    display: flex; align-items: center; gap: 0.6rem;
+    padding: 0.85rem 0.2rem;
+    border-bottom: 1px solid var(--rd-edge);
+  }
+  .alpha-metric-row:last-child { border-bottom: none; }
+  .alpha-metric-name-input {
+    flex: 1; min-width: 0; background: transparent; border: none;
+    color: var(--rd-text); font-size: 15px; padding: 0.2rem 0;
+  }
+  .alpha-metric-name-input:focus { outline: none; border-bottom: 1px solid var(--rd-gold); }
+  .alpha-metric-unit-input {
+    width: 64px; flex-shrink: 0; background: var(--rd-field); border: 1px solid var(--rd-edge);
+    border-radius: 6px; color: var(--rd-muted); font-size: 11px; text-align: center; padding: 0.35rem 0.3rem;
+  }
+  .alpha-metric-unit-input:focus { outline: 1px solid var(--rd-gold); }
+  .alpha-metric-remove { background: none; border: none; color: #666; cursor: pointer; font-size: 15px; padding: 0 0.2rem; flex-shrink: 0; }
+  .alpha-metric-remove:hover { color: #B33A52; background: none; }
+
+  .alpha-metric-add-row { display: flex; gap: 0.6rem; margin-top: 0.5rem; }
+  .alpha-metric-add-row input[type="text"]:first-child {
+    flex: 1; background: var(--rd-field); border: 1px solid var(--rd-edge); border-radius: 8px;
+    color: var(--rd-text); font-size: 13px; padding: 0.6rem 0.8rem;
+  }
+  .alpha-metric-add-row input[type="text"]:nth-child(2) {
+    width: 84px; flex-shrink: 0; background: var(--rd-field); border: 1px solid var(--rd-edge); border-radius: 8px;
+    color: var(--rd-text); font-size: 13px; padding: 0.6rem 0.5rem; text-align: center;
+  }
+  .alpha-metric-add-row input[type="text"]:focus { outline: 1px solid var(--rd-gold); }
+
   /* ---- JOURNAL tab ---- */
   .journal-split {
     max-width: 1100px;
@@ -14804,6 +14848,12 @@ var ALPHA_GENDER_KEY = 'csrAlignAlphaGender';
 var alphaSelectedProfileId = null;   // set once an improvement is opened
 var alphaActiveSubTab = 'input';     // 'input' | 'stats', within a profile detail view
 var alphaSetupProfileId = null;      // profile awaiting its one-time creation setup step (module's renderOutput), before it ever reaches the Input/Stats tabs
+// id of the profile currently showing the inline metrics editor on its
+// Input tab (buildAlphaFlexibleMetricsModule / the metrics section
+// layered onto ALPHA_RELATIONSHIP_MODULE) — null when no editor is
+// open. A single shared var is enough since only one profile's detail
+// view can ever be open at a time (alphaSelectedProfileId).
+var alphaMetricEditingProfileId = null;
 // Progressive-disclosure wizard state for ALPHA_HEALTH_METRIC_MODULE's
 // renderOutput (one question per screen) — { profileId, step,
 // measuring, frequency, baseline, target }, or null between setups.
@@ -14873,6 +14923,7 @@ function deleteAlphaProfile(profileId) {
     supabaseClient.from('alpha_profiles').delete().eq('id', profileId).then(function() {});
   }
   if (alphaSelectedProfileId === profileId) alphaSelectedProfileId = null;
+  if (alphaMetricEditingProfileId === profileId) alphaMetricEditingProfileId = null;
   renderAlphaBrowser();
 }
 
@@ -15209,11 +15260,14 @@ var ALPHA_HEALTH_METRIC_MODULE = {
     container.appendChild(historyWrap);
   }
 };
-ALPHA_QUESTIONNAIRE_MODULES['mental.focus'] = ALPHA_HEALTH_METRIC_MODULE;
-ALPHA_QUESTIONNAIRE_MODULES['mental.emotionalControl'] = ALPHA_HEALTH_METRIC_MODULE;
-ALPHA_QUESTIONNAIRE_MODULES['mental.resilience'] = ALPHA_HEALTH_METRIC_MODULE;
-ALPHA_QUESTIONNAIRE_MODULES['physical.motion'] = ALPHA_HEALTH_METRIC_MODULE;
-ALPHA_QUESTIONNAIRE_MODULES['physical.recovery'] = ALPHA_HEALTH_METRIC_MODULE;
+// mental.focus/emotionalControl/resilience and physical.motion/recovery
+// used to be registered against ALPHA_HEALTH_METRIC_MODULE (its 4-step
+// wizard + fixed duration/result/notes logging) — moved to the new
+// flexible-metrics module below instead, per the approved plan (Bio
+// Flow keeps using ALPHA_HEALTH_METRIC_MODULE.renderOutput, untouched;
+// see its own registration further down). ALPHA_HEALTH_METRIC_MODULE
+// itself is left defined, not deleted, since Bio Flow still depends on
+// its renderOutput by reference.
 
 // ---- Bio Flow module — reuses ALPHA_HEALTH_METRIC_MODULE's setup
 // questionnaire directly (same what/frequency/baseline/target as
@@ -15375,12 +15429,433 @@ var ALPHA_BIOFLOW_MODULE = {
 };
 ALPHA_QUESTIONNAIRE_MODULES['physical.bioflow'] = ALPHA_BIOFLOW_MODULE;
 
+// ============================================================
+// ---- Flexible metrics — shared components ----
+// Used by buildAlphaFlexibleMetricsModule() below (standalone leaves:
+// the 8 Health leaves that aren't Bio Flow, plus Reduce Expenses/Buy or
+// Sell) AND by ALPHA_RELATIONSHIP_MODULE further down (layered onto its
+// existing frequency/duration + voice-memo flow, not replacing it) —
+// written once so every leaf's metric list editor, value-entry form,
+// and stats rendering behave identically instead of each module
+// reinventing its own.
+//
+// A metric is { id, name, unit } — unit is a short optional free-text
+// label (e.g. "1-10", "$"), purely cosmetic. There's no `fixed`/
+// deletable distinction like the Musts list has: suggested and
+// user-added metrics are equally editable and removable, since "keep,
+// edit, or add your own" applies the same way to both.
+//
+// Every logged value is stored as a STRING, not a typed number —
+// metrics mix free text (e.g. "Category") and numbers (e.g. "Amount")
+// through the same input. Stats aggregation below only treats a value
+// as numeric where it's actually a plain numeric string; anything else
+// just shows its most recent logged value instead of an average.
+// ============================================================
+
+// metrics: array, mutated in place (push/splice) so the caller's own
+// reference (e.g. profile.setup.metrics) stays valid across edits.
+// onChange(metrics) fires after every add/rename/unit-edit/delete —
+// the caller decides when to persist (the setup screen holds off until
+// its own Save button; the Input tab's "Edit Metrics" link persists
+// immediately on each change instead).
+function renderAlphaMetricEditor(container, metrics, onChange) {
+  var label = document.createElement('span');
+  label.className = 'alpha-improvement-section-label';
+  label.textContent = 'Your Metrics';
+  container.appendChild(label);
+
+  var list = document.createElement('div');
+  list.className = 'alpha-metric-list';
+  container.appendChild(list);
+
+  function renderRows() {
+    list.innerHTML = '';
+    if (!metrics.length) {
+      var empty = document.createElement('p');
+      empty.className = 'alpha-empty';
+      empty.textContent = 'No metrics yet — add one below.';
+      list.appendChild(empty);
+      return;
+    }
+    metrics.forEach(function(metric) {
+      var row = document.createElement('div');
+      row.className = 'alpha-metric-row';
+
+      var nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.className = 'alpha-metric-name-input';
+      nameInput.value = metric.name;
+      nameInput.addEventListener('change', function() {
+        metric.name = nameInput.value.trim() || metric.name;
+        onChange(metrics);
+      });
+
+      var unitInput = document.createElement('input');
+      unitInput.type = 'text';
+      unitInput.className = 'alpha-metric-unit-input';
+      unitInput.placeholder = 'unit';
+      unitInput.value = metric.unit || '';
+      unitInput.addEventListener('change', function() {
+        metric.unit = unitInput.value.trim();
+        onChange(metrics);
+      });
+
+      var removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'alpha-metric-remove';
+      removeBtn.textContent = '✕';
+      removeBtn.addEventListener('click', function() {
+        var idx = metrics.indexOf(metric);
+        if (idx !== -1) metrics.splice(idx, 1);
+        onChange(metrics);
+        renderRows();
+      });
+
+      row.appendChild(nameInput);
+      row.appendChild(unitInput);
+      row.appendChild(removeBtn);
+      list.appendChild(row);
+    });
+  }
+  renderRows();
+
+  var addRow = document.createElement('div');
+  addRow.className = 'alpha-metric-add-row';
+  var addNameInput = document.createElement('input');
+  addNameInput.type = 'text';
+  addNameInput.placeholder = 'Metric name, e.g. Sleep Hours';
+  var addUnitInput = document.createElement('input');
+  addUnitInput.type = 'text';
+  addUnitInput.placeholder = 'Unit (optional)';
+  var addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.className = 'alpha-secondary-btn';
+  addBtn.textContent = '+ Add Metric';
+  function addMetric() {
+    var name = addNameInput.value.trim();
+    if (!name) return;
+    metrics.push({ id: alphaGenerateId('alpha-metric'), name: name, unit: addUnitInput.value.trim() });
+    addNameInput.value = '';
+    addUnitInput.value = '';
+    onChange(metrics);
+    renderRows();
+    addNameInput.focus();
+  }
+  addBtn.addEventListener('click', addMetric);
+  addNameInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') addMetric(); });
+  addUnitInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') addMetric(); });
+  addRow.appendChild(addNameInput);
+  addRow.appendChild(addUnitInput);
+  addRow.appendChild(addBtn);
+  container.appendChild(addRow);
+}
+
+// One labeled input per metric, for a logging page. Returns a getter —
+// call it at Save time to read current values as {[metricId]: string}.
+function renderAlphaMetricValueInputs(container, metrics, initialValues) {
+  var inputs = {};
+  metrics.forEach(function(metric) {
+    var wrap = document.createElement('div');
+    var label = document.createElement('span');
+    label.className = 'alpha-field-label';
+    label.textContent = metric.name + (metric.unit ? ' (' + metric.unit + ')' : '');
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'alpha-answer-input';
+    input.value = (initialValues && initialValues[metric.id]) || '';
+    wrap.appendChild(label);
+    wrap.appendChild(input);
+    container.appendChild(wrap);
+    inputs[metric.id] = input;
+  });
+  return function getValues() {
+    var values = {};
+    metrics.forEach(function(metric) { values[metric.id] = inputs[metric.id].value.trim(); });
+    return values;
+  };
+}
+
+var ALPHA_METRIC_NUMERIC_RE = /^-?\d+(\.\d+)?$/;
+
+// entries: already filtered to one profile. extractValues(entry) reads
+// that entry's logged metric values as {[metricId]: string} — lets
+// standalone leaves pass entry.data.values and Relationships pass
+// entry.data.metricValues through this same renderer. extractNote is
+// optional (standalone leaves have a free note per entry; Relationships
+// already shows its own notes via its existing history list, so it
+// passes nothing here rather than showing notes twice).
+function renderAlphaMetricStats(container, metrics, entries, extractValues, extractNote) {
+  if (!metrics.length) return;
+  var sorted = entries.slice().sort(function(a, b) { return a.createdAt < b.createdAt ? 1 : -1; });
+
+  var statsRow = document.createElement('div');
+  statsRow.className = 'alpha-stats-row';
+  metrics.forEach(function(metric) {
+    var numericValues = [];
+    var mostRecent = null;
+    for (var i = 0; i < sorted.length; i++) {
+      var raw = (extractValues(sorted[i]) || {})[metric.id];
+      if (raw === undefined || raw === null || raw === '') continue;
+      if (mostRecent === null) mostRecent = raw;
+      if (ALPHA_METRIC_NUMERIC_RE.test(raw)) numericValues.push(parseFloat(raw));
+    }
+    var tile = document.createElement('div');
+    tile.className = 'alpha-stat-tile';
+    var val = document.createElement('div');
+    val.className = 'alpha-stat-value';
+    if (numericValues.length >= 2) {
+      var avg = numericValues.reduce(function(a, b) { return a + b; }, 0) / numericValues.length;
+      var trend = numericValues[0] > numericValues[1] ? ' ▲' : (numericValues[0] < numericValues[1] ? ' ▼' : '');
+      val.textContent = (Math.round(avg * 10) / 10) + trend;
+    } else {
+      val.textContent = mostRecent !== null ? mostRecent : '—';
+    }
+    var lbl = document.createElement('div');
+    lbl.className = 'alpha-stat-label';
+    lbl.textContent = metric.name;
+    tile.appendChild(val);
+    tile.appendChild(lbl);
+    statsRow.appendChild(tile);
+  });
+  container.appendChild(statsRow);
+
+  var historyWrap = document.createElement('div');
+  historyWrap.className = 'alpha-session-history';
+  if (!sorted.length) {
+    var empty = document.createElement('p');
+    empty.className = 'alpha-empty';
+    empty.textContent = 'No entries logged yet.';
+    historyWrap.appendChild(empty);
+  } else {
+    sorted.forEach(function(entry) {
+      var row = document.createElement('div');
+      row.className = 'alpha-session-row';
+      var when = document.createElement('div');
+      when.className = 'alpha-session-when';
+      when.textContent = new Date(entry.createdAt).toLocaleString();
+      row.appendChild(when);
+      var vals = extractValues(entry) || {};
+      metrics.forEach(function(metric) {
+        var raw = vals[metric.id];
+        if (raw === undefined || raw === null || raw === '') return;
+        var line = document.createElement('p');
+        line.className = 'alpha-session-notes';
+        line.textContent = metric.name + ': ' + raw + (metric.unit ? ' ' + metric.unit : '');
+        row.appendChild(line);
+      });
+      var note = extractNote ? extractNote(entry) : null;
+      if (note) {
+        var noteLine = document.createElement('p');
+        noteLine.className = 'alpha-session-notes';
+        noteLine.textContent = note;
+        row.appendChild(noteLine);
+      }
+      historyWrap.appendChild(row);
+    });
+  }
+  container.appendChild(historyWrap);
+}
+
+// Factory for a standalone flexible-metrics leaf (Health/Finance) —
+// every leaf registered against this gets its own instance, seeded
+// with different suggested metrics but otherwise identical behavior.
+// renderOutput is one long scrolling page (cadence + metric editor +
+// one Save button) rather than a multi-step wizard, per the "long
+// scrolling page" design ask — unlike ALPHA_HEALTH_METRIC_MODULE's
+// 4-screen wizard above, which this replaces for 5 of its 6 former
+// leaves (Bio Flow keeps using it, untouched, per the plan).
+function buildAlphaFlexibleMetricsModule(suggestedMetrics) {
+  return {
+    ownsSetupCompletion: true,
+    renderOutput: function(container, profile) {
+      var page = document.createElement('div');
+      page.className = 'alpha-question-card alpha-metric-page';
+
+      var intro = document.createElement('p');
+      intro.className = 'alpha-question-text';
+      intro.textContent = 'Start with these suggested metrics, or make them your own — edit, remove, or add anything you actually want to track.';
+      page.appendChild(intro);
+
+      var cadenceLabel = document.createElement('span');
+      cadenceLabel.className = 'alpha-improvement-section-label';
+      cadenceLabel.textContent = 'How Often Will You Log?';
+      page.appendChild(cadenceLabel);
+
+      var cadence = (profile.setup && profile.setup.cadence) || 'daily';
+      var cadenceRow = document.createElement('div');
+      cadenceRow.className = 'alpha-choice-row';
+      ['daily', 'weekly'].forEach(function(opt) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'alpha-choice-btn' + (cadence === opt ? ' active' : '');
+        btn.textContent = opt === 'daily' ? 'Daily' : 'Weekly';
+        btn.addEventListener('click', function() {
+          cadence = opt;
+          Array.prototype.forEach.call(cadenceRow.querySelectorAll('.alpha-choice-btn'), function(b) { b.classList.remove('active'); });
+          btn.classList.add('active');
+        });
+        cadenceRow.appendChild(btn);
+      });
+      page.appendChild(cadenceRow);
+
+      var metrics = (profile.setup && profile.setup.metrics && profile.setup.metrics.length)
+        ? profile.setup.metrics.slice()
+        : suggestedMetrics.map(function(m) { return { id: alphaGenerateId('alpha-metric'), name: m.name, unit: m.unit || '' }; });
+      renderAlphaMetricEditor(page, metrics, function(updated) { metrics = updated; });
+
+      var saveBtn = document.createElement('button');
+      saveBtn.type = 'button';
+      saveBtn.className = 'alpha-continue-btn';
+      saveBtn.textContent = 'Save & Start Tracking';
+      saveBtn.addEventListener('click', function() {
+        profile.setup = { cadence: cadence, metrics: metrics };
+        saveAlphaProfiles(alphaProfiles);
+        pushAlphaProfileToSupabase(profile);
+        alphaSetupProfileId = null;
+        alphaSelectedProfileId = profile.id;
+        alphaActiveSubTab = 'input';
+        if (typeof showToast === 'function') showToast('Tracking profile created.', 'success');
+        renderAlphaBrowser();
+      });
+      page.appendChild(saveBtn);
+
+      container.appendChild(page);
+    },
+    renderInput: function(container, profile) {
+      var page = document.createElement('div');
+      page.className = 'alpha-question-card alpha-metric-page';
+      var metrics = (profile.setup && profile.setup.metrics) || [];
+
+      if (alphaMetricEditingProfileId === profile.id) {
+        var editHeading = document.createElement('p');
+        editHeading.className = 'alpha-question-text';
+        editHeading.textContent = 'Edit your metrics';
+        page.appendChild(editHeading);
+        var editedMetrics = metrics.slice();
+        renderAlphaMetricEditor(page, editedMetrics, function(updated) { editedMetrics = updated; });
+        var doneBtn = document.createElement('button');
+        doneBtn.type = 'button';
+        doneBtn.className = 'alpha-continue-btn';
+        doneBtn.textContent = 'Done Editing';
+        doneBtn.addEventListener('click', function() {
+          profile.setup = profile.setup || {};
+          profile.setup.metrics = editedMetrics;
+          saveAlphaProfiles(alphaProfiles);
+          pushAlphaProfileToSupabase(profile);
+          alphaMetricEditingProfileId = null;
+          renderAlphaBrowser();
+        });
+        page.appendChild(doneBtn);
+        container.appendChild(page);
+        return;
+      }
+
+      if (!metrics.length) {
+        var none = document.createElement('p');
+        none.className = 'alpha-placeholder-note';
+        none.textContent = 'No metrics set up yet — use Edit Metrics below to add some.';
+        page.appendChild(none);
+      }
+
+      var valuesWrap = document.createElement('div');
+      page.appendChild(valuesWrap);
+      var getValues = renderAlphaMetricValueInputs(valuesWrap, metrics, {});
+
+      var noteLabel = document.createElement('span');
+      noteLabel.className = 'alpha-field-label';
+      noteLabel.textContent = 'Note (optional)';
+      page.appendChild(noteLabel);
+      var noteArea = document.createElement('textarea');
+      noteArea.className = 'alpha-answer-input alpha-text-input';
+      page.appendChild(noteArea);
+
+      var saveBtn = document.createElement('button');
+      saveBtn.type = 'button';
+      saveBtn.className = 'alpha-continue-btn';
+      saveBtn.textContent = 'Log Entry';
+      saveBtn.addEventListener('click', function() {
+        if (!metrics.length) {
+          if (typeof showToast === 'function') showToast('Add at least one metric first.', 'error');
+          return;
+        }
+        saveAlphaEntry(profile.id, { values: getValues(), note: noteArea.value.trim() });
+        if (typeof showToast === 'function') showToast('Logged.', 'success');
+        renderAlphaBrowser();
+      });
+      page.appendChild(saveBtn);
+
+      var editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.className = 'alpha-secondary-btn';
+      editBtn.textContent = 'Edit Metrics';
+      editBtn.style.marginLeft = '0.5rem';
+      editBtn.addEventListener('click', function() {
+        alphaMetricEditingProfileId = profile.id;
+        renderAlphaBrowser();
+      });
+      page.appendChild(editBtn);
+
+      container.appendChild(page);
+    },
+    renderStats: function(container, profile) {
+      var page = document.createElement('div');
+      page.className = 'alpha-metric-page';
+      var metrics = (profile.setup && profile.setup.metrics) || [];
+      var entries = alphaEntries.filter(function(e) { return e.profileId === profile.id; });
+      renderAlphaMetricStats(page, metrics, entries,
+        function(entry) { return (entry.data && entry.data.values) || {}; },
+        function(entry) { return entry.data && entry.data.note; });
+      container.appendChild(page);
+    }
+  };
+}
+
+// ---- Registrations: 8 Health leaves + 2 Finance leaves ----
+// Seed metric names are taken directly from the user's request,
+// redistributed onto the individual leaves it named at the branch
+// level (Mental/Physical/Spiritual) rather than invented fresh, since
+// the taxonomy itself stays 9 separate Health leaves per the approved
+// plan. "1-10" unit hints mirror how ALPHA_HEALTH_METRIC_MODULE's own
+// `result` field already worked for these leaves, so the convention
+// carries over even though the underlying module is new.
+ALPHA_QUESTIONNAIRE_MODULES['mental.focus'] = buildAlphaFlexibleMetricsModule([{ name: 'Focus', unit: '1-10' }]);
+ALPHA_QUESTIONNAIRE_MODULES['mental.emotionalControl'] = buildAlphaFlexibleMetricsModule([{ name: 'Emotional Control', unit: '1-10' }]);
+ALPHA_QUESTIONNAIRE_MODULES['mental.resilience'] = buildAlphaFlexibleMetricsModule([{ name: 'Resilience', unit: '1-10' }]);
+ALPHA_QUESTIONNAIRE_MODULES['physical.motion'] = buildAlphaFlexibleMetricsModule([{ name: 'Motion', unit: '1-10' }]);
+ALPHA_QUESTIONNAIRE_MODULES['physical.recovery'] = buildAlphaFlexibleMetricsModule([{ name: 'Recovery', unit: '1-10' }]);
+ALPHA_QUESTIONNAIRE_MODULES['spiritual.connection'] = buildAlphaFlexibleMetricsModule([{ name: 'Connection', unit: '1-10' }]);
+ALPHA_QUESTIONNAIRE_MODULES['spiritual.perception'] = buildAlphaFlexibleMetricsModule([{ name: 'Perception', unit: '1-10' }]);
+ALPHA_QUESTIONNAIRE_MODULES['spiritual.expression'] = buildAlphaFlexibleMetricsModule([{ name: 'Expression', unit: '1-10' }]);
+ALPHA_QUESTIONNAIRE_MODULES['reduceExpenses'] = buildAlphaFlexibleMetricsModule([
+  { name: 'Category', unit: '' },
+  { name: 'Amount', unit: '$' },
+  { name: 'Frequency', unit: '' }
+]);
+ALPHA_QUESTIONNAIRE_MODULES['buySell'] = buildAlphaFlexibleMetricsModule([
+  { name: 'Asset', unit: '' },
+  { name: 'Price Target', unit: '$' },
+  { name: 'Timeline', unit: '' }
+]);
+
 // ---- Relationships module — shared by all four leaves (intimate,
 // innerCircle, world, custom). Output sets the two metrics
 // asked for: frequency and duration. Input logs a session: start/end
 // time, written notes, and an optional voice memo recorded live and
 // uploaded encrypted. History of past sessions renders below the
 // logging form.
+// Starter metrics layered on top of the existing frequency/duration
+// setup above, per leaf — "Frequency"/"Duration" themselves are
+// deliberately left out here since freqInput/durInput already cover
+// that; a metric with the same name would just track the same thing
+// twice. Custom gets no seed at all, matching "(user-defined)" from
+// the request.
+var ALPHA_RELATIONSHIP_SUGGESTED_METRICS = {
+  intimate: [{ name: 'Emotional Connection', unit: '1-10' }, { name: 'Quality', unit: '1-10' }],
+  innerCircle: [{ name: 'Trust', unit: '1-10' }, { name: 'Engagement', unit: '1-10' }],
+  world: [{ name: 'Awareness', unit: '1-10' }, { name: 'Contribution', unit: '1-10' }],
+  custom: []
+};
+
 var ALPHA_RELATIONSHIP_MODULE = {
   renderOutput: function(container, profile) {
     var card = document.createElement('div');
@@ -15405,12 +15880,20 @@ var ALPHA_RELATIONSHIP_MODULE = {
     durInput.value = (profile.setup && profile.setup.duration) || '';
     card.appendChild(durInput);
 
+    // ---- Metrics, layered on (not a replacement for the two fields above) ----
+    var metrics = (profile.setup && profile.setup.metrics && profile.setup.metrics.length)
+      ? profile.setup.metrics.slice()
+      : (ALPHA_RELATIONSHIP_SUGGESTED_METRICS[profile.subcategory] || []).map(function(m) {
+          return { id: alphaGenerateId('alpha-metric'), name: m.name, unit: m.unit || '' };
+        });
+    renderAlphaMetricEditor(card, metrics, function(updated) { metrics = updated; });
+
     var saveBtn = document.createElement('button');
     saveBtn.type = 'button';
     saveBtn.className = 'alpha-continue-btn';
     saveBtn.textContent = 'Save';
     saveBtn.addEventListener('click', function() {
-      profile.setup = { frequency: freqInput.value.trim(), duration: durInput.value.trim() };
+      profile.setup = { frequency: freqInput.value.trim(), duration: durInput.value.trim(), metrics: metrics };
       saveAlphaProfiles(alphaProfiles);
       pushAlphaProfileToSupabase(profile);
       if (typeof showToast === 'function') showToast('Saved.', 'success');
@@ -15423,6 +15906,36 @@ var ALPHA_RELATIONSHIP_MODULE = {
   renderInput: function(container, profile) {
     var card = document.createElement('div');
     card.className = 'alpha-question-card';
+
+    var metrics = (profile.setup && profile.setup.metrics) || [];
+
+    // Metrics-editing is a separate short-circuited view on this same
+    // tab, same pattern buildAlphaFlexibleMetricsModule uses — swapping
+    // straight to it here avoids showing the full session-logging form
+    // (start/end/notes/voice memo) underneath an unrelated edit screen.
+    if (alphaMetricEditingProfileId === profile.id) {
+      var editHeading = document.createElement('div');
+      editHeading.className = 'alpha-question-text';
+      editHeading.textContent = 'Edit your metrics';
+      card.appendChild(editHeading);
+      var editedMetrics = metrics.slice();
+      renderAlphaMetricEditor(card, editedMetrics, function(updated) { editedMetrics = updated; });
+      var doneBtn = document.createElement('button');
+      doneBtn.type = 'button';
+      doneBtn.className = 'alpha-continue-btn';
+      doneBtn.textContent = 'Done Editing';
+      doneBtn.addEventListener('click', function() {
+        profile.setup = profile.setup || {};
+        profile.setup.metrics = editedMetrics;
+        saveAlphaProfiles(alphaProfiles);
+        pushAlphaProfileToSupabase(profile);
+        alphaMetricEditingProfileId = null;
+        renderAlphaBrowser();
+      });
+      card.appendChild(doneBtn);
+      container.appendChild(card);
+      return;
+    }
 
     var q = document.createElement('div');
     q.className = 'alpha-question-text';
@@ -15506,6 +16019,17 @@ var ALPHA_RELATIONSHIP_MODULE = {
     voiceSection.appendChild(statusText);
     card.appendChild(voiceSection);
 
+    var getMetricValues = null;
+    if (metrics.length) {
+      var metricsLabel = document.createElement('span');
+      metricsLabel.className = 'alpha-improvement-section-label';
+      metricsLabel.textContent = 'Metrics';
+      card.appendChild(metricsLabel);
+      var metricsWrap = document.createElement('div');
+      card.appendChild(metricsWrap);
+      getMetricValues = renderAlphaMetricValueInputs(metricsWrap, metrics, {});
+    }
+
     var saveBtn = document.createElement('button');
     saveBtn.type = 'button';
     saveBtn.className = 'alpha-continue-btn';
@@ -15522,7 +16046,8 @@ var ALPHA_RELATIONSHIP_MODULE = {
           startTime: new Date(startInput.value).toISOString(),
           endTime: new Date(endInput.value).toISOString(),
           notes: notesArea.value.trim(),
-          voiceMemo: voiceMemo
+          voiceMemo: voiceMemo,
+          metricValues: getMetricValues ? getMetricValues() : {}
         });
         if (typeof showToast === 'function') showToast('Session logged.', 'success');
         renderAlphaBrowser(); // re-render so the history list below picks up the new entry
@@ -15534,6 +16059,17 @@ var ALPHA_RELATIONSHIP_MODULE = {
       }
     });
     card.appendChild(saveBtn);
+
+    var editMetricsBtn = document.createElement('button');
+    editMetricsBtn.type = 'button';
+    editMetricsBtn.className = 'alpha-secondary-btn';
+    editMetricsBtn.textContent = 'Edit Metrics';
+    editMetricsBtn.style.marginLeft = '0.5rem';
+    editMetricsBtn.addEventListener('click', function() {
+      alphaMetricEditingProfileId = profile.id;
+      renderAlphaBrowser();
+    });
+    card.appendChild(editMetricsBtn);
 
     container.appendChild(card);
   },
@@ -15639,6 +16175,12 @@ var ALPHA_RELATIONSHIP_MODULE = {
       });
     }
     container.appendChild(historyWrap);
+
+    // ---- Metrics, layered on top of the session-time stats above ----
+    var metrics = (profile.setup && profile.setup.metrics) || [];
+    renderAlphaMetricStats(container, metrics, history, function(entry) {
+      return (entry.data && entry.data.metricValues) || {};
+    });
   }
 };
 ALPHA_QUESTIONNAIRE_MODULES.intimate = ALPHA_RELATIONSHIP_MODULE;
