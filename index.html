@@ -4789,6 +4789,14 @@
     </div>
 
     <div class="settings-section">
+      <span class="section-label">Membership</span>
+      <p class="settings-section-note" id="membershipStatusNote">Sign in to see your membership status.</p>
+      <div class="settings-actions">
+        <button type="button" id="membershipUpgradeBtn" style="display:none;">Upgrade to Paid</button>
+      </div>
+    </div>
+
+    <div class="settings-section">
       <span class="section-label">Affiliate Link</span>
       <p class="settings-section-note">Your personal referral link. Stored only on this device.</p>
       <input type="text" id="affiliateLinkInput" placeholder="https://...">
@@ -6162,6 +6170,69 @@ document.getElementById('scoreWeightResetBtn').addEventListener('click', functio
   updateDailyScore();
   showToast('Daily Score weights reset to default.', 'success');
 });
+
+// ---- Membership (Settings tab) ----
+// Purely a display + entry point — the actual payment happens via
+// NOWPayments (create-payment Edge Function creates the subscription
+// and returns where to pay) and the actual is_paid flip happens
+// server-side in nowpayments-webhook once that payment is confirmed
+// finished. This section never sets currentUserIsPaid itself;
+// refreshCurrentUserPaidStatus() (the same function every other tab's
+// tier gating already depends on, and which also now lazily expires a
+// lapsed renewal via expire_stale_subscription() — see its own
+// comment) is what keeps it in sync, including right after a
+// successful payment — see the ?checkout=success handling below,
+// which re-runs that fetch instead of assuming the payment is
+// reflected instantly (it isn't: NOWPayments waits for on-chain
+// confirmation before the webhook even fires).
+//
+// "Renews automatically" would be a lie here — unlike a card-based
+// subscription, there's no stored payment instrument to silently
+// re-charge. NOWPayments emails a fresh invoice each billing interval
+// and it has to be actively paid again, same as the first time; the
+// Paid-tier message below says so rather than implying otherwise.
+var membershipStatusNoteEl = document.getElementById('membershipStatusNote');
+var membershipUpgradeBtn = document.getElementById('membershipUpgradeBtn');
+
+function renderMembershipSection() {
+  if (!membershipStatusNoteEl || !membershipUpgradeBtn) return;
+  if (!currentUser) {
+    membershipStatusNoteEl.textContent = 'Sign in to see your membership status.';
+    membershipUpgradeBtn.style.display = 'none';
+    return;
+  }
+  if (currentUserIsPaid) {
+    membershipStatusNoteEl.textContent = 'You\'re on the Paid tier — thank you! Renewal is a new invoice each billing period, not an automatic charge — watch your email.';
+    membershipUpgradeBtn.style.display = 'none';
+  } else {
+    membershipStatusNoteEl.textContent = 'You\'re on the Free tier.';
+    membershipUpgradeBtn.style.display = '';
+  }
+}
+renderMembershipSection();
+
+if (membershipUpgradeBtn) {
+  membershipUpgradeBtn.addEventListener('click', function() {
+    if (!supabaseClient || !currentUser) return;
+    membershipUpgradeBtn.disabled = true;
+    membershipUpgradeBtn.textContent = 'Loading...';
+    supabaseClient.functions.invoke('create-payment')
+      .then(function(result) {
+        if (result.error || !result.data || !result.data.url) {
+          membershipUpgradeBtn.disabled = false;
+          membershipUpgradeBtn.textContent = 'Upgrade to Paid';
+          showToast('Could not start checkout: ' + ((result.error && result.error.message) || 'unknown error'), 'error');
+          return;
+        }
+        window.location.href = result.data.url;
+      })
+      .catch(function(err) {
+        membershipUpgradeBtn.disabled = false;
+        membershipUpgradeBtn.textContent = 'Upgrade to Paid';
+        showToast('Could not start checkout: ' + (err && err.message ? err.message : 'unknown error'), 'error');
+      });
+  });
+}
 
 // ---- Affiliate Link (Settings tab) ----
 var AFFILIATE_LINK_KEY = 'csrAlignAffiliateLink';
@@ -8660,6 +8731,34 @@ var PULL_FAILURE_WARNING_KEY = 'csrAlignPullFailureWarning';
   }
 })();
 
+// NOWPayments' success_url/cancel_url (see create-payment's
+// subscription creation) both point back here with a ?checkout=...
+// param — this runs once at load, shows the right toast, and strips
+// the param via replaceState so a page refresh doesn't re-show it.
+// Deliberately does NOT assume ?checkout=success means is_paid is
+// already true: refreshCurrentUserPaidStatus() (already wired into
+// the sign-in flow) is what re-fetches the real value, and for a
+// USDC payment specifically there can be a real delay between
+// "payment says success" and the webhook actually firing (NOWPayments
+// waits for on-chain confirmation) — the toast reflects that instead
+// of promising an instant upgrade. Positioned here (after showToast/
+// toastContainer exist), same reasoning as PULL_FAILURE_WARNING_KEY's
+// IIFE right above.
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var checkoutParam = params.get('checkout');
+  if (!checkoutParam) return;
+  if (checkoutParam === 'success') {
+    showToast('Payment received — your account will show as Paid shortly once it\'s confirmed.', 'success');
+  } else if (checkoutParam === 'cancelled') {
+    showToast('Checkout cancelled — no charge was made.', 'error');
+  }
+  params.delete('checkout');
+  var newSearch = params.toString();
+  var newUrl = window.location.pathname + (newSearch ? '?' + newSearch : '') + window.location.hash;
+  window.history.replaceState({}, '', newUrl);
+})();
+
 // ============================================================
 // Sync queue — every write that needs to reach Supabase goes through
 // here instead of being called directly. If the write fails (offline,
@@ -9374,26 +9473,39 @@ function refreshCurrentUserPaidStatus() {
     currentUserIsPaid = false;
     updateJournalImageUIVisibility();
     updateYearlyVizUIVisibility();
+    if (typeof renderMembershipSection === 'function') renderMembershipSection();
     return;
   }
-  supabaseClient.from('profiles')
-    .select('is_paid')
-    .eq('id', currentUser.id)
-    .then(function(result) {
-      if (result.data && result.data.length) {
-        currentUserIsPaid = !!result.data[0].is_paid;
-      }
-      updateJournalImageUIVisibility();
-      updateYearlyVizUIVisibility();
-      if (typeof updateSectionShareRowsVisibility === 'function') updateSectionShareRowsVisibility();
-      // Every tier-gated screen re-derives its locked/unlocked state
-      // straight from currentUserIsPaid on each render, so a plain
-      // re-render (not a reload) is enough to reflect a tier change
-      // that happened mid-session.
-      if (typeof renderEntries === 'function') renderEntries();
-      if (typeof renderAlphaBrowser === 'function') renderAlphaBrowser();
-      if (typeof renderScheduleOverlay === 'function' && scheduleOverlayEl && scheduleOverlayEl.style.display !== 'none') renderScheduleOverlay();
-    });
+  // Crypto subscriptions have no "cancelled" webhook to actively
+  // downgrade is_paid the way Stripe's did (see nowpayments-webhook's
+  // header comment) — expire_stale_subscription() is how a lapsed
+  // renewal actually gets noticed: it flips is_paid false server-side
+  // if nowpayments_period_end has passed, and it's safe to call
+  // unconditionally here since it only ever operates on the caller's
+  // own row and only ever moves paid -> free, never the reverse.
+  // Awaited (via .then, not fire-and-forget) so the .select() right
+  // after it always reads the post-expiry-check value, not a stale
+  // one from a split second earlier.
+  supabaseClient.rpc('expire_stale_subscription').then(function() {
+    return supabaseClient.from('profiles')
+      .select('is_paid')
+      .eq('id', currentUser.id);
+  }).then(function(result) {
+    if (result.data && result.data.length) {
+      currentUserIsPaid = !!result.data[0].is_paid;
+    }
+    updateJournalImageUIVisibility();
+    updateYearlyVizUIVisibility();
+    if (typeof updateSectionShareRowsVisibility === 'function') updateSectionShareRowsVisibility();
+    // Every tier-gated screen re-derives its locked/unlocked state
+    // straight from currentUserIsPaid on each render, so a plain
+    // re-render (not a reload) is enough to reflect a tier change
+    // that happened mid-session.
+    if (typeof renderEntries === 'function') renderEntries();
+    if (typeof renderAlphaBrowser === 'function') renderAlphaBrowser();
+    if (typeof renderScheduleOverlay === 'function' && scheduleOverlayEl && scheduleOverlayEl.style.display !== 'none') renderScheduleOverlay();
+    if (typeof renderMembershipSection === 'function') renderMembershipSection();
+  });
 }
 
 // Make sure each profile has the browser's real timezone on file,

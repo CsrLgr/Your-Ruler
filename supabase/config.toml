@@ -16,3 +16,11 @@
 # control here, this setting only removes a redundant, incompatible
 # gate in front of it.
 verify_jwt = false
+
+[functions.nowpayments-webhook]
+# Called by NOWPayments' servers with no Supabase auth at all, same
+# reasoning as tradingview-webhook above — the platform gateway's
+# default JWT check would reject every real delivery before this
+# function's own x-nowpayments-sig verification ever runs. Auth is
+# entirely the HMAC signature check inside index.ts.
+verify_jwt = false
