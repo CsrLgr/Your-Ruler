@@ -4867,6 +4867,16 @@
       </div>
     </div>
 
+    <div class="settings-section">
+      <span class="section-label">TRW University</span>
+      <p class="settings-section-note">Paste your own TRW affiliate link, or leave this blank to use the default Command Center link instead. This is what opens when you tap TRW University in Track Alpha → Finances → Increase Income.</p>
+      <label class="telegram-field-label" for="trwLinkInput">Your TRW Link</label>
+      <input type="url" id="trwLinkInput" placeholder="https://..." autocomplete="off">
+      <div class="settings-actions">
+        <button type="button" id="trwLinkSaveBtn">Save</button>
+      </div>
+    </div>
+
   </div>
 </div><!-- ============================ /TAB: SETTINGS ============================ -->
 
@@ -6314,6 +6324,18 @@ var affiliateWalletAddress = '';
 var affiliateWalletUnavailable = false;
 var affiliateCommissionCount = 0;
 
+// ---- TRW University link ----
+// Plain text (see 0026_trw_link.sql — nothing sensitive here, it's a
+// link meant to be clicked). trwLink is the signed-in user's own
+// override, fetched alongside the affiliate fields below since it
+// lives on the same profiles row; empty string means "use the
+// default." DEFAULT_TRW_LINK is a placeholder — replace this constant
+// with the real default TRW affiliate link once it's provided, then
+// redeploy. Referenced from both Settings (trwLinkInput) and the
+// Track Alpha Increase Income hub.
+var trwLink = '';
+var DEFAULT_TRW_LINK = 'https://www.jointherealworld.com/'; // PLACEHOLDER — replace with the real affiliate link
+
 function renderAffiliateSection() {
   var note = document.getElementById('affiliateStatusNote');
   var enableRow = document.getElementById('affiliateEnableRow');
@@ -6381,7 +6403,9 @@ function refreshAffiliateState() {
     affiliateWalletAddress = '';
     affiliateWalletUnavailable = false;
     affiliateCommissionCount = 0;
+    trwLink = '';
     renderAffiliateSection();
+    if (typeof renderTrwLinkSection === 'function') renderTrwLinkSection();
     return;
   }
   if (!journalEncryptionKey && !journalKeyUnsupported) {
@@ -6390,13 +6414,18 @@ function refreshAffiliateState() {
     return;
   }
 
+  // trw_link is plaintext and unrelated to the affiliate program
+  // itself, but it lives on the same profiles row — pulled in the same
+  // request rather than a second round trip just for one extra column.
   supabaseClient.from('profiles')
-    .select('affiliate_enabled, referral_code, wallet_address_encrypted')
+    .select('affiliate_enabled, referral_code, wallet_address_encrypted, trw_link')
     .eq('id', currentUser.id)
     .then(function(result) {
       var row = result.data && result.data[0];
       affiliateEnabled = !!(row && row.affiliate_enabled);
       affiliateReferralCode = row ? row.referral_code : null;
+      trwLink = (row && row.trw_link) || '';
+      if (typeof renderTrwLinkSection === 'function') renderTrwLinkSection();
       var walletEnc = row ? row.wallet_address_encrypted : null;
       return journalDecryptPayload(walletEnc);
     }).then(function(decrypted) {
@@ -6437,34 +6466,47 @@ document.getElementById('affiliateEnableBtn').addEventListener('click', function
   });
 });
 
-document.getElementById('affiliateReferralLinkCopyBtn').addEventListener('click', function() {
-  var val = document.getElementById('affiliateReferralLinkInput').value;
+// Takes the input element explicitly (same reasoning as
+// saveAffiliateWallet above) so the Track Alpha Increase Income hub's
+// own referral-link field can reuse this instead of duplicating it.
+function copyAffiliateReferralLink(inputEl) {
+  var val = inputEl.value;
   if (!val) { showToast('Nothing to copy yet.', 'error'); return; }
   navigator.clipboard.writeText(val).then(function() {
     showToast('Copied to clipboard.', 'success');
   }, function() {
     showToast('Could not copy — copy it manually.', 'error');
   });
+}
+document.getElementById('affiliateReferralLinkCopyBtn').addEventListener('click', function() {
+  copyAffiliateReferralLink(document.getElementById('affiliateReferralLinkInput'));
 });
 
 // Same fail-closed reasoning as pushJournalEntryToSupabase — never
 // send a wallet address anywhere without encrypting it first, and
 // never encrypt against a not-yet-loaded key (which would silently
 // produce nothing to encrypt against, not an error).
-function saveAffiliateWallet() {
+//
+// Takes explicit input/save-button elements (defaulting to the
+// Settings ones) rather than hardcoding their ids, so the Track Alpha
+// Increase Income hub can call this exact same function against its
+// own referral-link/wallet fields — same underlying data and save
+// logic, a second display surface, not a second copy of it.
+function saveAffiliateWallet(inputEl, saveBtnEl) {
   if (!supabaseClient || !currentUser) return;
-  var input = document.getElementById('affiliateWalletInput');
-  var saveBtn = document.getElementById('affiliateWalletSaveBtn');
+  var input = inputEl || document.getElementById('affiliateWalletInput');
+  var saveBtn = saveBtnEl || document.getElementById('affiliateWalletSaveBtn');
   var value = input.value.trim();
 
   if (!journalEncryptionKey && !journalKeyUnsupported) {
+    var originalLabel = saveBtn.textContent;
     ensureJournalKeyLoaded();
     saveBtn.disabled = true;
     saveBtn.textContent = 'Preparing encryption...';
     journalKeyRetryQueue.push(function() {
       saveBtn.disabled = false;
-      saveBtn.textContent = 'Save Wallet Address';
-      saveAffiliateWallet();
+      saveBtn.textContent = originalLabel;
+      saveAffiliateWallet(input, saveBtn);
     });
     return;
   }
@@ -6481,9 +6523,42 @@ function saveAffiliateWallet() {
     affiliateWalletAddress = value;
     affiliateWalletUnavailable = false;
     showToast('Wallet address saved.', 'success');
+    renderAffiliateSection();
+    if (typeof renderAlphaBrowser === 'function') renderAlphaBrowser();
   });
 }
-document.getElementById('affiliateWalletSaveBtn').addEventListener('click', saveAffiliateWallet);
+document.getElementById('affiliateWalletSaveBtn').addEventListener('click', function() { saveAffiliateWallet(); });
+
+// ---- TRW University link (Settings) ----
+function renderTrwLinkSection() {
+  var input = document.getElementById('trwLinkInput');
+  if (!input) return;
+  // Same mid-keystroke guard as the wallet input above — this can
+  // re-render while the user is actively typing (e.g. a tier-refresh
+  // elsewhere triggering refreshAffiliateState again).
+  if (document.activeElement !== input) {
+    input.value = trwLink || '';
+  }
+}
+renderTrwLinkSection();
+
+document.getElementById('trwLinkSaveBtn').addEventListener('click', function() {
+  if (!supabaseClient || !currentUser) { showToast('Sign in first.', 'error'); return; }
+  var input = document.getElementById('trwLinkInput');
+  var saveBtn = document.getElementById('trwLinkSaveBtn');
+  var value = input.value.trim();
+  saveBtn.disabled = true;
+  supabaseClient.from('profiles').update({ trw_link: value || null }).eq('id', currentUser.id).then(function(result) {
+    saveBtn.disabled = false;
+    if (result.error) {
+      showToast('Could not save TRW link: ' + result.error.message, 'error');
+      return;
+    }
+    trwLink = value;
+    showToast('TRW link saved.', 'success');
+    if (typeof renderAlphaBrowser === 'function') renderAlphaBrowser();
+  });
+});
 
 // Converts one trade_alerts row into a Ledgers entry. 'Trader' is
 // already one of this app's default journal categories, so no new
@@ -16188,62 +16263,65 @@ ALPHA_QUESTIONNAIRE_MODULES.innerCircle = ALPHA_RELATIONSHIP_MODULE;
 ALPHA_QUESTIONNAIRE_MODULES.world = ALPHA_RELATIONSHIP_MODULE;
 ALPHA_QUESTIONNAIRE_MODULES.custom = ALPHA_RELATIONSHIP_MODULE;
 
-// ---- Finances / Increase Income — Command Center Partner Program ----
-// Unlike every other module above, this one has no per-profile
-// session log — its entire state (partner_status, partner_started_at,
-// recruit/conversion counts) lives server-side on the caller's own
-// profiles row (0025_partner_program.sql), gated by RLS so the client
-// can only ever read it or call the three narrow RPCs that move it
-// forward. All three module hooks point at the same live dashboard —
-// there's nothing meaningfully different to show on a "setup" screen
-// vs. the Input/Stats tabs, and always showing the same real status
-// means there's exactly one place this can drift out of sync with the
-// server, not three.
-//
-// Numbers shown here come from get_partner_progress(), which computes
-// recruit_count/conversion_count with the SAME join shape
-// evaluate_partner_program() uses to decide the actual day-30 outcome
-// (see the migration) — so what's displayed can never promise
-// something the server-side gate won't honor.
-var ALPHA_PARTNER_PROGRAM_MODULE = {
-  renderOutput: function(container, profile) { renderPartnerProgramPanel(container, true); },
-  renderInput: function(container, profile) { renderPartnerProgramPanel(container, false); },
-  renderStats: function(container, profile) { renderPartnerProgramPanel(container, false); },
-  ownsSetupCompletion: true
-};
-ALPHA_QUESTIONNAIRE_MODULES.increaseIncome = ALPHA_PARTNER_PROGRAM_MODULE;
+// ---- Finances / Increase Income hub ----
+// Not a trackable "improvement" like every other leaf — no alphaProfile
+// is ever created here, so this bypasses the normal create-flow
+// (renderAlphaNameImprovement -> renderAlphaSetupStep) entirely; see
+// the alphaCreating dispatch in renderAlphaBrowser, which routes
+// straight to renderAlphaIncreaseIncomeHub() below once alphaCreatePath
+// resolves to this leaf. Two direct options shown on one page, no
+// further step to tap through: the Command Center Partner Program
+// (this app's own affiliate/referral system — state lives server-side
+// on the caller's own profiles row, 0025_partner_program.sql/
+// 0024_affiliate_program.sql, gated by RLS so the client can only ever
+// read it or call the narrow RPCs that move it forward) and a
+// pass-through link to TRW University (0026_trw_link.sql).
+function renderAlphaIncreaseIncomeHub(container) {
+  var backBtn = document.createElement('button');
+  backBtn.type = 'button';
+  backBtn.className = 'alpha-secondary-btn';
+  backBtn.textContent = '← Back';
+  backBtn.addEventListener('click', function() {
+    alphaCreatePath = alphaCreatePath.slice(0, -1);
+    renderAlphaBrowser();
+  });
+  container.appendChild(backBtn);
 
-// isSetupStep: renderAlphaSetupStep (the one-time post-creation
-// screen) has no back/continue nav of its own once ownsSetupCompletion
-// opts out of the generic Continue button — this panel supplies one.
-// renderAlphaProfileDetail (Input/Stats tabs) already has its own
-// header "← Back", so a second one here would just be a redundant
-// duplicate of a control already on screen.
-function renderPartnerProgramPanel(container, isSetupStep) {
-  var card = document.createElement('div');
-  card.className = 'alpha-question-card';
-  var heading = document.createElement('div');
-  heading.className = 'alpha-question-text';
-  heading.textContent = 'Command Center Partner Program';
-  card.appendChild(heading);
+  var partnerCard = document.createElement('div');
+  partnerCard.className = 'alpha-question-card';
+  partnerCard.style.marginTop = '0.9rem';
+  var partnerHeading = document.createElement('div');
+  partnerHeading.className = 'alpha-question-text';
+  partnerHeading.textContent = 'Command Center Partner Program';
+  partnerCard.appendChild(partnerHeading);
+  var partnerBody = document.createElement('div');
+  partnerCard.appendChild(partnerBody);
+  container.appendChild(partnerCard);
+  renderPartnerProgramSection(partnerBody);
 
-  var body = document.createElement('div');
-  card.appendChild(body);
-  container.appendChild(card);
+  var trwCard = document.createElement('div');
+  trwCard.className = 'alpha-question-card';
+  trwCard.style.marginTop = '0.9rem';
+  var trwHeading = document.createElement('div');
+  trwHeading.className = 'alpha-question-text';
+  trwHeading.textContent = 'TRW University';
+  trwCard.appendChild(trwHeading);
+  var trwNote = document.createElement('p');
+  trwNote.className = 'alpha-placeholder-note';
+  trwNote.textContent = 'Opens using your own TRW link from Settings, or the default Command Center link if you haven’t set one.';
+  trwCard.appendChild(trwNote);
+  var visitBtn = document.createElement('button');
+  visitBtn.type = 'button';
+  visitBtn.className = 'alpha-continue-btn';
+  visitBtn.textContent = 'Visit TRW University';
+  visitBtn.addEventListener('click', function() {
+    window.open(trwLink || DEFAULT_TRW_LINK, '_blank', 'noopener');
+  });
+  trwCard.appendChild(visitBtn);
+  container.appendChild(trwCard);
+}
 
-  if (isSetupStep) {
-    var backBtn = document.createElement('button');
-    backBtn.type = 'button';
-    backBtn.className = 'alpha-continue-btn';
-    backBtn.textContent = '← Back to Improvements';
-    backBtn.style.marginTop = '0.75rem';
-    backBtn.addEventListener('click', function() {
-      alphaSetupProfileId = null;
-      renderAlphaBrowser();
-    });
-    container.appendChild(backBtn);
-  }
-
+function renderPartnerProgramSection(body) {
   if (!supabaseClient || !currentUser) {
     var signInNote = document.createElement('p');
     signInNote.className = 'alpha-placeholder-note';
@@ -16273,7 +16351,66 @@ function renderPartnerProgramPanel(container, isSetupStep) {
       return;
     }
     renderPartnerProgramBody(body, result.data || { status: null });
+    // Referral link + wallet only exist once the affiliate side is on
+    // (enable_partner_program() turns it on automatically, but a paid
+    // user could also have enabled it independently via Settings) —
+    // same affiliateEnabled/affiliateReferralCode/affiliateWalletAddress
+    // globals Settings' own Affiliate Program section reads, refreshed
+    // by the same refreshAffiliateState().
+    if (affiliateEnabled) renderAffiliateFieldsInto(body);
   });
+}
+
+// Second display surface for the exact same referral-link/wallet state
+// Settings -> Affiliate Program shows — not a second copy of it.
+// saveAffiliateWallet()/copyAffiliateReferralLink() are the same
+// functions Settings' own buttons call, just pointed at these elements.
+function renderAffiliateFieldsInto(body) {
+  var linkLabel = document.createElement('span');
+  linkLabel.className = 'alpha-improvement-section-label';
+  linkLabel.textContent = 'Your Referral Link';
+  body.appendChild(linkLabel);
+
+  var linkRow = document.createElement('div');
+  linkRow.className = 'alpha-choice-row';
+  var linkInput = document.createElement('input');
+  linkInput.type = 'text';
+  linkInput.className = 'alpha-answer-input';
+  linkInput.style.flex = '1';
+  linkInput.readOnly = true;
+  linkInput.value = 'https://mycommandcenterapp.com/?ref=' + (affiliateReferralCode || '');
+  var copyBtn = document.createElement('button');
+  copyBtn.type = 'button';
+  copyBtn.className = 'alpha-secondary-btn';
+  copyBtn.textContent = 'Copy';
+  copyBtn.addEventListener('click', function() { copyAffiliateReferralLink(linkInput); });
+  linkRow.appendChild(linkInput);
+  linkRow.appendChild(copyBtn);
+  body.appendChild(linkRow);
+
+  var walletLabel = document.createElement('span');
+  walletLabel.className = 'alpha-improvement-section-label';
+  walletLabel.textContent = 'Your Wallet Address';
+  body.appendChild(walletLabel);
+
+  var walletRow = document.createElement('div');
+  walletRow.className = 'alpha-choice-row';
+  var walletInput = document.createElement('input');
+  walletInput.type = 'text';
+  walletInput.className = 'alpha-answer-input';
+  walletInput.style.flex = '1';
+  walletInput.value = affiliateWalletAddress || '';
+  walletInput.placeholder = affiliateWalletUnavailable
+    ? 'Saved on another device — unavailable here. Re-enter to update.'
+    : 'Your USDC wallet address';
+  var walletSaveBtn = document.createElement('button');
+  walletSaveBtn.type = 'button';
+  walletSaveBtn.className = 'alpha-secondary-btn';
+  walletSaveBtn.textContent = 'Save';
+  walletSaveBtn.addEventListener('click', function() { saveAffiliateWallet(walletInput, walletSaveBtn); });
+  walletRow.appendChild(walletInput);
+  walletRow.appendChild(walletSaveBtn);
+  body.appendChild(walletRow);
 }
 
 function renderPartnerProgramBody(body, progress) {
@@ -16331,7 +16468,7 @@ function renderPartnerProgramBody(body, progress) {
 
     var howTo = document.createElement('p');
     howTo.className = 'alpha-placeholder-note';
-    howTo.textContent = 'Create up to 5 Legions and invite 10 members to each — your referral link (Settings → Affiliate Program) is what ties a new signup back to you, and Legion membership is what confirms they actually joined. Both are required for someone to count as a recruit.';
+    howTo.textContent = 'Create up to 5 Legions and invite 10 members to each — your referral link below is what ties a new signup back to you, and Legion membership is what confirms they actually joined. Both are required for someone to count as a recruit.';
     body.appendChild(howTo);
 
     var goToLegions = document.createElement('button');
@@ -17204,6 +17341,10 @@ function renderAlphaBrowser() {
       renderAlphaTaxonomyStep(container);
     } else if (node && node.isCustomGroup && alphaCreatePendingCustomGroup === null) {
       renderAlphaCustomGroupStep(container);
+    } else if (alphaCreatePath.join('.') === 'finances.increaseIncome') {
+      // No questionnaire for this leaf — see renderAlphaIncreaseIncomeHub's
+      // own header comment for why.
+      renderAlphaIncreaseIncomeHub(container);
     } else {
       renderAlphaNameImprovement(container);
     }
